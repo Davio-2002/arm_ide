@@ -1,0 +1,203 @@
+#include "gui/menu.h"
+
+#include <imgui.h>
+#include <imgui_internal.h>
+
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+
+#include "app/session.h"
+#include "gui/dialogs.h"
+#include "gui/panels.h"
+#include "gui/window.h"
+
+struct MenuActions {
+    bool open = false;
+    bool save = false;
+    bool saveAs = false;
+    std::string recentFile;
+    bool zoomIn = false;
+    bool zoomOut = false;
+    bool resetZoom = false;
+    bool build = false;
+    bool run = false;
+    bool stop = false;
+    bool debugContinue = false;
+    bool debugStep = false;
+    bool toggleBreakpoint = false;
+};
+
+void openDocument( Session &session, const std::string &path ) {
+    std::string text;
+    if ( session.openFile( path, text ) ) {
+        setEditorText( text );
+    }
+    ImGui::MarkIniSettingsDirty();
+}
+
+void whenChangesDiscarded( const Session &session, std::function<void()> action ) {
+    if ( !isEditorModified() ) {
+        action();
+        return;
+    }
+    askToDiscardChanges( session.filePath.empty() ? "untitled" : session.filePath,
+                         std::move( action ) );
+}
+
+void openDocumentIfAllowed( Session &session, const std::string &path ) {
+    if ( path.empty() ) {
+        return;
+    }
+    whenChangesDiscarded( session, [&session, path] { openDocument( session, path ); } );
+}
+
+static void saveDocument( Session &session, const std::string &path ) {
+    if ( session.saveFile( path, editorText() ) ) {
+        markEditorSaved();
+    }
+    ImGui::MarkIniSettingsDirty();
+}
+
+static std::string displayPath( const std::string &path ) {
+    const char *home = std::getenv( "HOME" );
+    if ( home && path.starts_with( std::string( home ) + "/" ) ) {
+        return "~" + path.substr( std::strlen( home ) );
+    }
+    return path;
+}
+
+static MenuActions readShortcuts() {
+    ImGuiInputFlags global = ImGuiInputFlags_RouteGlobal;
+    MenuActions actions;
+    actions.open = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_O, global );
+    actions.save = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_S, global );
+    actions.saveAs = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, global );
+    actions.zoomIn = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Equal, global ) ||
+                     ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Equal, global ) ||
+                     ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, global );
+    actions.zoomOut = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Minus, global ) ||
+                      ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, global );
+    actions.resetZoom = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_0, global ) ||
+                        ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Keypad0, global );
+    actions.build = ImGui::Shortcut( ImGuiKey_F7, global );
+    actions.run = ImGui::Shortcut( ImGuiKey_F5, global );
+    actions.stop = ImGui::Shortcut( ImGuiMod_Shift | ImGuiKey_F5, global );
+    actions.debugContinue = ImGui::Shortcut( ImGuiKey_F8, global );
+    actions.debugStep = ImGui::Shortcut( ImGuiKey_F10, global );
+    actions.toggleBreakpoint = ImGui::Shortcut( ImGuiKey_F9, global );
+    return actions;
+}
+
+static void drawMenus( const Session &session, MenuActions &actions ) {
+    if ( !ImGui::BeginMainMenuBar() ) {
+        return;
+    }
+
+    if ( ImGui::BeginMenu( "File" ) ) {
+        actions.open |= ImGui::MenuItem( "Open...", "Ctrl+O" );
+        if ( ImGui::BeginMenu( "Open Recent", !session.recentFiles.empty() ) ) {
+            for ( const std::string &path : session.recentFiles ) {
+                if ( ImGui::MenuItem( displayPath( path ).c_str() ) ) {
+                    actions.recentFile = path;
+                }
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::Separator();
+        actions.save |= ImGui::MenuItem( "Save", "Ctrl+S" );
+        actions.saveAs |= ImGui::MenuItem( "Save As...", "Ctrl+Shift+S" );
+        ImGui::EndMenu();
+    }
+    if ( ImGui::BeginMenu( "View" ) ) {
+        actions.zoomIn |= ImGui::MenuItem( "Zoom In", "Ctrl+=" );
+        actions.zoomOut |= ImGui::MenuItem( "Zoom Out", "Ctrl+-" );
+        actions.resetZoom |= ImGui::MenuItem( "Reset Zoom", "Ctrl+0" );
+        ImGui::EndMenu();
+    }
+    if ( ImGui::BeginMenu( "Build" ) ) {
+        actions.build |= ImGui::MenuItem( "Build", "F7" );
+        ImGui::EndMenu();
+    }
+    if ( ImGui::BeginMenu( "Run" ) ) {
+        actions.run |= ImGui::MenuItem( "Build and Run", "F5" );
+        actions.stop |= ImGui::MenuItem( "Stop", "Shift+F5", false, session.isProgramActive() );
+        ImGui::EndMenu();
+    }
+    if ( ImGui::BeginMenu( "Debug" ) ) {
+        const char *continueLabel = session.isDebugging() ? "Continue" : "Start Debugging";
+        actions.debugContinue |= ImGui::MenuItem( continueLabel, "F8" );
+        actions.debugStep |= ImGui::MenuItem( "Step", "F10" );
+        actions.toggleBreakpoint |= ImGui::MenuItem( "Toggle Breakpoint", "F9" );
+        ImGui::EndMenu();
+    }
+
+    ImGui::TextDisabled( "%s", session.status.c_str() );
+    ImGui::EndMainMenuBar();
+}
+
+static void runProgramActions( Session &session, const MenuActions &actions ) {
+    if ( actions.run ) {
+        session.run();
+    } else if ( actions.debugContinue ) {
+        session.debugContinue();
+    } else if ( actions.debugStep ) {
+        session.debugStep();
+    } else if ( actions.build ) {
+        session.build();
+    }
+}
+
+static void runActions( Session &session, const MenuActions &actions ) {
+    if ( actions.zoomIn ) {
+        zoomCode( 2.0f );
+    }
+    if ( actions.zoomOut ) {
+        zoomCode( -2.0f );
+    }
+    if ( actions.resetZoom ) {
+        resetZoom();
+    }
+
+    if ( actions.stop ) {
+        session.stop();
+    }
+    if ( actions.toggleBreakpoint ) {
+        session.toggleBreakpoint( editorCursorLine() );
+    }
+    if ( actions.open ) {
+        whenChangesDiscarded( session, [&session] {
+            std::string directory = std::filesystem::path( session.filePath ).parent_path();
+            askForFileToOpen( directory, [&session]( const std::string &path ) {
+                openDocument( session, path );
+            } );
+        } );
+    }
+    if ( !actions.recentFile.empty() ) {
+        openDocumentIfAllowed( session, actions.recentFile );
+    }
+
+    bool startsDebugging = ( actions.debugContinue || actions.debugStep ) && !session.isDebugging();
+    bool rebuilds = actions.build || actions.run || startsDebugging;
+    bool needsPath = ( actions.save || rebuilds ) && session.filePath.empty();
+    if ( actions.saveAs || needsPath ) {
+        std::string suggestedPath = session.filePath.empty() ? "untitled.s" : session.filePath;
+        askForFileToSave( suggestedPath, [&session, actions]( const std::string &path ) {
+            saveDocument( session, path );
+            runProgramActions( session, actions );
+        } );
+        return;
+    }
+    if ( actions.save || rebuilds ) {
+        saveDocument( session, session.filePath );
+    }
+    runProgramActions( session, actions );
+}
+
+void drawMenuBar( Session &session ) {
+    MenuActions actions = readShortcuts();
+    drawMenus( session, actions );
+    if ( !isDialogOpen() ) {
+        runActions( session, actions );
+    }
+}

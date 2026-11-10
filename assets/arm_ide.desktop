@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ARM IDE
+Comment=AArch64 assembly IDE
+Exec=arm_ide %f
+Icon=arm_ide
+Terminal=false
+Categories=Development;IDE;
+StartupWMClass=arm_ide
