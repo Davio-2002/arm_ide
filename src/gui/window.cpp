@@ -28,24 +28,14 @@ static Session *settingsSession = nullptr;
 
 // Wayland takes the icon from the .desktop file matching the app id instead.
 static void setWindowIcon( GLFWwindow *window ) {
-    static constexpr unsigned char pixels[] = {
-#embed "../../assets/icon_32.rgba"
+    static unsigned char pixels[] = {
+#embed "../../assets/icon.rgba"
     };
-    constexpr int size = 32;
-    constexpr int scales[] = { 1, 2, 4, 8 };
-    std::vector<unsigned char> scaled[std::size( scales )];
     std::vector<GLFWimage> images;
-    for ( size_t i = 0; i < std::size( scales ); ++i ) {
-        int scale = scales[i];
-        int scaledSize = size * scale;
-        scaled[i].resize( scaledSize * scaledSize * 4 );
-        for ( int y = 0; y < scaledSize; ++y ) {
-            for ( int x = 0; x < scaledSize; ++x ) {
-                std::copy_n( &pixels[( ( y / scale ) * size + x / scale ) * 4], 4,
-                             &scaled[i][( y * scaledSize + x ) * 4] );
-            }
-        }
-        images.push_back( { scaledSize, scaledSize, scaled[i].data() } );
+    unsigned char *image = pixels;
+    for ( int size : { 32, 64, 128, 256 } ) {
+        images.push_back( { size, size, image } );
+        image += size * size * 4;
     }
     glfwSetWindowIcon( window, static_cast<int>( images.size() ), images.data() );
 }

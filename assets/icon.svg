@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26282e"/>
+      <stop offset="1" stop-color="#0c0d10"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.3" cy="0.05" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#fb4934"/>
+      <stop offset="0.55" stop-color="#fe8019"/>
+      <stop offset="1" stop-color="#fabd2f"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.25" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4ead2"/>
+      <stop offset="1" stop-color="#cfc2a6"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="70"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+    <!-- squircle -->
+    <path id="tile" d="M300 80H724C874 80 944 150 944 300V724C944 874 874 944 724 944H300C150 944 80 874 80 724V300C80 150 150 80 300 80Z"/>
+    <clipPath id="clip"><use href="#tile"/></clipPath>
+  </defs>
+
+  <use href="#tile" fill="#000" opacity="0.45" transform="translate(0 14)" filter="url(#shadow)"/>
+  <use href="#tile" fill="url(#body)"/>
+
+  <g clip-path="url(#clip)">
+    <!-- warm glow rising from the lower right corner -->
+    <circle cx="900" cy="980" r="300" fill="url(#accent)" opacity="0.38" filter="url(#glow)"/>
+    <!-- JetBrains-style shard -->
+    <path d="M1000 600 L1000 1000 L560 1000 Z" fill="url(#accent)" opacity="0.9"/>
+    <path d="M1000 600 L560 1000" stroke="#fff3d0" stroke-opacity="0.5" stroke-width="3"/>
+    <use href="#tile" fill="url(#sheen)"/>
+  </g>
+
+  <use href="#tile" fill="none" stroke="url(#rim)" stroke-width="4"/>
+
+  <!-- mark: an A drawn as a caret, with an editor cursor under it -->
+  <g filter="url(#shadow)">
+    <path d="M340 632 L484 360 Q512 312 540 360 L684 632" fill="none" stroke="url(#mark)"
+          stroke-width="68" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="340" y="712" width="184" height="52" rx="10" fill="url(#mark)"/>
+  </g>
+</svg>
