@@ -100,6 +100,9 @@ static void beginPanel( const char *name, ImGuiWindowFlags flags = 0 ) {
 }
 
 static void drawEditor() {
+    ImGuiWindowClass withoutDockTabBar;
+    withoutDockTabBar.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoTabBar;
+    ImGui::SetNextWindowClass( &withoutDockTabBar );
     beginPanel( "Editor" );
     drawCodeEditor();
     ImGui::End();

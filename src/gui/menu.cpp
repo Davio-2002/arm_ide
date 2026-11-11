@@ -15,30 +15,25 @@
 void openDocument( Session &session, const std::string &path ) {
     std::string text;
     if ( session.openFile( path, text ) ) {
-        setEditorText( text );
+        openInEditor( session.filePath, text );
     }
     ImGui::MarkIniSettingsDirty();
 }
 
-void whenChangesDiscarded( const Session &session, std::function<void()> action ) {
-    if ( !isEditorModified() ) {
+void whenChangesDiscarded( std::function<void()> action ) {
+    std::vector<std::string> unsaved = unsavedDocumentNames();
+    if ( unsaved.empty() ) {
         action();
         return;
     }
-    askToDiscardChanges( session.filePath.empty() ? "untitled" : session.filePath,
-                         std::move( action ) );
-}
-
-void openDocumentIfAllowed( Session &session, const std::string &path ) {
-    if ( path.empty() ) {
-        return;
-    }
-    whenChangesDiscarded( session, [&session, path] { openDocument( session, path ); } );
+    std::string what =
+        unsaved.size() == 1 ? unsaved.front() : std::to_string( unsaved.size() ) + " files";
+    askToDiscardChanges( what, std::move( action ) );
 }
 
 static void saveDocument( Session &session, const std::string &path ) {
     if ( session.saveFile( path, editorText() ) ) {
-        markEditorSaved();
+        markEditorSaved( session.filePath );
     }
     ImGui::MarkIniSettingsDirty();
 }
@@ -148,18 +143,15 @@ static void runActions( Session &session, const MenuActions &actions ) {
         session.stop();
     }
     if ( actions.toggleBreakpoint ) {
-        session.toggleBreakpoint( editorCursorLine() );
+        session.toggleBreakpoint( session.filePath, editorCursorLine() );
     }
     if ( actions.open ) {
-        whenChangesDiscarded( session, [&session] {
-            std::string directory = std::filesystem::path( session.filePath ).parent_path();
-            askForFileToOpen( directory, [&session]( const std::string &path ) {
-                openDocument( session, path );
-            } );
-        } );
+        std::string directory = std::filesystem::path( session.filePath ).parent_path();
+        askForFileToOpen(
+            directory, [&session]( const std::string &path ) { openDocument( session, path ); } );
     }
     if ( !actions.recentFile.empty() ) {
-        openDocumentIfAllowed( session, actions.recentFile );
+        openDocument( session, actions.recentFile );
     }
 
     bool startsDebugging = ( actions.debugContinue || actions.debugStep ) && !session.isDebugging();

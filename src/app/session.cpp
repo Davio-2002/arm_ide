@@ -8,6 +8,10 @@
 static const size_t maxRecentFiles = 10;
 static const uint64_t emulatorSliceMicroseconds = 10000;
 
+static std::string absolutePath( const std::string &path ) {
+    return std::filesystem::absolute( path ).lexically_normal();
+}
+
 bool Session::openFile( const std::string &path, std::string &text ) {
     if ( !std::filesystem::exists( path ) ) {
         std::erase( recentFiles, path );
@@ -24,8 +28,7 @@ bool Session::openFile( const std::string &path, std::string &text ) {
     std::stringstream content;
     content << file.rdbuf();
     text = content.str();
-    filePath = path;
-    setLineMarks( {} );
+    filePath = absolutePath( path );
     status = "Opened " + path;
     addRecentFile( path );
     return true;
@@ -39,7 +42,12 @@ bool Session::saveFile( const std::string &path, const std::string &text ) {
         return false;
     }
 
-    filePath = path;
+    std::string savedPath = absolutePath( path );
+    if ( savedPath != filePath ) {
+        breakpoints[savedPath] = std::move( breakpoints[filePath] );
+        breakpoints.erase( filePath );
+    }
+    filePath = savedPath;
     status = "Saved " + path;
     addRecentFile( path );
     return true;
@@ -49,6 +57,7 @@ bool Session::build() {
     stopActiveProgram();
     console.clear();
     executablePath.clear();
+    programFilePath = filePath;
 
     BuildResult build = buildProgram( filePath );
     std::vector<LineMark> marks;
@@ -116,14 +125,15 @@ void Session::stop() {
     printResult( "Program stopped", MessageKind::Warning );
 }
 
-void Session::toggleBreakpoint( int line ) {
-    if ( breakpoints.contains( line ) ) {
-        breakpoints.erase( line );
+void Session::toggleBreakpoint( const std::string &path, int line ) {
+    std::set<int> &lines = breakpoints[path];
+    if ( lines.contains( line ) ) {
+        lines.erase( line );
     } else {
-        breakpoints.insert( line );
+        lines.insert( line );
     }
-    if ( isDebugging() ) {
-        setBreakpointLines( emulator, breakpoints );
+    if ( isDebugging() && path == programFilePath ) {
+        setBreakpointLines( emulator, lines );
     }
 }
 
@@ -152,10 +162,14 @@ bool Session::readMemory( uint64_t address, uint8_t &byte ) const {
     return isPaused() && readMemoryByte( emulator, address, byte );
 }
 
+bool Session::hasBreakpoint( const std::string &path, int line ) const {
+    auto lines = breakpoints.find( path );
+    return lines != breakpoints.end() && lines->second.contains( line );
+}
+
 void Session::addRecentFile( const std::string &path ) {
-    std::string absolutePath = std::filesystem::absolute( path ).lexically_normal();
-    std::erase( recentFiles, absolutePath );
-    recentFiles.insert( recentFiles.begin(), absolutePath );
+    std::erase( recentFiles, absolutePath( path ) );
+    recentFiles.insert( recentFiles.begin(), absolutePath( path ) );
     if ( recentFiles.size() > maxRecentFiles ) {
         recentFiles.resize( maxRecentFiles );
     }
@@ -210,7 +224,7 @@ void Session::startDebugging( bool pauseAtEntry ) {
         printResult( emulator.error, MessageKind::Error );
         return;
     }
-    setBreakpointLines( emulator, breakpoints );
+    setBreakpointLines( emulator, breakpoints[programFilePath] );
     programLineOpen = false;
     registers = readRegisters( emulator );
     hasRegisters = true;

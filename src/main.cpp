@@ -21,7 +21,7 @@ static void handleCloseRequest( GLFWwindow *window ) {
     }
     glfwSetWindowShouldClose( window, GLFW_FALSE );
     if ( !isDialogOpen() ) {
-        whenChangesDiscarded( session, [] { quitRequested = true; } );
+        whenChangesDiscarded( [] { quitRequested = true; } );
     }
 }
 
@@ -53,8 +53,8 @@ int main( int argc, char **argv ) {
         glfwWaitEventsTimeout( session.isProgramBusy() ? 0.001 : 0.1 );
         session.update();
         std::string droppedFile = takeDroppedFile();
-        if ( !isDialogOpen() ) {
-            openDocumentIfAllowed( session, droppedFile );
+        if ( !droppedFile.empty() && !isDialogOpen() ) {
+            openDocument( session, droppedFile );
         }
 
         beginFrame();

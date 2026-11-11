@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -26,7 +27,7 @@ class Session {
     void debugContinue();
     void debugStep();
     void stop();
-    void toggleBreakpoint( int line );
+    void toggleBreakpoint( const std::string &path, int line );
     void update();
 
     bool isDebugging() const;
@@ -34,8 +35,11 @@ class Session {
     bool isProgramActive() const;
     bool isProgramBusy() const;
     bool readMemory( uint64_t address, uint8_t &byte ) const;
+    bool hasBreakpoint( const std::string &path, int line ) const;
 
     std::string filePath;
+    // The file last built: lineMarks, lineToReveal and pausedLine are lines of this file.
+    std::string programFilePath;
     std::string status;
     std::vector<std::string> recentFiles;
     std::vector<Message> console;
@@ -44,7 +48,7 @@ class Session {
     int lineMarksVersion = 0;
     int lineToReveal = 0;
 
-    std::set<int> breakpoints;
+    std::map<std::string, std::set<int>> breakpoints;
     int pausedLine = 0;
     Registers registers;
     Registers previousRegisters;

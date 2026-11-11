@@ -27,5 +27,5 @@ MenuActions drawMenuBar( const Session &session );
 void runMenuActions( Session &session, const MenuActions &actions );
 
 void openDocument( Session &session, const std::string &path );
-void whenChangesDiscarded( const Session &session, std::function<void()> action );
-void openDocumentIfAllowed( Session &session, const std::string &path );
+// Runs the action at once, or after the user agrees to drop the changes of unsaved tabs.
+void whenChangesDiscarded( std::function<void()> action );
