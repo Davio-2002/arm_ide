@@ -5,6 +5,7 @@
 
 #include <app/session.h>
 #include <gui/dialogs.h>
+#include <gui/editor.h>
 #include <gui/icons.h>
 #include <gui/menu.h>
 #include <gui/panels.h>

@@ -54,6 +54,7 @@ add_executable(arm_ide
     src/gui/dialogs.cpp
     src/gui/menu.cpp
     src/gui/panels.cpp
+    src/gui/editor.cpp
     src/gui/theme.cpp
     src/gui/icons.cpp
     src/gui/toolbar.cpp
