@@ -11,8 +11,10 @@
 
 #include <app/session.h>
 #include <gui/aarch64_language.h>
+#include <gui/menu.h>
 #include <gui/panels.h>
 #include <gui/theme.h>
+#include <gui/toolbar.h>
 #include <gui/window.h>
 
 static const uint64_t memoryRowSize = 8;
@@ -241,8 +243,20 @@ static void drawEditor() {
     ImGui::End();
 }
 
-static void drawConsole( const Session &session ) {
-    beginPanel( "Console", ImGuiWindowFlags_HorizontalScrollbar );
+static void drawDebugButtons( const Session &session, MenuActions &actions ) {
+    bool paused = session.isPaused();
+    actions.debugContinue |= iconButton( "##resume", Icon::Resume, "Resume  F8", paused );
+    ImGui::SameLine();
+    actions.debugStep |= iconButton( "##step", Icon::StepOver, "Step  F10", paused );
+    ImGui::SameLine();
+    actions.stop |= iconButton( "##stop", Icon::Stop, "Stop  Shift+F5", session.isProgramActive() );
+}
+
+static void drawConsole( const Session &session, MenuActions &actions ) {
+    beginPanel( "Console" );
+    drawDebugButtons( session, actions );
+    ImGui::BeginChild( "##log", ImVec2( 0.0f, 0.0f ), ImGuiChildFlags_None,
+                       ImGuiWindowFlags_HorizontalScrollbar );
     pushCodeFont();
     bool wasAtBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
 
@@ -267,6 +281,7 @@ static void drawConsole( const Session &session ) {
         ImGui::SetScrollHereY( 1.0f );
     }
     ImGui::PopFont();
+    ImGui::EndChild();
     ImGui::End();
 }
 
@@ -402,11 +417,11 @@ static void drawMemory( const Session &session ) {
     ImGui::End();
 }
 
-void drawPanels( Session &session ) {
+void drawPanels( Session &session, MenuActions &actions ) {
     syncEditorWithSession( session );
     drawDockSpace();
     drawEditor();
-    drawConsole( session );
+    drawConsole( session, actions );
     drawRegisters( session );
     drawMemory( session );
 }

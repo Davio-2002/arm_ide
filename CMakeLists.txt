@@ -12,7 +12,12 @@ FetchContent_Declare(imgui
 FetchContent_Declare(text_editor
     GIT_REPOSITORY https://github.com/goossens/ImGuiColorTextEdit.git
     GIT_TAG 0a489da863f22f7493049f5c6eb85355f405b02e)
-FetchContent_MakeAvailable(imgui text_editor)
+
+    FetchContent_Declare(nanosvg
+    GIT_REPOSITORY https://github.com/memononen/nanosvg.git
+    GIT_TAG 239e102ec2c691f2902e20ace2ed36ee4a35cfe6
+    SOURCE_SUBDIR no-cmake)
+FetchContent_MakeAvailable(imgui text_editor nanosvg)
 
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
@@ -50,14 +55,24 @@ add_executable(arm_ide
     src/gui/menu.cpp
     src/gui/panels.cpp
     src/gui/theme.cpp
+    src/gui/icons.cpp
+    src/gui/toolbar.cpp
     src/gui/aarch64_language.cpp
     src/gui/aarch64_words.cpp)
+target_include_directories(arm_ide PRIVATE ${nanosvg_SOURCE_DIR}/src)
 target_link_libraries(arm_ide PRIVATE arm_ide_core imgui)
 
-# Window icon pixels as a C byte list (#embed needs clang 19+, Ubuntu 24.04 ships clang 18).
-set(ICON_RGBA ${CMAKE_SOURCE_DIR}/assets/icon.rgba)
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${ICON_RGBA})
-file(READ ${ICON_RGBA} iconHex HEX)
-string(REGEX REPLACE "(..)" "0x\\1," iconBytes "${iconHex}")
-file(CONFIGURE OUTPUT ${CMAKE_BINARY_DIR}/generated/icon_rgba.inc CONTENT "${iconBytes}\n")
+# Files compiled in as C byte lists for #include (#embed needs clang 19+, Ubuntu 24.04 ships
+# clang 18).
+function(embed_as_bytes input output)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${input})
+    file(READ ${input} hex HEX)
+    string(REGEX REPLACE "(..)" "0x\\1," bytes "${hex}")
+    file(CONFIGURE OUTPUT ${CMAKE_BINARY_DIR}/generated/${output} CONTENT "${bytes}\n")
+endfunction()
+
+embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/icon.rgba icon_rgba.inc)
+foreach(icon build run debug stop resume stepOver)
+    embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/icons/${icon}.svg ${icon}_svg.inc)
+endforeach()
 target_include_directories(arm_ide PRIVATE ${CMAKE_BINARY_DIR}/generated)

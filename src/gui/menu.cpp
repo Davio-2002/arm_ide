@@ -9,23 +9,8 @@
 #include <gui/dialogs.h>
 #include <gui/menu.h>
 #include <gui/panels.h>
+#include <gui/toolbar.h>
 #include <gui/window.h>
-
-struct MenuActions {
-    bool open = false;
-    bool save = false;
-    bool saveAs = false;
-    std::string recentFile;
-    bool zoomIn = false;
-    bool zoomOut = false;
-    bool resetZoom = false;
-    bool build = false;
-    bool run = false;
-    bool stop = false;
-    bool debugContinue = false;
-    bool debugStep = false;
-    bool toggleBreakpoint = false;
-};
 
 void openDocument( Session &session, const std::string &path ) {
     std::string text;
@@ -132,6 +117,7 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
     }
 
     ImGui::TextDisabled( "%s", session.status.c_str() );
+    drawToolbar( session, actions );
     ImGui::EndMainMenuBar();
 }
 
@@ -193,9 +179,13 @@ static void runActions( Session &session, const MenuActions &actions ) {
     runProgramActions( session, actions );
 }
 
-void drawMenuBar( Session &session ) {
+MenuActions drawMenuBar( const Session &session ) {
     MenuActions actions = readShortcuts();
     drawMenus( session, actions );
+    return actions;
+}
+
+void runMenuActions( Session &session, const MenuActions &actions ) {
     if ( !isDialogOpen() ) {
         runActions( session, actions );
     }
