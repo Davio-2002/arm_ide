@@ -51,7 +51,8 @@ int main( int argc, char **argv ) {
     openStartupFile( argc, argv );
 
     while ( !quitRequested ) {
-        glfwWaitEventsTimeout( session.isProgramBusy() ? 0.001 : 0.1 );
+        bool busy = session.isProgramBusy() || session.isTerminalBusy();
+        glfwWaitEventsTimeout( busy ? 0.001 : 0.1 );
         session.update();
         std::string droppedFile = takeDroppedFile();
         if ( !droppedFile.empty() && !isDialogOpen() ) {
@@ -70,5 +71,6 @@ int main( int argc, char **argv ) {
     }
 
     session.stop();
+    session.stopTerminal();
     shutdownWindow( window );
 }

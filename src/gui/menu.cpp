@@ -150,9 +150,10 @@ static void runActions( Session &session, const MenuActions &actions ) {
     if ( actions.clearOutput ) {
         session.clearOutput();
     }
-    if ( !actions.terminalCommand.empty() ) {
-        session.runTerminalCommand( actions.terminalCommand );
+    if ( actions.terminalRows > 0 && actions.terminalColumns > 0 ) {
+        session.openTerminal( actions.terminalRows, actions.terminalColumns );
     }
+    session.sendTerminalInput( actions.terminalInputs, actions.terminalPaste );
     if ( actions.stopTerminal ) {
         session.stopTerminal();
     }

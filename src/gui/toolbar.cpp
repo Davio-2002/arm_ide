@@ -41,7 +41,7 @@ static bool beginDropdown( const char *id, const std::string &label, ImU32 backg
         ImGui::OpenPopup( id );
     }
 
-    ImU32 fill = ImGui::IsItemHovered() ? selectedColor : background;
+    ImU32 fill = ImGui::IsItemHovered() ? activeColor : background;
     ImVec2 bottomRight( topLeft.x + size.x, topLeft.y + size.y );
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled( topLeft, bottomRight, fill, ImGui::GetStyle().FrameRounding );

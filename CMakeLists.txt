@@ -39,14 +39,16 @@ target_link_libraries(imgui PUBLIC glfw OpenGL::GL Freetype::Freetype)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(UNICORN REQUIRED IMPORTED_TARGET unicorn)
+pkg_check_modules(VTERM REQUIRED IMPORTED_TARGET vterm)
 
 add_library(arm_ide_core STATIC
     src/core/process.cpp
     src/core/toolchain.cpp
     src/core/emulator.cpp
+    src/core/terminal.cpp
     src/app/session.cpp)
 target_include_directories(arm_ide_core PUBLIC src)
-target_link_libraries(arm_ide_core PUBLIC PkgConfig::UNICORN)
+target_link_libraries(arm_ide_core PUBLIC PkgConfig::UNICORN PkgConfig::VTERM util)
 
 add_executable(arm_ide
     src/main.cpp
@@ -60,6 +62,7 @@ add_executable(arm_ide
     src/gui/toolbar.cpp
     src/gui/widgets.cpp
     src/gui/statusbar.cpp
+    src/gui/terminal_view.cpp
     src/gui/aarch64_language.cpp
     src/gui/aarch64_words.cpp)
 target_include_directories(arm_ide PRIVATE ${nanosvg_SOURCE_DIR}/src)

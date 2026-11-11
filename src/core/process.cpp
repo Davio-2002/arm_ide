@@ -1,49 +1,31 @@
-#include <csignal>
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <core/process.h>
 
-static void closePipe( int fds[2] ) {
-    if ( fds[0] >= 0 ) {
-        close( fds[0] );
-        close( fds[1] );
-    }
-}
-
-// The child gets its own process group, so stopping it also stops what it started.
 static pid_t spawnProcess( const std::vector<std::string> &args, const std::string &directory,
-                           int &outputFd, int *inputFd = nullptr ) {
+                           int &outputFd ) {
     int pipeFds[2];
-    int inputFds[2] = { -1, -1 };
     if ( pipe( pipeFds ) != 0 ) {
-        return -1;
-    }
-    if ( inputFd && pipe( inputFds ) != 0 ) {
-        closePipe( pipeFds );
         return -1;
     }
 
     pid_t pid = fork();
     if ( pid < 0 ) {
-        closePipe( pipeFds );
-        closePipe( inputFds );
+        close( pipeFds[0] );
+        close( pipeFds[1] );
         return -1;
     }
 
     if ( pid == 0 ) {
-        setpgid( 0, 0 );
-        signal( SIGPIPE, SIG_DFL );
-        int stdinFd = inputFd ? inputFds[0] : open( "/dev/null", O_RDONLY );
-        dup2( stdinFd, STDIN_FILENO );
+        int nullFd = open( "/dev/null", O_RDONLY );
+        dup2( nullFd, STDIN_FILENO );
         dup2( pipeFds[1], STDOUT_FILENO );
         dup2( pipeFds[1], STDERR_FILENO );
-        if ( !inputFd ) {
-            close( stdinFd );
-        }
-        closePipe( inputFds );
-        closePipe( pipeFds );
+        close( nullFd );
+        close( pipeFds[0] );
+        close( pipeFds[1] );
         if ( !directory.empty() && chdir( directory.c_str() ) != 0 ) {
             dprintf( STDERR_FILENO, "Cannot enter %s\n", directory.c_str() );
             _exit( 127 );
@@ -59,31 +41,14 @@ static pid_t spawnProcess( const std::vector<std::string> &args, const std::stri
         _exit( 127 );
     }
 
-    setpgid( pid, pid );
     close( pipeFds[1] );
     outputFd = pipeFds[0];
-    if ( inputFd ) {
-        close( inputFds[0] );
-        *inputFd = inputFds[1];
-    }
     return pid;
 }
 
-static void closeProcessPipes( Process &process ) {
-    close( process.outputFd );
-    if ( process.inputFd >= 0 ) {
-        close( process.inputFd );
-    }
-    process.pid = -1;
-    process.outputFd = -1;
-    process.inputFd = -1;
-}
-
-Process startProcess( const std::vector<std::string> &args, const std::string &directory,
-                      bool withInput ) {
+Process startProcess( const std::vector<std::string> &args ) {
     Process process;
-    process.pid =
-        spawnProcess( args, directory, process.outputFd, withInput ? &process.inputFd : nullptr );
+    process.pid = spawnProcess( args, "", process.outputFd );
     if ( isRunning( process ) ) {
         fcntl( process.outputFd, F_SETFL, O_NONBLOCK );
     }
@@ -102,25 +67,21 @@ std::string pollProcess( Process &process ) {
     }
 
     if ( exited ) {
-        closeProcessPipes( process );
+        close( process.outputFd );
+        process.pid = -1;
+        process.outputFd = -1;
         process.exitCode = WIFEXITED( status ) ? WEXITSTATUS( status ) : 0;
         process.signal = WIFSIGNALED( status ) ? WTERMSIG( status ) : 0;
     }
     return output;
 }
 
-// A process that has exited makes write fail with EPIPE instead of raising SIGPIPE.
-bool writeToProcess( Process &process, const std::string &text ) {
-    signal( SIGPIPE, SIG_IGN );
-    return isRunning( process ) && process.inputFd >= 0 &&
-           write( process.inputFd, text.data(), text.size() ) ==
-               static_cast<ssize_t>( text.size() );
-}
-
 void stopProcess( Process &process ) {
-    kill( -process.pid, SIGKILL );
+    kill( process.pid, SIGKILL );
     waitpid( process.pid, nullptr, 0 );
-    closeProcessPipes( process );
+    close( process.outputFd );
+    process.pid = -1;
+    process.outputFd = -1;
     process.exitCode = 0;
     process.signal = SIGKILL;
 }

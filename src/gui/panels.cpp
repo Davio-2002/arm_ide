@@ -9,6 +9,7 @@
 #include <gui/editor.h>
 #include <gui/menu.h>
 #include <gui/panels.h>
+#include <gui/terminal_view.h>
 #include <gui/theme.h>
 #include <gui/widgets.h>
 #include <gui/window.h>
@@ -19,7 +20,6 @@ static const uint64_t memoryRowCount = 64;
 static const float toolStripWidth = 44.0f;
 
 static char memoryAddressInput[64] = "sp";
-static char terminalInput[1024] = "";
 static bool showRegisters = true;
 static bool showMemory = true;
 
@@ -171,6 +171,9 @@ static void drawOutputTab( const char *id, const char *label, OutputTab tab, boo
     pill.selected = shownOutputTab == tab;
     if ( drawPillTab( id, pill ) == TabClick::Select ) {
         shownOutputTab = tab;
+        if ( tab == OutputTab::Terminal ) {
+            focusTerminalView();
+        }
     }
 }
 
@@ -199,7 +202,8 @@ static void drawConsoleHeader( const Session &session, MenuActions &actions ) {
     pushHeaderButtonPadding();
     if ( showsTerminal ) {
         actions.stopTerminal |=
-            iconButton( "##stopShell", Icon::Stop, "Stop the shell", session.isTerminalRunning() );
+            iconButton( "##stopShell", Icon::Stop, "Kill the shell and start a new one",
+                        isRunning( session.terminal ) );
     } else {
         drawDebugButtons( session, actions );
     }
@@ -218,7 +222,6 @@ struct MessageSelection {
 
 static MessageSelection consoleSelection;
 static MessageSelection buildSelection;
-static MessageSelection terminalSelection;
 
 static void copyMessages( const std::vector<Message> &messages,
                           const ImGuiSelectionBasicStorage *selection ) {
@@ -299,27 +302,6 @@ static void drawMessages( const std::vector<Message> &messages, MessageSelection
     ImGui::EndChild();
 }
 
-// The shell's output above a line to type commands into, prompted by the shell's folder.
-static void drawTerminal( const Session &session, MenuActions &actions ) {
-    float inputHeight = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.y;
-    drawMessages( session.terminal, terminalSelection, -inputHeight );
-
-    pushCodeFont();
-    std::string directory = session.terminalDirectory();
-    std::string prompt = ( directory.empty() ? "" : displayPath( directory ) + " " ) + "$";
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextDisabled( "%s", prompt.c_str() );
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth( -FLT_MIN );
-    if ( ImGui::InputText( "##terminalInput", terminalInput, sizeof( terminalInput ),
-                           ImGuiInputTextFlags_EnterReturnsTrue ) ) {
-        actions.terminalCommand = terminalInput;
-        terminalInput[0] = '\0';
-        ImGui::SetKeyboardFocusHere( -1 );
-    }
-    ImGui::PopFont();
-}
-
 static void drawConsole( const Session &session, MenuActions &actions ) {
     followLatestBuild( session );
     beginPanel( "Console" );
@@ -332,7 +314,7 @@ static void drawConsole( const Session &session, MenuActions &actions ) {
         drawMessages( session.buildLog, buildSelection );
         break;
     case OutputTab::Terminal:
-        drawTerminal( session, actions );
+        drawTerminalView( session, actions );
         break;
     }
     ImGui::End();

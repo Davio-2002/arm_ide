@@ -9,24 +9,27 @@ static const float tabIconGap = 6.0f;
 static const float closeSize = 16.0f;
 
 static bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool enabled,
-                            ImU32 background ) {
-    ImGui::PushStyleColor( ImGuiCol_Button, background );
-    ImGui::PushStyleColor( ImGuiCol_ButtonHovered, selectedColor );
-    ImGui::PushStyleColor( ImGuiCol_ButtonActive, borderColor );
+                            bool active ) {
+    ImGui::PushStyleColor( ImGuiCol_Button, active ? activeColor : transparentColor );
+    ImGui::PushStyleColor( ImGuiCol_ButtonHovered, activeColor );
+    ImGui::PushStyleColor( ImGuiCol_ButtonActive, activeColor );
+    ImGui::PushStyleColor( ImGuiCol_Border, activeBorderColor );
+    ImGui::PushStyleVar( ImGuiStyleVar_FrameBorderSize, active ? 1.0f : 0.0f );
     ImGui::BeginDisabled( !enabled );
     bool clicked = ImGui::ImageButton( id, iconTexture( icon ), ImVec2( iconSize, iconSize ) );
     ImGui::SetItemTooltip( "%s", tooltip );
     ImGui::EndDisabled();
-    ImGui::PopStyleColor( 3 );
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor( 4 );
     return clicked;
 }
 
 bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled ) {
-    return drawIconButton( id, icon, tooltip, enabled, transparentColor );
+    return drawIconButton( id, icon, tooltip, enabled, false );
 }
 
 void iconToggle( const char *id, Icon icon, const char *tooltip, bool &on ) {
-    if ( drawIconButton( id, icon, tooltip, true, on ? selectedColor : transparentColor ) ) {
+    if ( drawIconButton( id, icon, tooltip, true, on ) ) {
         on = !on;
     }
 }
@@ -68,9 +71,12 @@ TabClick drawPillTab( const char *id, const PillTab &tab ) {
 
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     ImVec2 bottomRight( topLeft.x + size.x, topLeft.y + size.y );
-    if ( tab.selected || hovered ) {
-        ImU32 fill = tab.selected ? selectedColor : hoveredColor;
-        drawList->AddRectFilled( topLeft, bottomRight, fill, ImGui::GetStyle().FrameRounding );
+    float rounding = ImGui::GetStyle().FrameRounding;
+    if ( tab.selected ) {
+        drawList->AddRectFilled( topLeft, bottomRight, activeColor, rounding );
+        drawList->AddRect( topLeft, bottomRight, activeBorderColor, rounding );
+    } else if ( hovered ) {
+        drawList->AddRectFilled( topLeft, bottomRight, activeColor, rounding );
     }
 
     float x = topLeft.x + tabPadding;

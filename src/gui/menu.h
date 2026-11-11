@@ -2,6 +2,9 @@
 
 #include <functional>
 #include <string>
+#include <vector>
+
+#include <core/terminal.h>
 
 class Session;
 
@@ -20,7 +23,10 @@ struct MenuActions {
     bool debugStep = false;
     bool toggleBreakpoint = false;
     bool clearOutput = false;
-    std::string terminalCommand;
+    int terminalRows = 0; // set while the Terminal tab is shown
+    int terminalColumns = 0;
+    std::vector<TerminalInput> terminalInputs;
+    std::string terminalPaste;
     bool stopTerminal = false;
     bool clearTerminal = false;
 };

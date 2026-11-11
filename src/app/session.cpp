@@ -9,25 +9,6 @@
 static const size_t maxRecentFiles = 10;
 static const uint64_t emulatorSliceMicroseconds = 10000;
 
-// Appends text to the last line until a newline ends it.
-static void appendOutput( std::vector<Message> &messages, bool &lineOpen,
-                          const std::string &output ) {
-    for ( char c : output ) {
-        if ( c == '\n' ) {
-            lineOpen = false;
-            continue;
-        }
-        if ( c == '\r' ) {
-            continue;
-        }
-        if ( !lineOpen ) {
-            messages.push_back( {} );
-            lineOpen = true;
-        }
-        messages.back().text += c;
-    }
-}
-
 static std::string absolutePath( const std::string &path ) {
     return std::filesystem::absolute( path ).lexically_normal();
 }
@@ -166,42 +147,59 @@ void Session::clearOutput() {
     programLineOpen = false;
 }
 
-// One shell lives across commands, so cd and variables persist. It starts in the folder of
-// the edited file and has no terminal: programs that need one (vim, less) do not work.
-void Session::runTerminalCommand( const std::string &command ) {
-    if ( !isRunning( shell ) ) {
-        std::string directory = std::filesystem::path( filePath ).parent_path();
-        const char *home = std::getenv( "HOME" );
-        if ( directory.empty() && home ) {
-            directory = home;
-        }
-        shell = startProcess( { "bash" }, directory, true );
+static std::string terminalStartDirectory( const std::string &filePath ) {
+    std::string directory = std::filesystem::path( filePath ).parent_path();
+    const char *home = std::getenv( "HOME" );
+    return directory.empty() && home ? home : directory;
+}
+
+void Session::openTerminal( int rows, int columns ) {
+    if ( !isRunning( terminal ) && !terminal.exited ) {
+        startTerminal( terminal, terminalStartDirectory( filePath ), rows, columns );
+        terminalActivity = std::chrono::steady_clock::now();
+    } else if ( rows != terminal.rows || columns != terminal.columns ) {
+        resizeTerminal( terminal, rows, columns );
     }
-    terminalLineOpen = false;
-    terminal.push_back( { "$ " + command, MessageKind::Command } );
-    if ( !writeToProcess( shell, command + "\n" ) ) {
-        terminal.push_back( { "Cannot start bash", MessageKind::Error } );
+}
+
+// After the shell exited, a key press starts a new one.
+void Session::sendTerminalInput( const std::vector<TerminalInput> &inputs,
+                                 const std::string &paste ) {
+    if ( inputs.empty() && paste.empty() ) {
+        return;
+    }
+    terminalActivity = std::chrono::steady_clock::now();
+    if ( terminal.exited ) {
+        startTerminal( terminal, terminalStartDirectory( filePath ), terminal.rows,
+                       terminal.columns );
+        return;
+    }
+    for ( const TerminalInput &input : inputs ) {
+        ::sendTerminalInput( terminal, input );
+    }
+    if ( !paste.empty() ) {
+        pasteToTerminal( terminal, paste );
     }
 }
 
 void Session::stopTerminal() {
-    if ( !isRunning( shell ) ) {
-        return;
-    }
-    stopProcess( shell );
-    terminalLineOpen = false;
-    terminal.push_back( { "Shell stopped", MessageKind::Warning } );
+    ::stopTerminal( terminal );
 }
 
 void Session::clearTerminal() {
-    terminal.clear();
-    terminalLineOpen = false;
+    terminal.scrollback.clear();
+    TerminalInput clearScreen;
+    clearScreen.character = U'l';
+    clearScreen.ctrl = true;
+    sendTerminalInput( { clearScreen }, "" );
 }
 
 void Session::update() {
     updateRunningProgram();
     updateEmulator();
-    updateShell();
+    if ( updateTerminal( terminal ) ) {
+        terminalActivity = std::chrono::steady_clock::now();
+    }
 }
 
 bool Session::isDebugging() const {
@@ -224,17 +222,9 @@ bool Session::readMemory( uint64_t address, uint8_t &byte ) const {
     return isPaused() && readMemoryByte( emulator, address, byte );
 }
 
-bool Session::isTerminalRunning() const {
-    return isRunning( shell );
-}
-
-std::string Session::terminalDirectory() const {
-    if ( !isRunning( shell ) ) {
-        return "";
-    }
-    std::error_code ignored;
-    return std::filesystem::read_symlink( "/proc/" + std::to_string( shell.pid ) + "/cwd",
-                                          ignored );
+// Output often follows input by a few milliseconds, so the frame loop stays fast for a while.
+bool Session::isTerminalBusy() const {
+    return std::chrono::steady_clock::now() - terminalActivity < std::chrono::milliseconds( 500 );
 }
 
 bool Session::hasBreakpoint( const std::string &path, int line ) const {
@@ -258,7 +248,17 @@ void Session::setLineMarks( const std::vector<LineMark> &marks ) {
 }
 
 void Session::appendProgramOutput( const std::string &output ) {
-    appendOutput( console, programLineOpen, output );
+    for ( char c : output ) {
+        if ( c == '\n' ) {
+            programLineOpen = false;
+            continue;
+        }
+        if ( !programLineOpen ) {
+            console.push_back( {} );
+            programLineOpen = true;
+        }
+        console.back().text += c;
+    }
 }
 
 void Session::printResult( const std::string &text, MessageKind kind, int sourceLine ) {
@@ -376,16 +376,4 @@ void Session::updateEmulator() {
     }
     runEmulator( emulator, emulatorSliceMicroseconds );
     handleEmulatorState();
-}
-
-void Session::updateShell() {
-    if ( !isRunning( shell ) ) {
-        return;
-    }
-    appendOutput( terminal, terminalLineOpen, pollProcess( shell ) );
-    if ( !isRunning( shell ) ) {
-        terminalLineOpen = false;
-        terminal.push_back( { "Shell exited with code " + std::to_string( shell.exitCode ),
-                              MessageKind::Command } );
-    }
 }

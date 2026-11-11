@@ -109,7 +109,7 @@ TextEditor::Palette editorPalette() {
     set( TextEditor::Color::comment, commentGrey );
     set( TextEditor::Color::background, islandColor );
     set( TextEditor::Color::cursor, textColor );
-    set( TextEditor::Color::selection, IM_COL32( 33, 66, 131, 255 ) );
+    set( TextEditor::Color::selection, textSelectionColor );
     set( TextEditor::Color::whitespace, faintColor );
     set( TextEditor::Color::matchingBracketBackground, faintColor );
     set( TextEditor::Color::matchingBracketActive, mutedTextColor );

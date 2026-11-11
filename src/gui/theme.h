@@ -9,6 +9,10 @@ inline constexpr ImU32 islandColor = IM_COL32( 30, 31, 34, 255 );
 inline constexpr ImU32 hoveredColor = IM_COL32( 38, 40, 43, 255 );
 inline constexpr ImU32 selectedColor = IM_COL32( 43, 45, 48, 255 );
 inline constexpr ImU32 borderColor = IM_COL32( 57, 59, 64, 255 );
+// JetBrains green, the colours of the Run icon: selected tabs and switched-on buttons.
+inline constexpr ImU32 activeColor = IM_COL32( 37, 54, 39, 255 );
+inline constexpr ImU32 activeBorderColor = IM_COL32( 87, 150, 92, 255 );
+inline constexpr ImU32 textSelectionColor = IM_COL32( 33, 66, 131, 255 );
 inline constexpr ImU32 accentColor = IM_COL32( 53, 116, 240, 255 );
 inline constexpr ImU32 transparentColor = IM_COL32( 0, 0, 0, 0 );
 
