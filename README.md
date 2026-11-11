@@ -56,7 +56,7 @@ Building `foo.s` creates `foo.o` and the program `foo` next to it.
 
 `run.sh` only knows how to install packages with `apt`. On other distributions, install these yourself:
 
-- clang 19 or newer, CMake 3.24 or newer, Ninja, pkg-config, git
+- clang 18 or newer, CMake 3.24 or newer, Ninja, pkg-config, git
 - GNU binutils for `aarch64-linux-gnu` (the assembler and linker)
 - QEMU user mode (`qemu-aarch64`)
 - development packages for GLFW 3, OpenGL, Unicorn and FreeType

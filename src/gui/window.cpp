@@ -29,7 +29,7 @@ static Session *settingsSession = nullptr;
 // Wayland takes the icon from the .desktop file matching the app id instead.
 static void setWindowIcon( GLFWwindow *window ) {
     static unsigned char pixels[] = {
-#embed "../../assets/icon.rgba"
+#include "icon_rgba.inc"
     };
     std::vector<GLFWimage> images;
     unsigned char *image = pixels;
@@ -48,7 +48,9 @@ GLFWwindow *createWindow() {
     glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );
     glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 3 );
     glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
+#ifdef GLFW_WAYLAND_APP_ID // GLFW 3.4+
     glfwWindowHintString( GLFW_WAYLAND_APP_ID, "arm_ide" );
+#endif
     glfwWindowHintString( GLFW_X11_CLASS_NAME, "arm_ide" );
     glfwWindowHintString( GLFW_X11_INSTANCE_NAME, "arm_ide" );
     GLFWwindow *window = glfwCreateWindow( 1400, 900, "ARM IDE", nullptr, nullptr );
@@ -56,9 +58,13 @@ GLFWwindow *createWindow() {
         return nullptr;
     }
 
+#ifdef GLFW_PLATFORM_WAYLAND
     if ( glfwGetPlatform() != GLFW_PLATFORM_WAYLAND ) {
         setWindowIcon( window );
     }
+#else
+    setWindowIcon( window );
+#endif
     glfwMakeContextCurrent( window );
     glfwSwapInterval( 1 );
     return window;

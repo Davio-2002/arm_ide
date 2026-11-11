@@ -52,4 +52,11 @@ add_executable(arm_ide
     src/gui/aarch64_language.cpp
     src/gui/aarch64_words.cpp)
 target_link_libraries(arm_ide PRIVATE arm_ide_core imgui)
-target_compile_options(arm_ide PRIVATE -Wno-c23-extensions)
+
+# Window icon pixels as a C byte list (#embed needs clang 19+, Ubuntu 24.04 ships clang 18).
+set(ICON_RGBA ${CMAKE_SOURCE_DIR}/assets/icon.rgba)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${ICON_RGBA})
+file(READ ${ICON_RGBA} iconHex HEX)
+string(REGEX REPLACE "(..)" "0x\\1," iconBytes "${iconHex}")
+file(CONFIGURE OUTPUT ${CMAKE_BINARY_DIR}/generated/icon_rgba.inc CONTENT "${iconBytes}\n")
+target_include_directories(arm_ide PRIVATE ${CMAKE_BINARY_DIR}/generated)
