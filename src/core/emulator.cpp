@@ -1,12 +1,11 @@
-#include "core/emulator.h"
-
 #include <cstring>
 #include <elf.h>
 #include <fstream>
 #include <iterator>
 #include <vector>
 
-#include "core/toolchain.h"
+#include <core/emulator.h>
+#include <core/toolchain.h>
 
 static const uint64_t pageSize = 0x1000;
 static const uint64_t stackTop = 0x80000000;

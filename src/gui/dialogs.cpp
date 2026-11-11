@@ -1,10 +1,10 @@
-#include "gui/dialogs.h"
-
 #include <imgui.h>
 
 #include <algorithm>
 #include <filesystem>
 #include <vector>
+
+#include <gui/dialogs.h>
 
 enum class DialogKind { None, Open, Save, Discard };
 

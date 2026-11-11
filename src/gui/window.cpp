@@ -1,5 +1,3 @@
-#include "gui/window.h"
-
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -13,7 +11,9 @@
 #include <utility>
 #include <vector>
 
-#include "app/session.h"
+#include <app/session.h>
+#include <gui/theme.h>
+#include <gui/window.h>
 
 static const float uiFontSize = 22.0f;
 static const float defaultCodeFontSize = 18.0f;
@@ -186,95 +186,14 @@ static void loadSettings( Session &session ) {
     ImGui::LoadIniSettingsFromDisk( settingsPath.c_str() );
 }
 
-static ImVec4 rgb( int red, int green, int blue, float alpha = 1.0f ) {
-    return ImVec4( red / 255.0f, green / 255.0f, blue / 255.0f, alpha );
-}
-
-static void applyTheme() {
-    ImGuiStyle &style = ImGui::GetStyle();
-    style.FontSizeBase = uiFontSize;
-    style.WindowPadding = ImVec2( 10.0f, 10.0f );
-    style.FramePadding = ImVec2( 8.0f, 5.0f );
-    style.ItemSpacing = ImVec2( 8.0f, 6.0f );
-    style.WindowRounding = 8.0f;
-    style.ChildRounding = 6.0f;
-    style.FrameRounding = 6.0f;
-    style.PopupRounding = 8.0f;
-    style.TabRounding = 6.0f;
-    style.ScrollbarRounding = 6.0f;
-    style.GrabRounding = 6.0f;
-    style.ScrollbarSize = 10.0f;
-    style.WindowBorderSize = 0.0f;
-    style.PopupBorderSize = 1.0f;
-    style.TabBarBorderSize = 0.0f;
-    style.DockingSeparatorSize = 1.0f;
-    style.WindowMenuButtonPosition = ImGuiDir_None;
-
-    ImVec4 background = rgb( 29, 32, 33 );
-    ImVec4 bar = rgb( 23, 25, 26 );
-    ImVec4 surface = rgb( 50, 48, 47 );
-    ImVec4 raised = rgb( 69, 64, 61 );
-    ImVec4 border = rgb( 60, 56, 54 );
-    ImVec4 accent = rgb( 254, 128, 25 );
-    ImVec4 accentSoft = rgb( 254, 128, 25, 0.30f );
-    ImVec4 accentHover = rgb( 254, 128, 25, 0.18f );
-    ImVec4 transparent = rgb( 0, 0, 0, 0.0f );
-
-    ImVec4 *colors = style.Colors;
-    colors[ImGuiCol_Text] = rgb( 235, 219, 178 );
-    colors[ImGuiCol_TextDisabled] = rgb( 146, 131, 116 );
-    colors[ImGuiCol_WindowBg] = background;
-    colors[ImGuiCol_ChildBg] = background;
-    colors[ImGuiCol_PopupBg] = surface;
-    colors[ImGuiCol_Border] = border;
-    colors[ImGuiCol_FrameBg] = surface;
-    colors[ImGuiCol_FrameBgHovered] = raised;
-    colors[ImGuiCol_FrameBgActive] = raised;
-    colors[ImGuiCol_TitleBg] = bar;
-    colors[ImGuiCol_TitleBgActive] = bar;
-    colors[ImGuiCol_TitleBgCollapsed] = bar;
-    colors[ImGuiCol_MenuBarBg] = bar;
-    colors[ImGuiCol_ScrollbarBg] = transparent;
-    colors[ImGuiCol_ScrollbarGrab] = raised;
-    colors[ImGuiCol_ScrollbarGrabHovered] = rgb( 102, 92, 84 );
-    colors[ImGuiCol_ScrollbarGrabActive] = rgb( 124, 111, 100 );
-    colors[ImGuiCol_CheckMark] = accent;
-    colors[ImGuiCol_SliderGrab] = accent;
-    colors[ImGuiCol_SliderGrabActive] = accent;
-    colors[ImGuiCol_Button] = surface;
-    colors[ImGuiCol_ButtonHovered] = raised;
-    colors[ImGuiCol_ButtonActive] = accentSoft;
-    colors[ImGuiCol_Header] = accentSoft;
-    colors[ImGuiCol_HeaderHovered] = accentHover;
-    colors[ImGuiCol_HeaderActive] = accentSoft;
-    colors[ImGuiCol_Separator] = border;
-    colors[ImGuiCol_SeparatorHovered] = accent;
-    colors[ImGuiCol_SeparatorActive] = accent;
-    colors[ImGuiCol_ResizeGrip] = transparent;
-    colors[ImGuiCol_ResizeGripHovered] = accentSoft;
-    colors[ImGuiCol_ResizeGripActive] = accent;
-    colors[ImGuiCol_Tab] = bar;
-    colors[ImGuiCol_TabHovered] = surface;
-    colors[ImGuiCol_TabSelected] = background;
-    colors[ImGuiCol_TabSelectedOverline] = accent;
-    colors[ImGuiCol_TabDimmed] = bar;
-    colors[ImGuiCol_TabDimmedSelected] = background;
-    colors[ImGuiCol_TabDimmedSelectedOverline] = transparent;
-    colors[ImGuiCol_DockingPreview] = accentSoft;
-    colors[ImGuiCol_DockingEmptyBg] = background;
-    colors[ImGuiCol_TableRowBg] = transparent;
-    colors[ImGuiCol_TableRowBgAlt] = rgb( 235, 219, 178, 0.03f );
-    colors[ImGuiCol_TextSelectedBg] = accentSoft;
-    colors[ImGuiCol_NavCursor] = accent;
-}
-
 void setupImGui( GLFWwindow *window, Session &session ) {
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     loadFonts();
-    applyTheme();
+    applyIslandsTheme();
+    ImGui::GetStyle().FontSizeBase = uiFontSize;
     loadSettings( session );
 
     ImGui_ImplGlfw_InitForOpenGL( window, true );
@@ -302,7 +221,8 @@ void endFrame( GLFWwindow *window ) {
     int width, height;
     glfwGetFramebufferSize( window, &width, &height );
     glViewport( 0, 0, width, height );
-    glClearColor( 0.08f, 0.08f, 0.10f, 1.0f );
+    ImVec4 ground = ImGui::ColorConvertU32ToFloat4( groundColor );
+    glClearColor( ground.x, ground.y, ground.z, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
     ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );
     glfwSwapBuffers( window );

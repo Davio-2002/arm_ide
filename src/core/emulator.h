@@ -1,10 +1,11 @@
 #pragma once
 
+#include <unicorn/unicorn.h>
+
 #include <cstdint>
 #include <map>
 #include <set>
 #include <string>
-#include <unicorn/unicorn.h>
 
 enum class EmulatorState { Idle, Paused, Running, Exited, Crashed };
 

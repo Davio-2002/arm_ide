@@ -3,11 +3,11 @@
 #include <filesystem>
 #include <string>
 
-#include "app/session.h"
-#include "gui/dialogs.h"
-#include "gui/menu.h"
-#include "gui/panels.h"
-#include "gui/window.h"
+#include <app/session.h>
+#include <gui/dialogs.h>
+#include <gui/menu.h>
+#include <gui/panels.h>
+#include <gui/window.h>
 
 static Session session;
 

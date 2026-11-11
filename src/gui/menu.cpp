@@ -1,5 +1,3 @@
-#include "gui/menu.h"
-
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -7,10 +5,11 @@
 #include <cstring>
 #include <filesystem>
 
-#include "app/session.h"
-#include "gui/dialogs.h"
-#include "gui/panels.h"
-#include "gui/window.h"
+#include <app/session.h>
+#include <gui/dialogs.h>
+#include <gui/menu.h>
+#include <gui/panels.h>
+#include <gui/window.h>
 
 struct MenuActions {
     bool open = false;

@@ -1,9 +1,9 @@
-#include "app/session.h"
-
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+
+#include <app/session.h>
 
 static const size_t maxRecentFiles = 10;
 static const uint64_t emulatorSliceMicroseconds = 10000;

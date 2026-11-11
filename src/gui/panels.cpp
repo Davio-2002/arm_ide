@@ -1,5 +1,3 @@
-#include "gui/panels.h"
-
 #include <TextEditor.h>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -8,26 +6,17 @@
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <iterator>
 #include <set>
 
-#include "app/session.h"
-#include "gui/aarch64_language.h"
-#include "gui/window.h"
+#include <app/session.h>
+#include <gui/aarch64_language.h>
+#include <gui/panels.h>
+#include <gui/theme.h>
+#include <gui/window.h>
 
 static const uint64_t memoryRowSize = 8;
 static const uint64_t memoryRowCount = 64;
-
-static const ImU32 errorColor = IM_COL32( 251, 73, 52, 255 );
-static const ImU32 errorLineColor = IM_COL32( 251, 73, 52, 45 );
-static const ImU32 warningColor = IM_COL32( 250, 189, 47, 255 );
-static const ImU32 warningLineColor = IM_COL32( 250, 189, 47, 35 );
-static const ImU32 successColor = IM_COL32( 184, 187, 38, 255 );
-static const ImU32 commandColor = IM_COL32( 131, 165, 152, 255 );
-static const ImU32 textColor = IM_COL32( 235, 219, 178, 255 );
-static const ImU32 pausedColor = IM_COL32( 254, 128, 25, 255 );
-static const ImU32 pausedLineColor = IM_COL32( 254, 128, 25, 40 );
-static const ImU32 breakpointColor = IM_COL32( 251, 73, 52, 255 );
-static const ImU32 breakpointHoverColor = IM_COL32( 251, 73, 52, 90 );
 
 static TextEditor editor;
 static size_t savedUndoIndex = 0;
@@ -48,7 +37,7 @@ static ImU32 messageColor( MessageKind kind ) {
     case MessageKind::Output:
         break;
     }
-    return textColor;
+    return codeTextColor;
 }
 
 static void addLineMarker( const LineMark &mark ) {
@@ -121,35 +110,7 @@ static void suggestCompletions( TextEditor::AutoCompleteState &state ) {
 
 void setupEditor( Session &session ) {
     editorSession = &session;
-    TextEditor::Palette palette = TextEditor::GetDarkPalette();
-    auto set = [&palette]( TextEditor::Color color, ImU32 value ) {
-        palette[static_cast<size_t>( color )] = value;
-    };
-    set( TextEditor::Color::text, textColor );
-    set( TextEditor::Color::keyword, IM_COL32( 254, 128, 25, 255 ) );
-    set( TextEditor::Color::declaration, IM_COL32( 251, 73, 52, 255 ) );
-    set( TextEditor::Color::number, IM_COL32( 211, 134, 155, 255 ) );
-    set( TextEditor::Color::string, IM_COL32( 184, 187, 38, 255 ) );
-    set( TextEditor::Color::punctuation, IM_COL32( 168, 153, 132, 255 ) );
-    set( TextEditor::Color::preprocessor, IM_COL32( 131, 165, 152, 255 ) );
-    set( TextEditor::Color::identifier, IM_COL32( 250, 189, 47, 255 ) );
-    set( TextEditor::Color::knownIdentifier, IM_COL32( 142, 192, 124, 255 ) );
-    set( TextEditor::Color::comment, IM_COL32( 146, 131, 116, 255 ) );
-    set( TextEditor::Color::background, IM_COL32( 29, 32, 33, 255 ) );
-    set( TextEditor::Color::cursor, textColor );
-    set( TextEditor::Color::selection, IM_COL32( 80, 73, 69, 255 ) );
-    set( TextEditor::Color::whitespace, IM_COL32( 80, 73, 69, 255 ) );
-    set( TextEditor::Color::matchingBracketBackground, IM_COL32( 80, 73, 69, 255 ) );
-    set( TextEditor::Color::matchingBracketActive, IM_COL32( 146, 131, 116, 255 ) );
-    set( TextEditor::Color::matchingBracketLevel1, IM_COL32( 250, 189, 47, 255 ) );
-    set( TextEditor::Color::matchingBracketLevel2, IM_COL32( 131, 165, 152, 255 ) );
-    set( TextEditor::Color::matchingBracketLevel3, IM_COL32( 211, 134, 155, 255 ) );
-    set( TextEditor::Color::matchingBracketError, errorColor );
-    set( TextEditor::Color::lineNumber, IM_COL32( 124, 111, 100, 255 ) );
-    set( TextEditor::Color::currentLineNumber, IM_COL32( 213, 196, 161, 255 ) );
-    set( TextEditor::Color::currentLineHighlight, IM_COL32( 235, 219, 178, 10 ) );
-    set( TextEditor::Color::currentLineHighlightBorder, IM_COL32( 235, 219, 178, 18 ) );
-    editor.SetPalette( palette );
+    editor.SetPalette( editorPalette() );
     editor.SetLanguage( aarch64Language() );
     editor.SetTabSize( 8 );
     editor.SetShowWhitespacesEnabled( false );
@@ -225,16 +186,55 @@ static void createDefaultLayout( ImGuiID dockspace ) {
     ImGui::DockBuilderFinish( dockspace );
 }
 
+// The panels are islands: the ground window and dock title bars stay transparent, and each
+// docked panel draws its rounded background behind everything.
 static void drawDockSpace() {
-    ImGuiID dockspace = ImGui::GetID( "MainDockSpace v2" );
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos( viewport->WorkPos );
+    ImGui::SetNextWindowSize( viewport->WorkSize );
+    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( islandGap, islandGap ) );
+    ImGuiWindowFlags groundFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                                   ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoBackground |
+                                   ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                   ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoSavedSettings;
+    ImGui::Begin( "##Ground", nullptr, groundFlags );
+    ImGui::PopStyleVar();
+
+    ImGuiID dockspace = ImGui::GetID( "MainDockSpace v3" );
     if ( !ImGui::DockBuilderGetNode( dockspace ) ) {
         createDefaultLayout( dockspace );
     }
-    ImGui::DockSpaceOverViewport( dockspace );
+    ImGuiCol hiddenColors[] = { ImGuiCol_TitleBg,          ImGuiCol_TitleBgActive,
+                                ImGuiCol_TitleBgCollapsed, ImGuiCol_Border,
+                                ImGuiCol_DockingEmptyBg,   ImGuiCol_WindowBg };
+    for ( ImGuiCol color : hiddenColors ) {
+        ImGui::PushStyleColor( color, transparentColor );
+    }
+    ImGui::DockSpace( dockspace );
+    ImGui::PopStyleColor( std::size( hiddenColors ) );
+    ImGui::End();
+}
+
+static void beginPanel( const char *name, ImGuiWindowFlags flags = 0 ) {
+    ImGuiWindow *window = ImGui::FindWindowByName( name );
+    bool docked = !window || window->DockNode != nullptr;
+    if ( docked ) {
+        ImGui::PushStyleColor( ImGuiCol_WindowBg, transparentColor );
+    }
+    ImGui::Begin( name, nullptr, flags );
+    if ( docked ) {
+        ImGui::PopStyleColor();
+    }
+
+    if ( ImGuiDockNode *node = ImGui::GetWindowDockNode() ) {
+        ImVec2 islandEnd( node->Pos.x + node->Size.x, node->Pos.y + node->Size.y );
+        ImGui::GetBackgroundDrawList()->AddRectFilled( node->Pos, islandEnd, islandColor,
+                                                       islandRounding );
+    }
 }
 
 static void drawEditor() {
-    ImGui::Begin( "Editor" );
+    beginPanel( "Editor" );
     pushCodeFont();
     editor.Render( "##code" );
     ImGui::PopFont();
@@ -242,7 +242,7 @@ static void drawEditor() {
 }
 
 static void drawConsole( const Session &session ) {
-    ImGui::Begin( "Console", nullptr, ImGuiWindowFlags_HorizontalScrollbar );
+    beginPanel( "Console", ImGuiWindowFlags_HorizontalScrollbar );
     pushCodeFont();
     bool wasAtBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
 
@@ -271,7 +271,7 @@ static void drawConsole( const Session &session ) {
 }
 
 static ImVec4 changeColor( bool changed ) {
-    return ImGui::ColorConvertU32ToFloat4( changed ? pausedColor : textColor );
+    return ImGui::ColorConvertU32ToFloat4( changed ? changedValueColor : codeTextColor );
 }
 
 static void drawRegisterRow( const std::string &name, uint64_t value, uint64_t previousValue ) {
@@ -298,7 +298,7 @@ static void drawFlags( const Registers &registers, const Registers &previous ) {
 }
 
 static void drawRegisters( const Session &session ) {
-    ImGui::Begin( "Registers" );
+    beginPanel( "Registers" );
     if ( !session.hasRegisters ) {
         ImGui::TextDisabled( "Start debugging with F10 or F8" );
         ImGui::End();
@@ -381,7 +381,7 @@ static void drawMemoryRow( const Session &session, uint64_t rowAddress ) {
 }
 
 static void drawMemory( const Session &session ) {
-    ImGui::Begin( "Memory", nullptr, ImGuiWindowFlags_HorizontalScrollbar );
+    beginPanel( "Memory", ImGuiWindowFlags_HorizontalScrollbar );
     ImGui::SetNextItemWidth( -1 );
     ImGui::InputTextWithHint( "##address", "address, register or sp", memoryAddressInput,
                               sizeof( memoryAddressInput ) );

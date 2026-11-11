@@ -1,8 +1,7 @@
-#include "gui/aarch64_language.h"
-
 #include <string>
 
-#include "gui/aarch64_words.h"
+#include <gui/aarch64_language.h>
+#include <gui/aarch64_words.h>
 
 static bool isDigit( ImWchar c ) {
     return c >= '0' && c <= '9';

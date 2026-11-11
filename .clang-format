@@ -9,3 +9,11 @@ SpacesInParensOptions:
   InCStyleCasts: true
   InEmptyParentheses: false
   Other: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<(imgui|imgui_.*|TextEditor|GLFW/.*|unicorn/.*|misc/.*)\.h>'
+    Priority: 1
+  - Regex: '^<(app|core|gui)/.*>'
+    Priority: 3
+  - Regex: '.*'
+    Priority: 2

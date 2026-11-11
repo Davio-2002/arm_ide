@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "core/emulator.h"
-#include "core/process.h"
-#include "core/toolchain.h"
+#include <core/emulator.h>
+#include <core/process.h>
+#include <core/toolchain.h>
 
 enum class LineMarkKind { Error, Warning, Paused };
 

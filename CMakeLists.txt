@@ -49,6 +49,7 @@ add_executable(arm_ide
     src/gui/dialogs.cpp
     src/gui/menu.cpp
     src/gui/panels.cpp
+    src/gui/theme.cpp
     src/gui/aarch64_language.cpp
     src/gui/aarch64_words.cpp)
 target_link_libraries(arm_ide PRIVATE arm_ide_core imgui)

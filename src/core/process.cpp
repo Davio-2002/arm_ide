@@ -1,8 +1,8 @@
-#include "core/process.h"
-
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include <core/process.h>
 
 static pid_t spawnProcess( const std::vector<std::string> &args, const std::string &directory,
                            int &outputFd ) {

@@ -1,4 +1,4 @@
-#include "gui/aarch64_words.h"
+#include <gui/aarch64_words.h>
 
 static const char *const mnemonics[] = {
     "abs",       "adc",       "adcs",      "add",     "addhn",     "addhn2",    "addp",

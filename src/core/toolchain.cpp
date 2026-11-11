@@ -1,11 +1,10 @@
-#include "core/toolchain.h"
-
 #include <cctype>
 #include <filesystem>
 #include <regex>
 #include <sstream>
 
-#include "core/process.h"
+#include <core/process.h>
+#include <core/toolchain.h>
 
 static std::string commandLine( const std::vector<std::string> &args ) {
     std::string line = "$";
