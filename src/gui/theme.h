@@ -32,6 +32,8 @@ inline constexpr ImU32 breakpointHoverColor = IM_COL32( 219, 92, 92, 90 );
 
 inline constexpr float islandRounding = 10.0f;
 inline constexpr float islandGap = 6.0f;
+inline constexpr float toolbarFramePaddingY = 9.0f;
+inline constexpr float editorTabsGap = 6.0f;
 
 void applyIslandsTheme();
 TextEditor::Palette editorPalette();

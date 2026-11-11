@@ -16,7 +16,12 @@
 static const uint64_t memoryRowSize = 8;
 static const uint64_t memoryRowCount = 64;
 
+static const float toolStripWidth = 44.0f;
+
 static char memoryAddressInput[64] = "sp";
+static char terminalInput[1024] = "";
+static bool showRegisters = true;
+static bool showMemory = true;
 
 static ImU32 messageColor( MessageKind kind ) {
     switch ( kind ) {
@@ -119,13 +124,32 @@ static float headerButtonWidth() {
     return ImGui::GetFrameHeight();
 }
 
+// The bar on the right edge whose buttons show and hide the side panels.
+static void drawToolStrip() {
+    float buttonPadding = 6.0f;
+    float sidePadding = ( toolStripWidth - iconSize ) * 0.5f - buttonPadding;
+    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( sidePadding, islandGap ) );
+    ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( buttonPadding, buttonPadding ) );
+    ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0.0f, 4.0f ) );
+    ImGui::PushStyleColor( ImGuiCol_WindowBg, groundColor );
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
+    if ( ImGui::BeginViewportSideBar( "##ToolStrip", ImGui::GetMainViewport(), ImGuiDir_Right,
+                                      toolStripWidth, flags ) ) {
+        iconToggle( "##registers", Icon::Registers, "Registers", showRegisters );
+        iconToggle( "##memory", Icon::Memory, "Memory", showMemory );
+    }
+    ImGui::End();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar( 3 );
+}
+
 static void drawEditor() {
     beginPanel( "Editor" );
     drawCodeEditor();
     ImGui::End();
 }
 
-enum class OutputTab { Console, Build };
+enum class OutputTab { Console, Build, Terminal };
 
 static OutputTab shownOutputTab = OutputTab::Console;
 static int shownBuildCount = 0;
@@ -166,31 +190,97 @@ static void drawConsoleHeader( const Session &session, MenuActions &actions ) {
     ImGui::SameLine();
     drawOutputTab( "##buildTab", "Build", OutputTab::Build, false );
     ImGui::SameLine();
+    drawOutputTab( "##terminalTab", "Terminal", OutputTab::Terminal, false );
+    ImGui::SameLine();
     drawVerticalSeparator();
     ImGui::SameLine();
 
+    bool showsTerminal = shownOutputTab == OutputTab::Terminal;
     pushHeaderButtonPadding();
-    drawDebugButtons( session, actions );
+    if ( showsTerminal ) {
+        actions.stopTerminal |=
+            iconButton( "##stopShell", Icon::Stop, "Stop the shell", session.isTerminalRunning() );
+    } else {
+        drawDebugButtons( session, actions );
+    }
     ImGui::SameLine( ImGui::GetWindowWidth() - headerButtonWidth() -
                      ImGui::GetStyle().WindowPadding.x );
-    actions.clearOutput |= iconButton( "##clear", Icon::Clear, "Clear" );
+    bool clear = iconButton( "##clear", Icon::Clear, "Clear" );
+    ( showsTerminal ? actions.clearTerminal : actions.clearOutput ) |= clear;
     ImGui::PopStyleVar( 2 );
 }
 
-static void drawMessages( const std::vector<Message> &messages ) {
-    ImGui::BeginChild( "##messages", ImVec2( 0.0f, 0.0f ), ImGuiChildFlags_None,
+// Selected lines of one output tab. Indices into its messages, so a shorter list clears it.
+struct MessageSelection {
+    ImGuiSelectionBasicStorage lines;
+    size_t messageCount = 0;
+};
+
+static MessageSelection consoleSelection;
+static MessageSelection buildSelection;
+static MessageSelection terminalSelection;
+
+static void copyMessages( const std::vector<Message> &messages,
+                          const ImGuiSelectionBasicStorage *selection ) {
+    std::string text;
+    for ( size_t i = 0; i < messages.size(); i++ ) {
+        if ( !selection || selection->Contains( static_cast<ImGuiID>( i ) ) ) {
+            text += messages[i].text + "\n";
+        }
+    }
+    ImGui::SetClipboardText( text.c_str() );
+}
+
+static void drawCopyMenu( const std::vector<Message> &messages,
+                          const ImGuiSelectionBasicStorage &selection ) {
+    if ( ImGui::IsWindowFocused() && ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_C ) ) {
+        copyMessages( messages, &selection );
+    }
+    if ( ImGui::BeginPopupContextWindow( "##copyMenu" ) ) {
+        if ( ImGui::MenuItem( "Copy", "Ctrl+C", false, selection.Size > 0 ) ) {
+            copyMessages( messages, &selection );
+        }
+        if ( ImGui::MenuItem( "Copy All" ) ) {
+            copyMessages( messages, nullptr );
+        }
+        ImGui::EndPopup();
+    }
+}
+
+// Lines are selected like a list: click, Shift/Ctrl+click, drag or Ctrl+A.
+static void drawMessages( const std::vector<Message> &messages, MessageSelection &selection,
+                          float height = 0.0f ) {
+    if ( messages.size() < selection.messageCount ) {
+        selection.lines.Clear();
+    }
+    selection.messageCount = messages.size();
+
+    ImGui::BeginChild( "##messages", ImVec2( 0.0f, height ), ImGuiChildFlags_None,
                        ImGuiWindowFlags_HorizontalScrollbar );
     pushCodeFont();
     bool wasAtBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
 
+    ImGuiMultiSelectFlags selectFlags = ImGuiMultiSelectFlags_ClearOnEscape |
+                                        ImGuiMultiSelectFlags_ClearOnClickVoid |
+                                        ImGuiMultiSelectFlags_BoxSelect1d;
+    int count = static_cast<int>( messages.size() );
+    ImGuiMultiSelectIO *request =
+        ImGui::BeginMultiSelect( selectFlags, selection.lines.Size, count );
+    selection.lines.ApplyRequests( request );
+
     ImGuiListClipper clipper;
-    clipper.Begin( messages.size() );
+    clipper.Begin( count );
+    if ( request->RangeSrcItem != -1 ) {
+        clipper.IncludeItemByIndex( static_cast<int>( request->RangeSrcItem ) );
+    }
     while ( clipper.Step() ) {
         for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ ) {
             const Message &message = messages[i];
             ImGui::PushID( i );
             ImGui::PushStyleColor( ImGuiCol_Text, messageColor( message.kind ) );
-            bool clicked = ImGui::Selectable( message.text.c_str() );
+            ImGui::SetNextItemSelectionUserData( i );
+            bool selected = selection.lines.Contains( static_cast<ImGuiID>( i ) );
+            bool clicked = ImGui::Selectable( message.text.c_str(), selected );
             ImGui::PopStyleColor();
             ImGui::PopID();
 
@@ -199,20 +289,52 @@ static void drawMessages( const std::vector<Message> &messages ) {
             }
         }
     }
+    selection.lines.ApplyRequests( ImGui::EndMultiSelect() );
 
     if ( wasAtBottom ) {
         ImGui::SetScrollHereY( 1.0f );
     }
     ImGui::PopFont();
+    drawCopyMenu( messages, selection.lines );
     ImGui::EndChild();
+}
+
+// The shell's output above a line to type commands into, prompted by the shell's folder.
+static void drawTerminal( const Session &session, MenuActions &actions ) {
+    float inputHeight = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.y;
+    drawMessages( session.terminal, terminalSelection, -inputHeight );
+
+    pushCodeFont();
+    std::string directory = session.terminalDirectory();
+    std::string prompt = ( directory.empty() ? "" : displayPath( directory ) + " " ) + "$";
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled( "%s", prompt.c_str() );
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth( -FLT_MIN );
+    if ( ImGui::InputText( "##terminalInput", terminalInput, sizeof( terminalInput ),
+                           ImGuiInputTextFlags_EnterReturnsTrue ) ) {
+        actions.terminalCommand = terminalInput;
+        terminalInput[0] = '\0';
+        ImGui::SetKeyboardFocusHere( -1 );
+    }
+    ImGui::PopFont();
 }
 
 static void drawConsole( const Session &session, MenuActions &actions ) {
     followLatestBuild( session );
     beginPanel( "Console" );
     drawConsoleHeader( session, actions );
-    bool showsBuild = shownOutputTab == OutputTab::Build;
-    drawMessages( showsBuild ? session.buildLog : session.console );
+    switch ( shownOutputTab ) {
+    case OutputTab::Console:
+        drawMessages( session.console, consoleSelection );
+        break;
+    case OutputTab::Build:
+        drawMessages( session.buildLog, buildSelection );
+        break;
+    case OutputTab::Terminal:
+        drawTerminal( session, actions );
+        break;
+    }
     ImGui::End();
 }
 
@@ -358,9 +480,14 @@ static void drawMemory( const Session &session ) {
 
 void drawPanels( Session &session, MenuActions &actions ) {
     syncEditorWithSession( session );
+    drawToolStrip();
     drawDockSpace();
     drawEditor();
     drawConsole( session, actions );
-    drawRegisters( session );
-    drawMemory( session );
+    if ( showRegisters ) {
+        drawRegisters( session );
+    }
+    if ( showMemory ) {
+        drawMemory( session );
+    }
 }

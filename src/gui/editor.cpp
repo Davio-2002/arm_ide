@@ -316,6 +316,7 @@ static void drawDocumentTabs() {
 
 void drawCodeEditor() {
     drawDocumentTabs();
+    ImGui::SetCursorPosY( ImGui::GetCursorPosY() + editorTabsGap );
     drawingDocument = activeDocument;
     pushCodeFont();
     ImGui::PushID( activeDocument );

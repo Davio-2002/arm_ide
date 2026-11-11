@@ -9,6 +9,7 @@
 #include <gui/dialogs.h>
 #include <gui/editor.h>
 #include <gui/menu.h>
+#include <gui/theme.h>
 #include <gui/toolbar.h>
 #include <gui/window.h>
 
@@ -69,7 +70,10 @@ static MenuActions readShortcuts() {
 }
 
 static void drawMenus( const Session &session, MenuActions &actions ) {
+    ImGui::PushStyleVar( ImGuiStyleVar_FramePadding,
+                         ImVec2( ImGui::GetStyle().FramePadding.x, toolbarFramePaddingY ) );
     if ( !ImGui::BeginMainMenuBar() ) {
+        ImGui::PopStyleVar();
         return;
     }
     drawToolbarStart( session, actions );
@@ -114,6 +118,7 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
 
     drawToolbarEnd( session, actions );
     ImGui::EndMainMenuBar();
+    ImGui::PopStyleVar();
 }
 
 static void runProgramActions( Session &session, const MenuActions &actions ) {
@@ -144,6 +149,15 @@ static void runActions( Session &session, const MenuActions &actions ) {
     }
     if ( actions.clearOutput ) {
         session.clearOutput();
+    }
+    if ( !actions.terminalCommand.empty() ) {
+        session.runTerminalCommand( actions.terminalCommand );
+    }
+    if ( actions.stopTerminal ) {
+        session.stopTerminal();
+    }
+    if ( actions.clearTerminal ) {
+        session.clearTerminal();
     }
     if ( actions.toggleBreakpoint ) {
         session.toggleBreakpoint( session.filePath, editorCursorLine() );

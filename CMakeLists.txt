@@ -75,7 +75,7 @@ function(embed_as_bytes input output)
 endfunction()
 
 embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/icon.rgba icon_rgba.inc)
-foreach(icon build run debug stop resume stepOver asmFile console clear)
+foreach(icon build run debug stop resume stepOver asmFile console clear registers memory)
     embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/icons/${icon}.svg ${icon}_svg.inc)
 endforeach()
 target_include_directories(arm_ide PRIVATE ${CMAKE_BINARY_DIR}/generated)

@@ -8,8 +8,9 @@ static const float tabPadding = 10.0f;
 static const float tabIconGap = 6.0f;
 static const float closeSize = 16.0f;
 
-bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled ) {
-    ImGui::PushStyleColor( ImGuiCol_Button, transparentColor );
+static bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool enabled,
+                            ImU32 background ) {
+    ImGui::PushStyleColor( ImGuiCol_Button, background );
     ImGui::PushStyleColor( ImGuiCol_ButtonHovered, selectedColor );
     ImGui::PushStyleColor( ImGuiCol_ButtonActive, borderColor );
     ImGui::BeginDisabled( !enabled );
@@ -18,6 +19,16 @@ bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled ) 
     ImGui::EndDisabled();
     ImGui::PopStyleColor( 3 );
     return clicked;
+}
+
+bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled ) {
+    return drawIconButton( id, icon, tooltip, enabled, transparentColor );
+}
+
+void iconToggle( const char *id, Icon icon, const char *tooltip, bool &on ) {
+    if ( drawIconButton( id, icon, tooltip, true, on ? selectedColor : transparentColor ) ) {
+        on = !on;
+    }
 }
 
 void drawVerticalSeparator() {

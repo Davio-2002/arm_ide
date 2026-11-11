@@ -20,6 +20,9 @@ struct MenuActions {
     bool debugStep = false;
     bool toggleBreakpoint = false;
     bool clearOutput = false;
+    std::string terminalCommand;
+    bool stopTerminal = false;
+    bool clearTerminal = false;
 };
 
 // "~/..." for paths under the home folder.

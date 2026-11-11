@@ -2,7 +2,19 @@
 
 #include <imgui.h>
 
-enum class Icon { Build, Run, Debug, Stop, Resume, StepOver, AsmFile, Console, Clear };
+enum class Icon {
+    Build,
+    Run,
+    Debug,
+    Stop,
+    Resume,
+    StepOver,
+    AsmFile,
+    Console,
+    Clear,
+    Registers,
+    Memory
+};
 
 inline constexpr float iconSize = 20.0f;
 

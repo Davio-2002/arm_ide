@@ -11,4 +11,4 @@ Apache License 2.0 (see LICENSE.txt). Used unmodified.
 - stepOver.svg — `run/stepOver_dark.svg`
 
 Drawn for this project in the same style (not from JetBrains): asmFile.svg, console.svg,
-clear.svg.
+clear.svg, registers.svg, memory.svg.
