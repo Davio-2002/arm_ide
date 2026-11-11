@@ -9,3 +9,6 @@ Apache License 2.0 (see LICENSE.txt). Used unmodified.
 - stop.svg — `run/stop_dark.svg`
 - resume.svg — `run/resume_dark.svg`
 - stepOver.svg — `run/stepOver_dark.svg`
+
+Drawn for this project in the same style (not from JetBrains): asmFile.svg, console.svg,
+clear.svg.

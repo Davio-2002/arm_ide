@@ -14,6 +14,7 @@ inline constexpr ImU32 transparentColor = IM_COL32( 0, 0, 0, 0 );
 
 inline constexpr ImU32 textColor = IM_COL32( 223, 225, 229, 255 );
 inline constexpr ImU32 mutedTextColor = IM_COL32( 134, 138, 145, 255 );
+inline constexpr ImU32 secondaryTextColor = IM_COL32( 168, 171, 178, 255 );
 inline constexpr ImU32 codeTextColor = IM_COL32( 188, 190, 196, 255 );
 
 inline constexpr ImU32 errorColor = IM_COL32( 247, 84, 100, 255 );

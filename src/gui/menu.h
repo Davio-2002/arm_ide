@@ -5,12 +5,11 @@
 
 class Session;
 
-// Commands asked for this frame by a shortcut, a menu item or a toolbar button.
 struct MenuActions {
     bool open = false;
     bool save = false;
     bool saveAs = false;
-    std::string recentFile;
+    std::string fileToOpen;
     bool zoomIn = false;
     bool zoomOut = false;
     bool resetZoom = false;
@@ -20,12 +19,14 @@ struct MenuActions {
     bool debugContinue = false;
     bool debugStep = false;
     bool toggleBreakpoint = false;
+    bool clearOutput = false;
 };
 
-// Draws the menu bar and toolbar and returns what they and the shortcuts asked for.
+// "~/..." for paths under the home folder.
+std::string displayPath( const std::string &path );
+
 MenuActions drawMenuBar( const Session &session );
 void runMenuActions( Session &session, const MenuActions &actions );
 
 void openDocument( Session &session, const std::string &path );
-// Runs the action at once, or after the user agrees to drop the changes of unsaved tabs.
 void whenChangesDiscarded( std::function<void()> action );

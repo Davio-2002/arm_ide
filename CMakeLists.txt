@@ -58,6 +58,8 @@ add_executable(arm_ide
     src/gui/theme.cpp
     src/gui/icons.cpp
     src/gui/toolbar.cpp
+    src/gui/widgets.cpp
+    src/gui/statusbar.cpp
     src/gui/aarch64_language.cpp
     src/gui/aarch64_words.cpp)
 target_include_directories(arm_ide PRIVATE ${nanosvg_SOURCE_DIR}/src)
@@ -73,7 +75,7 @@ function(embed_as_bytes input output)
 endfunction()
 
 embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/icon.rgba icon_rgba.inc)
-foreach(icon build run debug stop resume stepOver)
+foreach(icon build run debug stop resume stepOver asmFile console clear)
     embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/icons/${icon}.svg ${icon}_svg.inc)
 endforeach()
 target_include_directories(arm_ide PRIVATE ${CMAKE_BINARY_DIR}/generated)

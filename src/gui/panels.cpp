@@ -10,7 +10,7 @@
 #include <gui/menu.h>
 #include <gui/panels.h>
 #include <gui/theme.h>
-#include <gui/toolbar.h>
+#include <gui/widgets.h>
 #include <gui/window.h>
 
 static const uint64_t memoryRowSize = 8;
@@ -81,7 +81,12 @@ static void drawDockSpace() {
     ImGui::End();
 }
 
+// Panels draw their own header row, so the dock tab bar is hidden.
 static void beginPanel( const char *name, ImGuiWindowFlags flags = 0 ) {
+    ImGuiWindowClass withoutDockTabBar;
+    withoutDockTabBar.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoTabBar;
+    ImGui::SetNextWindowClass( &withoutDockTabBar );
+
     ImGuiWindow *window = ImGui::FindWindowByName( name );
     bool docked = !window || window->DockNode != nullptr;
     if ( docked ) {
@@ -99,13 +104,50 @@ static void beginPanel( const char *name, ImGuiWindowFlags flags = 0 ) {
     }
 }
 
+static void drawPanelTitle( const char *title ) {
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted( title );
+}
+
+// Header buttons as tall as the header row.
+static void pushHeaderButtonPadding() {
+    float padding = ( ImGui::GetFrameHeight() - iconSize ) * 0.5f;
+    ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( padding, padding ) );
+}
+
+static float headerButtonWidth() {
+    return ImGui::GetFrameHeight();
+}
+
 static void drawEditor() {
-    ImGuiWindowClass withoutDockTabBar;
-    withoutDockTabBar.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoTabBar;
-    ImGui::SetNextWindowClass( &withoutDockTabBar );
     beginPanel( "Editor" );
     drawCodeEditor();
     ImGui::End();
+}
+
+enum class OutputTab { Console, Build };
+
+static OutputTab shownOutputTab = OutputTab::Console;
+static int shownBuildCount = 0;
+
+// After a build, a failed one shows its errors; a good one shows the program.
+static void followLatestBuild( const Session &session ) {
+    if ( session.buildCount == shownBuildCount ) {
+        return;
+    }
+    shownBuildCount = session.buildCount;
+    shownOutputTab = session.buildSucceeded ? OutputTab::Console : OutputTab::Build;
+}
+
+static void drawOutputTab( const char *id, const char *label, OutputTab tab, bool hasIcon ) {
+    PillTab pill;
+    pill.label = label;
+    pill.icon = Icon::Console;
+    pill.hasIcon = hasIcon;
+    pill.selected = shownOutputTab == tab;
+    if ( drawPillTab( id, pill ) == TabClick::Select ) {
+        shownOutputTab = tab;
+    }
 }
 
 static void drawDebugButtons( const Session &session, MenuActions &actions ) {
@@ -117,19 +159,35 @@ static void drawDebugButtons( const Session &session, MenuActions &actions ) {
     actions.stop |= iconButton( "##stop", Icon::Stop, "Stop  Shift+F5", session.isProgramActive() );
 }
 
-static void drawConsole( const Session &session, MenuActions &actions ) {
-    beginPanel( "Console" );
+static void drawConsoleHeader( const Session &session, MenuActions &actions ) {
+    ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing,
+                         ImVec2( 2.0f, ImGui::GetStyle().ItemSpacing.y ) );
+    drawOutputTab( "##consoleTab", "Console", OutputTab::Console, true );
+    ImGui::SameLine();
+    drawOutputTab( "##buildTab", "Build", OutputTab::Build, false );
+    ImGui::SameLine();
+    drawVerticalSeparator();
+    ImGui::SameLine();
+
+    pushHeaderButtonPadding();
     drawDebugButtons( session, actions );
-    ImGui::BeginChild( "##log", ImVec2( 0.0f, 0.0f ), ImGuiChildFlags_None,
+    ImGui::SameLine( ImGui::GetWindowWidth() - headerButtonWidth() -
+                     ImGui::GetStyle().WindowPadding.x );
+    actions.clearOutput |= iconButton( "##clear", Icon::Clear, "Clear" );
+    ImGui::PopStyleVar( 2 );
+}
+
+static void drawMessages( const std::vector<Message> &messages ) {
+    ImGui::BeginChild( "##messages", ImVec2( 0.0f, 0.0f ), ImGuiChildFlags_None,
                        ImGuiWindowFlags_HorizontalScrollbar );
     pushCodeFont();
     bool wasAtBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
 
     ImGuiListClipper clipper;
-    clipper.Begin( session.console.size() );
+    clipper.Begin( messages.size() );
     while ( clipper.Step() ) {
         for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ ) {
-            const Message &message = session.console[i];
+            const Message &message = messages[i];
             ImGui::PushID( i );
             ImGui::PushStyleColor( ImGuiCol_Text, messageColor( message.kind ) );
             bool clicked = ImGui::Selectable( message.text.c_str() );
@@ -147,6 +205,14 @@ static void drawConsole( const Session &session, MenuActions &actions ) {
     }
     ImGui::PopFont();
     ImGui::EndChild();
+}
+
+static void drawConsole( const Session &session, MenuActions &actions ) {
+    followLatestBuild( session );
+    beginPanel( "Console" );
+    drawConsoleHeader( session, actions );
+    bool showsBuild = shownOutputTab == OutputTab::Build;
+    drawMessages( showsBuild ? session.buildLog : session.console );
     ImGui::End();
 }
 
@@ -179,6 +245,7 @@ static void drawFlags( const Registers &registers, const Registers &previous ) {
 
 static void drawRegisters( const Session &session ) {
     beginPanel( "Registers" );
+    drawPanelTitle( "Registers" );
     if ( !session.hasRegisters ) {
         ImGui::TextDisabled( "Start debugging with F10 or F8" );
         ImGui::End();
@@ -262,8 +329,15 @@ static void drawMemoryRow( const Session &session, uint64_t rowAddress ) {
 
 static void drawMemory( const Session &session ) {
     beginPanel( "Memory", ImGuiWindowFlags_HorizontalScrollbar );
-    ImGui::SetNextItemWidth( -1 );
-    ImGui::InputTextWithHint( "##address", "address, register or sp", memoryAddressInput,
+    drawPanelTitle( "Memory" );
+    float inputWidth = ImGui::GetContentRegionAvail().x * 0.45f;
+    float labelWidth = ImGui::CalcTextSize( "Address" ).x + ImGui::GetStyle().ItemSpacing.x;
+    ImGui::SameLine( ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - inputWidth -
+                     labelWidth );
+    ImGui::TextDisabled( "Address" );
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth( inputWidth );
+    ImGui::InputTextWithHint( "##address", "x1, sp, 0x4100d8", memoryAddressInput,
                               sizeof( memoryAddressInput ) );
 
     uint64_t address = 0;

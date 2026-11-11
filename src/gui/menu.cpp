@@ -38,7 +38,7 @@ static void saveDocument( Session &session, const std::string &path ) {
     ImGui::MarkIniSettingsDirty();
 }
 
-static std::string displayPath( const std::string &path ) {
+std::string displayPath( const std::string &path ) {
     const char *home = std::getenv( "HOME" );
     if ( home && path.starts_with( std::string( home ) + "/" ) ) {
         return "~" + path.substr( std::strlen( home ) );
@@ -72,13 +72,14 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
     if ( !ImGui::BeginMainMenuBar() ) {
         return;
     }
+    drawToolbarStart( session, actions );
 
     if ( ImGui::BeginMenu( "File" ) ) {
         actions.open |= ImGui::MenuItem( "Open...", "Ctrl+O" );
         if ( ImGui::BeginMenu( "Open Recent", !session.recentFiles.empty() ) ) {
             for ( const std::string &path : session.recentFiles ) {
                 if ( ImGui::MenuItem( displayPath( path ).c_str() ) ) {
-                    actions.recentFile = path;
+                    actions.fileToOpen = path;
                 }
             }
             ImGui::EndMenu();
@@ -111,8 +112,7 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
         ImGui::EndMenu();
     }
 
-    ImGui::TextDisabled( "%s", session.status.c_str() );
-    drawToolbar( session, actions );
+    drawToolbarEnd( session, actions );
     ImGui::EndMainMenuBar();
 }
 
@@ -142,6 +142,9 @@ static void runActions( Session &session, const MenuActions &actions ) {
     if ( actions.stop ) {
         session.stop();
     }
+    if ( actions.clearOutput ) {
+        session.clearOutput();
+    }
     if ( actions.toggleBreakpoint ) {
         session.toggleBreakpoint( session.filePath, editorCursorLine() );
     }
@@ -150,8 +153,8 @@ static void runActions( Session &session, const MenuActions &actions ) {
         askForFileToOpen(
             directory, [&session]( const std::string &path ) { openDocument( session, path ); } );
     }
-    if ( !actions.recentFile.empty() ) {
-        openDocument( session, actions.recentFile );
+    if ( !actions.fileToOpen.empty() ) {
+        openDocument( session, actions.fileToOpen );
     }
 
     bool startsDebugging = ( actions.debugContinue || actions.debugStep ) && !session.isDebugging();

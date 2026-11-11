@@ -13,9 +13,9 @@
 #include <gui/dialogs.h>
 #include <gui/editor.h>
 #include <gui/theme.h>
+#include <gui/widgets.h>
 #include <gui/window.h>
 
-// One editor tab: a file (or an untitled text) with its own undo history and cursor.
 struct Document {
     std::string path;
     TextEditor editor;
@@ -26,7 +26,6 @@ struct Document {
 
 static std::vector<std::unique_ptr<Document>> documents;
 static Document *activeDocument = nullptr;
-static Document *documentToSelect = nullptr;
 static Document *drawingDocument = nullptr;
 static Session *editorSession = nullptr;
 
@@ -155,24 +154,15 @@ static void makeActive( Document *document ) {
     editorSession->filePath = document->path;
 }
 
-// Also brings its tab to the front on the next draw.
-static void selectDocument( Document *document ) {
-    makeActive( document );
-    documentToSelect = document;
-}
-
 static void closeDocument( Document *document ) {
     auto position = std::ranges::find( documents, document, &std::unique_ptr<Document>::get );
     size_t index = position - documents.begin();
     documents.erase( position );
-    if ( documentToSelect == document ) {
-        documentToSelect = nullptr;
-    }
     if ( documents.empty() ) {
         addDocument( "", "" );
     }
     if ( activeDocument == document ) {
-        selectDocument( documents[std::min( index, documents.size() - 1 )].get() );
+        makeActive( documents[std::min( index, documents.size() - 1 )].get() );
     }
 }
 
@@ -186,18 +176,18 @@ static void askToCloseDocument( Document *document ) {
 
 void setupEditor( Session &session ) {
     editorSession = &session;
-    selectDocument( addDocument( "", "" ) );
+    makeActive( addDocument( "", "" ) );
 }
 
 void openInEditor( const std::string &path, const std::string &text ) {
     if ( Document *open = findDocument( path ) ) {
-        selectDocument( open );
+        makeActive( open );
         return;
     }
 
     bool replacesEmptyUntitled = activeDocument->path.empty() && !isModified( *activeDocument );
     Document *untitled = activeDocument;
-    selectDocument( addDocument( path, text ) );
+    makeActive( addDocument( path, text ) );
     if ( replacesEmptyUntitled ) {
         closeDocument( untitled );
     }
@@ -227,16 +217,30 @@ std::vector<std::string> unsavedDocumentNames() {
     return names;
 }
 
+std::vector<std::string> openDocumentPaths() {
+    std::vector<std::string> paths;
+    for ( const std::unique_ptr<Document> &document : documents ) {
+        if ( !document->path.empty() ) {
+            paths.push_back( document->path );
+        }
+    }
+    return paths;
+}
+
 int editorCursorLine() {
     return static_cast<int>( activeDocument->editor.GetCurrentCursorPosition().line ) + 1;
 }
 
+int editorCursorColumn() {
+    return static_cast<int>( activeDocument->editor.GetCurrentCursorPosition().index ) + 1;
+}
+
 void jumpToSourceLine( int sourceLine ) {
-    auto* program = findDocument( editorSession->programFilePath );
+    auto *program = findDocument( editorSession->programFilePath );
     if ( !program ) {
         return;
     }
-    selectDocument( program );
+    makeActive( program );
     size_t line = sourceLine - 1;
     program->editor.SetCursor( TextEditor::DocPos( line, 0 ) );
     program->editor.ScrollToLine( line );
@@ -267,7 +271,7 @@ void syncEditorWithSession( Session &session ) {
 
     if ( session.lineToReveal > 0 ) {
         if ( Document *program = findDocument( session.programFilePath ) ) {
-            selectDocument( program );
+            makeActive( program );
             program->editor.SetCursor( TextEditor::DocPos( session.lineToReveal - 1, 0 ) );
         }
         session.lineToReveal = 0;
@@ -275,44 +279,35 @@ void syncEditorWithSession( Session &session ) {
 }
 
 static void drawDocumentTabs() {
-    if ( !ImGui::BeginTabBar( "##documents", ImGuiTabBarFlags_Reorderable |
-                                                 ImGuiTabBarFlags_FittingPolicyScroll ) ) {
-        return;
-    }
-
-    Document *shownDocument = nullptr;
+    Document *documentToShow = nullptr;
     Document *documentToClose = nullptr;
     for ( const std::unique_ptr<Document> &document : documents ) {
-        ImGuiTabItemFlags flags = ImGuiTabItemFlags_None;
-        if ( isModified( *document ) ) {
-            flags |= ImGuiTabItemFlags_UnsavedDocument;
-        }
-        if ( document.get() == documentToSelect ) {
-            flags |= ImGuiTabItemFlags_SetSelected;
-        }
+        PillTab tab;
+        tab.label = documentName( *document );
+        tab.icon = Icon::AsmFile;
+        tab.hasIcon = true;
+        tab.selected = document.get() == activeDocument;
+        tab.closable = true;
+        tab.unsaved = isModified( *document );
 
-        bool open = true;
         ImGui::PushID( document.get() );
-        if ( ImGui::BeginTabItem( documentName( *document ).c_str(), &open, flags ) ) {
-            shownDocument = document.get();
-            ImGui::EndTabItem();
-        }
+        TabClick click = drawPillTab( "##tab", tab );
         if ( !document->path.empty() ) {
             ImGui::SetItemTooltip( "%s", document->path.c_str() );
         }
         ImGui::PopID();
-        if ( !open ) {
+        ImGui::SameLine( 0.0f, 2.0f );
+
+        if ( click == TabClick::Select ) {
+            documentToShow = document.get();
+        } else if ( click == TabClick::Close ) {
             documentToClose = document.get();
         }
     }
-    ImGui::EndTabBar();
+    ImGui::NewLine();
 
-    if ( documentToSelect ) {
-        if ( shownDocument == documentToSelect ) {
-            documentToSelect = nullptr;
-        }
-    } else if ( shownDocument && shownDocument != activeDocument ) {
-        makeActive( shownDocument );
+    if ( documentToShow ) {
+        makeActive( documentToShow );
     }
     if ( documentToClose ) {
         askToCloseDocument( documentToClose );

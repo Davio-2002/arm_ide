@@ -148,7 +148,7 @@ static void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, co
     if ( text.starts_with( "Zoom=" ) ) {
         codeFontSize =
             std::clamp( std::strtof( line + 5, nullptr ), minCodeFontSize, maxCodeFontSize );
-    } else if ( text.starts_with( "Recent=" ) ) {
+    } else if ( text.starts_with( "Recent=" ) && std::filesystem::exists( text.substr( 7 ) ) ) {
         settingsSession->recentFiles.push_back( text.substr( 7 ) );
     }
 }

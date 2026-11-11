@@ -14,8 +14,8 @@ static std::string absolutePath( const std::string &path ) {
 
 bool Session::openFile( const std::string &path, std::string &text ) {
     if ( !std::filesystem::exists( path ) ) {
-        std::erase( recentFiles, path );
         status = "File no longer exists: " + path;
+        std::erase( recentFiles, path );
         return false;
     }
 
@@ -55,14 +55,14 @@ bool Session::saveFile( const std::string &path, const std::string &text ) {
 
 bool Session::build() {
     stopActiveProgram();
-    console.clear();
+    buildLog.clear();
     executablePath.clear();
     programFilePath = filePath;
 
     BuildResult build = buildProgram( filePath );
     std::vector<LineMark> marks;
     for ( const Message &message : build.messages ) {
-        console.push_back( message );
+        buildLog.push_back( message );
         if ( message.sourceLine > 0 ) {
             bool isWarning = message.kind == MessageKind::Warning;
             LineMarkKind kind = isWarning ? LineMarkKind::Warning : LineMarkKind::Error;
@@ -73,12 +73,14 @@ bool Session::build() {
 
     if ( build.success ) {
         executablePath = build.executablePath;
-        console.push_back( { "Build succeeded: " + executablePath, MessageKind::Success } );
+        buildLog.push_back( { "Build succeeded: " + executablePath, MessageKind::Success } );
         status = "Build succeeded";
     } else {
-        console.push_back( { "Build failed", MessageKind::Error } );
+        buildLog.push_back( { "Build failed", MessageKind::Error } );
         status = "Build failed";
     }
+    buildCount++;
+    buildSucceeded = build.success;
     return build.success;
 }
 
@@ -87,6 +89,7 @@ void Session::run() {
         return;
     }
 
+    console.clear();
     console.push_back( { "$ qemu-aarch64 " + executablePath, MessageKind::Command } );
     runningProgram = startProcess( { "qemu-aarch64", executablePath } );
     if ( !isRunning( runningProgram ) ) {
@@ -137,6 +140,12 @@ void Session::toggleBreakpoint( const std::string &path, int line ) {
     }
 }
 
+void Session::clearOutput() {
+    console.clear();
+    buildLog.clear();
+    programLineOpen = false;
+}
+
 void Session::update() {
     updateRunningProgram();
     updateEmulator();
@@ -167,9 +176,11 @@ bool Session::hasBreakpoint( const std::string &path, int line ) const {
     return lines != breakpoints.end() && lines->second.contains( line );
 }
 
+// The path is copied first: it may be an element of recentFiles, which erase moves.
 void Session::addRecentFile( const std::string &path ) {
-    std::erase( recentFiles, absolutePath( path ) );
-    recentFiles.insert( recentFiles.begin(), absolutePath( path ) );
+    std::string recentPath = absolutePath( path );
+    std::erase( recentFiles, recentPath );
+    recentFiles.insert( recentFiles.begin(), recentPath );
     if ( recentFiles.size() > maxRecentFiles ) {
         recentFiles.resize( maxRecentFiles );
     }
@@ -219,6 +230,7 @@ void Session::startDebugging( bool pauseAtEntry ) {
         return;
     }
 
+    console.clear();
     console.push_back( { "$ debug " + executablePath, MessageKind::Command } );
     if ( !loadProgram( emulator, executablePath ) ) {
         printResult( emulator.error, MessageKind::Error );

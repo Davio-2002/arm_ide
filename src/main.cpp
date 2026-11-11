@@ -9,6 +9,7 @@
 #include <gui/icons.h>
 #include <gui/menu.h>
 #include <gui/panels.h>
+#include <gui/statusbar.h>
 #include <gui/window.h>
 
 static Session session;
@@ -59,6 +60,7 @@ int main( int argc, char **argv ) {
 
         beginFrame();
         MenuActions actions = drawMenuBar( session );
+        drawStatusBar( session );
         drawPanels( session, actions );
         runMenuActions( session, actions );
         drawDialogs();

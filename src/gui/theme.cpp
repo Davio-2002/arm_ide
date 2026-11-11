@@ -87,31 +87,39 @@ TextEditor::Palette editorPalette() {
     auto set = [&palette]( TextEditor::Color color, ImU32 value ) {
         palette[static_cast<size_t>( color )] = value;
     };
+    // The JetBrains "Dark" scheme that Islands Dark uses.
+    ImU32 keywordOrange = IM_COL32( 207, 142, 109, 255 );
+    ImU32 metadataYellow = IM_COL32( 179, 174, 96, 255 );
+    ImU32 numberCyan = IM_COL32( 42, 172, 184, 255 );
+    ImU32 stringGreen = IM_COL32( 106, 171, 115, 255 );
+    ImU32 functionBlue = IM_COL32( 86, 168, 245, 255 );
+    ImU32 fieldPurple = IM_COL32( 199, 125, 187, 255 );
+    ImU32 commentGrey = IM_COL32( 122, 126, 133, 255 );
     ImU32 faintColor = borderColor;
 
     set( TextEditor::Color::text, codeTextColor );
-    set( TextEditor::Color::keyword, IM_COL32( 232, 145, 74, 255 ) );
-    set( TextEditor::Color::declaration, IM_COL32( 224, 105, 74, 255 ) );
-    set( TextEditor::Color::number, IM_COL32( 211, 134, 155, 255 ) );
-    set( TextEditor::Color::string, IM_COL32( 216, 176, 74, 255 ) );
-    set( TextEditor::Color::punctuation, IM_COL32( 168, 171, 178, 255 ) );
-    set( TextEditor::Color::preprocessor, IM_COL32( 131, 165, 152, 255 ) );
-    set( TextEditor::Color::identifier, IM_COL32( 233, 180, 76, 255 ) );
-    set( TextEditor::Color::knownIdentifier, IM_COL32( 169, 182, 101, 255 ) );
-    set( TextEditor::Color::comment, IM_COL32( 122, 126, 133, 255 ) );
+    set( TextEditor::Color::keyword, keywordOrange );
+    set( TextEditor::Color::declaration, metadataYellow );
+    set( TextEditor::Color::number, numberCyan );
+    set( TextEditor::Color::string, stringGreen );
+    set( TextEditor::Color::punctuation, codeTextColor );
+    set( TextEditor::Color::preprocessor, metadataYellow );
+    set( TextEditor::Color::identifier, functionBlue );
+    set( TextEditor::Color::knownIdentifier, fieldPurple );
+    set( TextEditor::Color::comment, commentGrey );
     set( TextEditor::Color::background, islandColor );
     set( TextEditor::Color::cursor, textColor );
     set( TextEditor::Color::selection, IM_COL32( 33, 66, 131, 255 ) );
     set( TextEditor::Color::whitespace, faintColor );
     set( TextEditor::Color::matchingBracketBackground, faintColor );
     set( TextEditor::Color::matchingBracketActive, mutedTextColor );
-    set( TextEditor::Color::matchingBracketLevel1, IM_COL32( 233, 180, 76, 255 ) );
-    set( TextEditor::Color::matchingBracketLevel2, IM_COL32( 131, 165, 152, 255 ) );
-    set( TextEditor::Color::matchingBracketLevel3, IM_COL32( 211, 134, 155, 255 ) );
+    set( TextEditor::Color::matchingBracketLevel1, metadataYellow );
+    set( TextEditor::Color::matchingBracketLevel2, fieldPurple );
+    set( TextEditor::Color::matchingBracketLevel3, functionBlue );
     set( TextEditor::Color::matchingBracketError, errorColor );
-    set( TextEditor::Color::lineNumber, IM_COL32( 94, 97, 104, 255 ) );
+    set( TextEditor::Color::lineNumber, IM_COL32( 75, 80, 89, 255 ) );
     set( TextEditor::Color::currentLineNumber, IM_COL32( 161, 163, 171, 255 ) );
-    set( TextEditor::Color::currentLineHighlight, IM_COL32( 255, 255, 255, 8 ) );
-    set( TextEditor::Color::currentLineHighlightBorder, IM_COL32( 255, 255, 255, 14 ) );
+    set( TextEditor::Color::currentLineHighlight, IM_COL32( 38, 40, 46, 255 ) );
+    set( TextEditor::Color::currentLineHighlightBorder, IM_COL32( 38, 40, 46, 255 ) );
     return palette;
 }

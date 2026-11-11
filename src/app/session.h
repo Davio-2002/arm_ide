@@ -28,6 +28,7 @@ class Session {
     void debugStep();
     void stop();
     void toggleBreakpoint( const std::string &path, int line );
+    void clearOutput();
     void update();
 
     bool isDebugging() const;
@@ -42,7 +43,11 @@ class Session {
     std::string programFilePath;
     std::string status;
     std::vector<std::string> recentFiles;
+    // Program output and run results; the assembler and linker output goes to buildLog.
     std::vector<Message> console;
+    std::vector<Message> buildLog;
+    int buildCount = 0;
+    bool buildSucceeded = false;
 
     std::vector<LineMark> lineMarks;
     int lineMarksVersion = 0;

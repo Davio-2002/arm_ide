@@ -30,9 +30,19 @@ static const unsigned char resumeSvg[] = {
 static const unsigned char stepOverSvg[] = {
 #include "stepOver_svg.inc"
     0 };
+static const unsigned char asmFileSvg[] = {
+#include "asmFile_svg.inc"
+    0 };
+static const unsigned char consoleSvg[] = {
+#include "console_svg.inc"
+    0 };
+static const unsigned char clearSvg[] = {
+#include "clear_svg.inc"
+    0 };
 
-static const Icon allIcons[] = { Icon::Build, Icon::Run,    Icon::Debug,
-                                 Icon::Stop,  Icon::Resume, Icon::StepOver };
+static const Icon allIcons[] = { Icon::Build,   Icon::Run,     Icon::Debug,
+                                 Icon::Stop,    Icon::Resume,  Icon::StepOver,
+                                 Icon::AsmFile, Icon::Console, Icon::Clear };
 static std::array<GLuint, std::size( allIcons )> textures = {};
 
 static const unsigned char *iconSvg( Icon icon ) {
@@ -48,9 +58,15 @@ static const unsigned char *iconSvg( Icon icon ) {
     case Icon::Resume:
         return resumeSvg;
     case Icon::StepOver:
+        return stepOverSvg;
+    case Icon::AsmFile:
+        return asmFileSvg;
+    case Icon::Console:
+        return consoleSvg;
+    case Icon::Clear:
         break;
     }
-    return stepOverSvg;
+    return clearSvg;
 }
 
 static std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int size ) {
