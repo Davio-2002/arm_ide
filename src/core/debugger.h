@@ -19,6 +19,10 @@ struct Debugger {
     std::set<uint64_t> breakpoints;
     // Set while resuming from a breakpoint: the instruction under it is stepped over first.
     bool continueAfterStep = false;
+    // QEMU's single step runs one instruction too many after an svc, so stepping an svc runs to
+    // a temporary breakpoint after it, with a breakpoint under the PC lifted meanwhile.
+    uint64_t temporaryBreakpoint = 0;
+    uint64_t liftedBreakpoint = 0;
     DebuggerState state = DebuggerState::Idle;
     int exitCode = 0;
     std::string error;

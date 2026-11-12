@@ -30,6 +30,9 @@ class Session {
     void debugStep();
     void stop();
     void toggleBreakpoint( const std::string &path, int line );
+    // While a program runs, lines typed in the Console go to its stdin.
+    void sendProgramInput( const std::string &line );
+    void endProgramInput();
     void clearOutput();
     // Starts the shell when the Terminal tab is shown, and keeps the pty sized to the panel.
     void openTerminal( int rows, int columns );
@@ -45,6 +48,7 @@ class Session {
     bool readMemory( uint64_t address, uint8_t &byte );
     bool hasBreakpoint( const std::string &path, int line ) const;
     bool isTerminalBusy() const;
+    bool acceptsInput() const;
 
     std::string filePath;
     // The file last built: lineMarks, lineToReveal and pausedLine are lines of this file.
@@ -75,10 +79,12 @@ class Session {
     void printResult( const std::string &text, MessageKind kind, int sourceLine = 0 );
     void printExitCode( int exitCode );
 
+    Process *programProcess();
     void stopActiveProgram();
     void startDebugging( bool pauseAtEntry );
     void endDebugSession();
     void handleDebuggerState();
+    void showRunning();
     void showPausedLine();
     void showCrash();
     void updateRunningProgram();

@@ -38,7 +38,7 @@ It reopens the file you had open last time.
 | Ctrl+Space | Autocomplete |
 | Ctrl+= / Ctrl+- | Zoom |
 
-Program output and build errors show up in the console. Click an error to jump to its line.
+Program output and build errors show up in the console. Click an error to jump to its line. When your program reads from stdin, type in the line under the console output: Enter sends a line, Ctrl+D ends the input.
 
 Your program runs as a Linux program, so it talks to the system through `svc #0`. See [examples/hello.s](examples/hello.s):
 

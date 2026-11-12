@@ -160,6 +160,50 @@ static void finishStepOverBreakpoint( Debugger &debugger ) {
     }
 }
 
+static bool isSystemCall( Debugger &debugger, uint64_t address ) {
+    static const uint32_t svcMask = 0xffe0001f;
+    static const uint32_t svcBits = 0xd4000001;
+    std::vector<uint8_t> code;
+    if ( !readMemory( debugger, address, 4, code ) ) {
+        return false;
+    }
+    uint32_t word = code[0] | code[1] << 8 | code[2] << 16 | static_cast<uint32_t>( code[3] ) << 24;
+    return ( word & svcMask ) == svcBits;
+}
+
+static void stepInstruction( Debugger &debugger ) {
+    uint64_t pc = programCounter( debugger );
+    if ( !isSystemCall( debugger, pc ) ) {
+        resume( debugger, "s" );
+        return;
+    }
+    std::string reply;
+    if ( debugger.breakpoints.contains( pc ) ) {
+        request( debugger, "z0," + toHex( pc ) + ",4", reply );
+        debugger.liftedBreakpoint = pc;
+    }
+    if ( !debugger.breakpoints.contains( pc + 4 ) ) {
+        request( debugger, "Z0," + toHex( pc + 4 ) + ",4", reply );
+        debugger.temporaryBreakpoint = pc + 4;
+    }
+    resume( debugger, "c" );
+}
+
+// Breakpoints changed meanwhile stay as the user set them.
+static void restoreStepBreakpoints( Debugger &debugger ) {
+    std::string reply;
+    uint64_t temporary = debugger.temporaryBreakpoint;
+    if ( temporary != 0 && !debugger.breakpoints.contains( temporary ) ) {
+        request( debugger, "z0," + toHex( temporary ) + ",4", reply );
+    }
+    uint64_t lifted = debugger.liftedBreakpoint;
+    if ( lifted != 0 && debugger.breakpoints.contains( lifted ) ) {
+        request( debugger, "Z0," + toHex( lifted ) + ",4", reply );
+    }
+    debugger.temporaryBreakpoint = 0;
+    debugger.liftedBreakpoint = 0;
+}
+
 static void handleStopReply( Debugger &debugger, const std::string &reply ) {
     char kind = reply.empty() ? '\0' : reply[0];
     if ( kind == 'W' ) {
@@ -174,10 +218,13 @@ static void handleStopReply( Debugger &debugger, const std::string &reply ) {
         if ( signal != gdbSignalTrap ) {
             debugger.state = DebuggerState::Crashed;
             debugger.error = signalName( signal );
-        } else if ( debugger.continueAfterStep ) {
-            finishStepOverBreakpoint( debugger );
         } else {
-            debugger.state = DebuggerState::Paused;
+            restoreStepBreakpoints( debugger );
+            if ( debugger.continueAfterStep ) {
+                finishStepOverBreakpoint( debugger );
+            } else {
+                debugger.state = DebuggerState::Paused;
+            }
         }
     } else {
         debugger.state = DebuggerState::Crashed;
@@ -287,9 +334,11 @@ void setBreakpointLines( Debugger &debugger, const std::set<int> &lines ) {
             return;
         }
         debugger.state = DebuggerState::Paused;
-        debugger.continueAfterStep = false;
         applyBreakpoints( debugger, addresses );
-        if ( !addresses.contains( programCounter( debugger ) ) ) {
+        if ( addresses.contains( programCounter( debugger ) ) ) {
+            restoreStepBreakpoints( debugger );
+            debugger.continueAfterStep = false;
+        } else {
             resume( debugger, "c" );
         }
     }
@@ -306,7 +355,11 @@ void continueDebugger( Debugger &debugger ) {
         return;
     }
     debugger.continueAfterStep = debugger.breakpoints.contains( programCounter( debugger ) );
-    resume( debugger, debugger.continueAfterStep ? "s" : "c" );
+    if ( debugger.continueAfterStep ) {
+        stepInstruction( debugger );
+    } else {
+        resume( debugger, "c" );
+    }
 }
 
 void stepDebugger( Debugger &debugger ) {
@@ -314,7 +367,7 @@ void stepDebugger( Debugger &debugger ) {
         return;
     }
     debugger.continueAfterStep = false;
-    resume( debugger, "s" );
+    stepInstruction( debugger );
     pollDebugger( debugger, stepTimeoutMilliseconds );
 }
 

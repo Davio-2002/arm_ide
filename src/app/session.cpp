@@ -107,9 +107,7 @@ void Session::debugContinue() {
         startDebugging( false );
     } else if ( isPaused() ) {
         continueDebugger( debugger );
-        pausedLine = 0;
-        setLineMarks( {} );
-        status = "Running in debugger";
+        handleDebuggerState();
     }
 }
 
@@ -143,6 +141,39 @@ void Session::toggleBreakpoint( const std::string &path, int line ) {
         if ( wasRunning ) {
             handleDebuggerState();
         }
+    }
+}
+
+Process *Session::programProcess() {
+    if ( isRunning( runningProgram ) ) {
+        return &runningProgram;
+    }
+    if ( isRunning( debugger.qemu ) ) {
+        return &debugger.qemu;
+    }
+    return nullptr;
+}
+
+bool Session::acceptsInput() const {
+    return runningProgram.inputFd >= 0 || debugger.qemu.inputFd >= 0;
+}
+
+// The line is echoed into the console like a terminal does.
+void Session::sendProgramInput( const std::string &line ) {
+    Process *program = programProcess();
+    if ( !program || program->inputFd < 0 ) {
+        return;
+    }
+    appendProgramOutput( line + "\n" );
+    if ( !writeToProcess( *program, line + "\n" ) ) {
+        status = "The program is not reading its input";
+    }
+}
+
+void Session::endProgramInput() {
+    if ( Process *program = programProcess() ) {
+        closeProcessInput( *program );
+        status = "Input closed: the program reads end of file";
     }
 }
 
@@ -268,15 +299,15 @@ void Session::setLineMarks( const std::vector<LineMark> &marks ) {
 
 void Session::appendProgramOutput( const std::string &output ) {
     for ( char c : output ) {
-        if ( c == '\n' ) {
-            programLineOpen = false;
-            continue;
-        }
         if ( !programLineOpen ) {
             console.push_back( {} );
             programLineOpen = true;
         }
-        console.back().text += c;
+        if ( c == '\n' ) {
+            programLineOpen = false;
+        } else {
+            console.back().text += c;
+        }
     }
 }
 
@@ -335,6 +366,8 @@ void Session::handleDebuggerState() {
 
     if ( debugger.state == DebuggerState::Paused ) {
         showPausedLine();
+    } else if ( debugger.state == DebuggerState::Running ) {
+        showRunning();
     } else if ( debugger.state == DebuggerState::Exited ) {
         int exitCode = debugger.exitCode;
         endDebugSession();
@@ -342,6 +375,16 @@ void Session::handleDebuggerState() {
     } else if ( debugger.state == DebuggerState::Crashed ) {
         showCrash();
     }
+}
+
+// A step can leave the program running, e.g. when it waits in read for input.
+void Session::showRunning() {
+    if ( pausedLine == 0 && !lineMarks.empty() ) {
+        return;
+    }
+    pausedLine = 0;
+    setLineMarks( {} );
+    status = "Running in debugger";
 }
 
 void Session::showPausedLine() {

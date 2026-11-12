@@ -179,13 +179,45 @@ static void drawMessages( const std::vector<Message> &messages, MessageSelection
     ImGui::EndChild();
 }
 
+static char programInput[1024];
+
+// A line for the running program's stdin, like typing into its terminal.
+static void drawProgramInput( const Session &session, MenuActions &actions ) {
+    bool enabled = session.acceptsInput();
+    const char *hint = enabled ? "Input for the program: Enter sends a line, Ctrl+D ends input"
+                               : "Input for the program, while it runs";
+    ImGui::BeginDisabled( !enabled );
+    ImGui::SetNextItemWidth( -FLT_MIN );
+    bool entered =
+        ImGui::InputTextWithHint( "##programInput", hint, programInput, sizeof( programInput ),
+                                  ImGuiInputTextFlags_EnterReturnsTrue );
+    if ( entered ) {
+        actions.sendProgramInput = true;
+        actions.programInput = programInput;
+        programInput[0] = '\0';
+        ImGui::SetKeyboardFocusHere( -1 );
+    }
+    if ( ImGui::IsItemActive() && ImGui::IsKeyChordPressed( ImGuiMod_Ctrl | ImGuiKey_D ) ) {
+        actions.endProgramInput = true;
+    }
+    ImGui::EndDisabled();
+}
+
+static void drawConsoleTab( const Session &session, MenuActions &actions ) {
+    pushCodeFont();
+    float inputHeight = ImGui::GetFrameHeightWithSpacing();
+    drawMessages( session.console, consoleSelection, -inputHeight );
+    drawProgramInput( session, actions );
+    ImGui::PopFont();
+}
+
 void drawConsolePanel( const Session &session, MenuActions &actions ) {
     followLatestBuild( session );
     beginPanel( "Console" );
     drawConsoleHeader( session, actions );
     switch ( shownOutputTab ) {
     case OutputTab::Console:
-        drawMessages( session.console, consoleSelection );
+        drawConsoleTab( session, actions );
         break;
     case OutputTab::Build:
         drawMessages( session.buildLog, buildSelection );

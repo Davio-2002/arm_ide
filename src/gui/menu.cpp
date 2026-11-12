@@ -184,6 +184,12 @@ static void runActions( Session &session, const MenuActions &actions ) {
     if ( actions.clearOutput ) {
         session.clearOutput();
     }
+    if ( actions.sendProgramInput ) {
+        session.sendProgramInput( actions.programInput );
+    }
+    if ( actions.endProgramInput ) {
+        session.endProgramInput();
+    }
     if ( actions.terminalRows > 0 && actions.terminalColumns > 0 ) {
         session.openTerminal( actions.terminalRows, actions.terminalColumns );
     }

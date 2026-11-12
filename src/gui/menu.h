@@ -25,6 +25,9 @@ struct MenuActions {
     bool debugStep = false;
     bool toggleBreakpoint = false;
     bool clearOutput = false;
+    bool sendProgramInput = false;
+    std::string programInput;
+    bool endProgramInput = false;
     int terminalRows = 0; // set while the Terminal tab is shown
     int terminalColumns = 0;
     std::vector<TerminalInput> terminalInputs;
