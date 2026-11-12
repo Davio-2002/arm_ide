@@ -20,4 +20,8 @@ struct BuildResult {
 };
 
 BuildResult buildProgram( const std::string &sourcePath );
-std::map<uint64_t, int> readSourceLines( const std::string &executablePath );
+// Address of each line-table row → line in sourcePath, 0 for code outside it.
+std::map<uint64_t, int> readSourceLines( const std::string &executablePath,
+                                         const std::string &sourcePath );
+// 0 when the executable does not define it.
+uint64_t symbolAddress( const std::string &executablePath, const std::string &name );

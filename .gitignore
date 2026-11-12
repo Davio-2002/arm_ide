@@ -2,5 +2,6 @@ build/
 .cache/
 *.o
 examples/hello
+examples/squares
 CLAUDE.md
 .vscode/

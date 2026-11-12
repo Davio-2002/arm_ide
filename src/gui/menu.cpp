@@ -51,6 +51,7 @@ std::string displayPath( const std::string &path ) {
 static MenuActions readShortcuts() {
     ImGuiInputFlags global = ImGuiInputFlags_RouteGlobal;
     MenuActions actions;
+    actions.newFile = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_N, global );
     actions.open = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_O, global );
     actions.save = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_S, global );
     actions.saveAs = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, global );
@@ -95,6 +96,7 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
 
     bool fileOpen = ImGui::BeginMenu( "File" );
     if ( fileOpen ) {
+        actions.newFile |= ImGui::MenuItem( "New File", "Ctrl+N" );
         actions.open |= ImGui::MenuItem( "Open...", "Ctrl+O" );
         if ( ImGui::BeginMenu( "Open Recent", !session.recentFiles.empty() ) ) {
             for ( const std::string &path : session.recentFiles ) {
@@ -202,6 +204,9 @@ static void runActions( Session &session, const MenuActions &actions ) {
     }
     if ( actions.toggleBreakpoint ) {
         session.toggleBreakpoint( session.filePath, editorCursorLine() );
+    }
+    if ( actions.newFile ) {
+        openNewDocument();
     }
     if ( actions.open ) {
         std::string directory = std::filesystem::path( session.filePath ).parent_path();

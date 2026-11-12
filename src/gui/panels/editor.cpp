@@ -5,6 +5,7 @@
 #include <cctype>
 #include <filesystem>
 #include <language/aarch64_language.h>
+#include <language/c_language.h>
 #include <memory>
 #include <set>
 #include <vector>
@@ -112,9 +113,12 @@ static std::string withCase( std::string word, int ( *convert )( int ) ) {
 }
 
 static void suggestCompletions( TextEditor::AutoCompleteState &state ) {
-    const TextEditor::Language &language = *aarch64Language();
+    const TextEditor::Language &language = *drawingDocument->editor.GetLanguage();
     const std::string &term = state.searchTerm;
-    bool upper = term == withCase( term, std::toupper ) && term != withCase( term, std::tolower );
+    // Assembly ignores case, so its words follow an upper-case term; C keeps them as they are.
+    bool ignoresCase = !language.caseSensitive;
+    bool upper = ignoresCase && term == withCase( term, std::toupper ) &&
+                 term != withCase( term, std::tolower );
     std::set<std::string> languageWords;
     languageWords.insert( language.keywords.begin(), language.keywords.end() );
     languageWords.insert( language.declarations.begin(), language.declarations.end() );
@@ -125,7 +129,7 @@ static void suggestCompletions( TextEditor::AutoCompleteState &state ) {
         words.insert( upper ? withCase( word, std::toupper ) : word );
     }
     drawingDocument->editor.IterateIdentifiers( [&]( const std::string &word ) {
-        if ( !languageWords.contains( withCase( word, std::tolower ) ) ) {
+        if ( !languageWords.contains( ignoresCase ? withCase( word, std::tolower ) : word ) ) {
             words.insert( word );
         }
     } );
@@ -142,23 +146,31 @@ static void suggestCompletions( TextEditor::AutoCompleteState &state ) {
     } );
 }
 
-static void configureEditor( TextEditor &editor ) {
-    editor.SetLanguage( aarch64Language() );
-    editor.SetTabSize( 8 );
-    editor.SetShowWhitespacesEnabled( false );
-    editor.SetLineDecorator( 2, drawLineDecoration );
+// C for .c and .h files, AArch64 assembly for everything else. In C a '.' ends a word.
+static void setLanguage( Document &document ) {
+    std::string extension = std::filesystem::path( document.path ).extension();
+    bool isC = extension == ".c" || extension == ".h";
+    document.editor.SetLanguage( isC ? cLanguage() : aarch64Language() );
 
     TextEditor::AutoCompleteConfig autoComplete;
-    autoComplete.triggerCharacters = ".";
-    autoComplete.wordCharacters = ".";
+    autoComplete.triggerCharacters = isC ? "" : ".";
+    autoComplete.wordCharacters = isC ? "" : ".";
     autoComplete.callback = suggestCompletions;
-    editor.SetAutoCompleteConfig( &autoComplete );
+    document.editor.SetAutoCompleteConfig( &autoComplete );
+}
+
+static void configureEditor( TextEditor &editor ) {
+    editor.SetTabSize( 5 );
+    editor.SetInsertSpacesOnTabs( true );
+    editor.SetShowWhitespacesEnabled( false );
+    editor.SetLineDecorator( 2, drawLineDecoration );
 }
 
 static Document *addDocument( const std::string &path, const std::string &text ) {
     auto document = std::make_unique<Document>();
     document->path = path;
     configureEditor( document->editor );
+    setLanguage( *document );
     document->editor.SetText( text );
     document->savedUndoIndex = document->editor.GetUndoIndex();
     documents.push_back( std::move( document ) );
@@ -210,12 +222,17 @@ void openInEditor( const std::string &path, const std::string &text ) {
     }
 }
 
+void openNewDocument() {
+    makeActive( addDocument( "", "" ) );
+}
+
 std::string editorText() {
     return activeDocument->editor.GetText();
 }
 
 void markEditorSaved( const std::string &path ) {
     activeDocument->path = path;
+    setLanguage( *activeDocument );
     activeDocument->savedUndoIndex = activeDocument->editor.GetUndoIndex();
     makeActive( activeDocument );
 }

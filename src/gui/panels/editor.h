@@ -10,6 +10,8 @@ void syncEditorWithSession( Session &session );
 void drawEditorPanel();
 
 void openInEditor( const std::string &path, const std::string &text );
+// An untitled tab; saving it asks for a name, whose extension (.s or .c) picks the language.
+void openNewDocument();
 void jumpToSourceLine( int sourceLine );
 
 // These work on the active tab.

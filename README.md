@@ -33,7 +33,8 @@ It reopens the file you had open last time.
 | F7 | Build only |
 | **F9** | Set or clear a breakpoint on the current line |
 | **F8** | Start debugging / continue to the next breakpoint |
-| F10 | Execute one instruction |
+| F10 | Go to the next line (in assembly: one instruction) |
+| Ctrl+N | New file in a new tab (Ctrl+S then asks for its name: `.s` or `.c`) |
 | Ctrl+O / Ctrl+S | Open / save |
 | Ctrl+Space | Autocomplete |
 | Ctrl+= / Ctrl+- | Zoom |
@@ -52,12 +53,14 @@ Your program runs as a Linux program, so it talks to the system through `svc #0`
 
 Building `foo.s` creates `foo.o` and the program `foo` next to it.
 
+C works too: a `.c` file is built with `aarch64-linux-gnu-gcc -g -O0 -static` into the program `foo`. Debugging starts at `main`, and F10 steps over calls into the C library such as `printf`. See [examples/squares.c](examples/squares.c).
+
 ## Other Linux distributions
 
 `run.sh` only knows how to install packages with `apt`. On other distributions, install these yourself:
 
 - clang 18 or newer, CMake 3.24 or newer, Ninja, pkg-config, git
-- GNU binutils for `aarch64-linux-gnu` (the assembler and linker)
+- GNU binutils and GCC for `aarch64-linux-gnu` (assembler, linker and C compiler)
 - QEMU user mode (`qemu-aarch64`)
 - development packages for GLFW 3, OpenGL, FreeType and libvterm
 

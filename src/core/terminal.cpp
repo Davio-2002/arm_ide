@@ -1,4 +1,3 @@
-#include <csignal>
 #include <cstdlib>
 #include <fcntl.h>
 #include <pty.h>
@@ -107,7 +106,6 @@ bool startTerminal( Terminal &terminal, const std::string &directory, int rows, 
         return false;
     }
     if ( pid == 0 ) {
-        signal( SIGPIPE, SIG_DFL );
         if ( !directory.empty() && chdir( directory.c_str() ) != 0 ) {
             dprintf( STDERR_FILENO, "Cannot enter %s\n", directory.c_str() );
         }

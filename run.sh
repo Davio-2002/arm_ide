@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 packages=(clang cmake ninja-build pkg-config git
-          binutils-aarch64-linux-gnu qemu-user
+          binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu qemu-user
           libglfw3-dev libgl-dev libfreetype-dev libvterm-dev)
 
 missing=()

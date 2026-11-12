@@ -1,41 +1,51 @@
-#include <csignal>
 #include <fcntl.h>
+#include <pty.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include <core/process.h>
 
-// With inputFd the child reads a pipe whose write end is returned there, else /dev/null.
-// The pipes are close-on-exec, so other children (the terminal's shell) never hold them open.
-static pid_t spawnProcess( const std::vector<std::string> &args, const std::string &directory,
-                           int &outputFd, int *inputFd ) {
-    int outputPipe[2];
-    if ( pipe2( outputPipe, O_CLOEXEC ) != 0 ) {
-        return -1;
+// A program runs on a pseudo-terminal, so glibc flushes printf at each line and before reading
+// stdin, as in a terminal. Lines are read whole (canonical mode) without echo and output is not
+// translated. Tools write to a pipe and read /dev/null.
+static bool openOutput( bool isProgram, int ( &fds )[2] ) {
+    if ( !isProgram ) {
+        return pipe2( fds, O_CLOEXEC ) == 0;
     }
-    int inputPipe[2] = { -1, -1 };
-    if ( inputFd && pipe2( inputPipe, O_CLOEXEC ) != 0 ) {
-        close( outputPipe[0] );
-        close( outputPipe[1] );
+    if ( openpty( &fds[0], &fds[1], nullptr, nullptr, nullptr ) != 0 ) {
+        return false;
+    }
+    termios settings;
+    tcgetattr( fds[1], &settings );
+    cfmakeraw( &settings );
+    settings.c_lflag |= ICANON;
+    tcsetattr( fds[1], TCSANOW, &settings );
+    fcntl( fds[0], F_SETFD, FD_CLOEXEC );
+    fcntl( fds[1], F_SETFD, FD_CLOEXEC );
+    return true;
+}
+
+// The descriptors are close-on-exec, so other children (the terminal's shell) never hold them.
+static pid_t spawnProcess( const std::vector<std::string> &args, const std::string &directory,
+                           int &outputFd, bool isProgram ) {
+    int output[2];
+    if ( !openOutput( isProgram, output ) ) {
         return -1;
     }
 
     pid_t pid = fork();
     if ( pid < 0 ) {
-        for ( int fd : { outputPipe[0], outputPipe[1], inputPipe[0], inputPipe[1] } ) {
-            if ( fd >= 0 ) {
-                close( fd );
-            }
-        }
+        close( output[0] );
+        close( output[1] );
         return -1;
     }
 
     if ( pid == 0 ) {
-        signal( SIGPIPE, SIG_DFL );
-        int stdinFd = inputFd ? inputPipe[0] : open( "/dev/null", O_RDONLY );
-        dup2( stdinFd, STDIN_FILENO );
-        dup2( outputPipe[1], STDOUT_FILENO );
-        dup2( outputPipe[1], STDERR_FILENO );
+        int inputFd = isProgram ? output[1] : open( "/dev/null", O_RDONLY );
+        dup2( inputFd, STDIN_FILENO );
+        dup2( output[1], STDOUT_FILENO );
+        dup2( output[1], STDERR_FILENO );
         if ( !directory.empty() && chdir( directory.c_str() ) != 0 ) {
             dprintf( STDERR_FILENO, "Cannot enter %s\n", directory.c_str() );
             _exit( 127 );
@@ -51,31 +61,24 @@ static pid_t spawnProcess( const std::vector<std::string> &args, const std::stri
         _exit( 127 );
     }
 
-    close( outputPipe[1] );
-    outputFd = outputPipe[0];
-    if ( inputFd ) {
-        close( inputPipe[0] );
-        *inputFd = inputPipe[1];
-    }
+    close( output[1] );
+    outputFd = output[0];
     return pid;
 }
 
 Process startProcess( const std::vector<std::string> &args ) {
-    // writeToProcess after the program exited must fail with EPIPE, not kill the IDE.
-    signal( SIGPIPE, SIG_IGN );
     Process process;
-    process.pid = spawnProcess( args, "", process.outputFd, &process.inputFd );
+    process.pid = spawnProcess( args, "", process.outputFd, true );
     if ( isRunning( process ) ) {
         fcntl( process.outputFd, F_SETFL, O_NONBLOCK );
-        fcntl( process.inputFd, F_SETFL, O_NONBLOCK );
     }
     return process;
 }
 
 bool writeToProcess( Process &process, const std::string &text ) {
     size_t written = 0;
-    while ( process.inputFd >= 0 && written < text.size() ) {
-        ssize_t count = write( process.inputFd, text.data() + written, text.size() - written );
+    while ( isRunning( process ) && written < text.size() ) {
+        ssize_t count = write( process.outputFd, text.data() + written, text.size() - written );
         if ( count <= 0 ) {
             return false;
         }
@@ -84,11 +87,8 @@ bool writeToProcess( Process &process, const std::string &text ) {
     return written == text.size();
 }
 
-void closeProcessInput( Process &process ) {
-    if ( process.inputFd >= 0 ) {
-        close( process.inputFd );
-        process.inputFd = -1;
-    }
+void endProcessInput( Process &process ) {
+    writeToProcess( process, "\x04" );
 }
 
 std::string pollProcess( Process &process ) {
@@ -103,7 +103,6 @@ std::string pollProcess( Process &process ) {
     }
 
     if ( exited ) {
-        closeProcessInput( process );
         close( process.outputFd );
         process.pid = -1;
         process.outputFd = -1;
@@ -116,7 +115,6 @@ std::string pollProcess( Process &process ) {
 void stopProcess( Process &process ) {
     kill( process.pid, SIGKILL );
     waitpid( process.pid, nullptr, 0 );
-    closeProcessInput( process );
     close( process.outputFd );
     process.pid = -1;
     process.outputFd = -1;
@@ -130,7 +128,7 @@ bool isRunning( const Process &process ) {
 
 CommandResult runCommand( const std::vector<std::string> &args, const std::string &directory ) {
     int outputFd;
-    pid_t pid = spawnProcess( args, directory, outputFd, nullptr );
+    pid_t pid = spawnProcess( args, directory, outputFd, false );
     if ( pid < 0 ) {
         return { -1, "Cannot start " + args[0] + "\n" };
     }

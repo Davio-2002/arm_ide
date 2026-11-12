@@ -155,13 +155,13 @@ Process *Session::programProcess() {
 }
 
 bool Session::acceptsInput() const {
-    return runningProgram.inputFd >= 0 || debugger.qemu.inputFd >= 0;
+    return isRunning( runningProgram ) || isRunning( debugger.qemu );
 }
 
 // The line is echoed into the console like a terminal does.
 void Session::sendProgramInput( const std::string &line ) {
     Process *program = programProcess();
-    if ( !program || program->inputFd < 0 ) {
+    if ( !program ) {
         return;
     }
     appendProgramOutput( line + "\n" );
@@ -172,8 +172,8 @@ void Session::sendProgramInput( const std::string &line ) {
 
 void Session::endProgramInput() {
     if ( Process *program = programProcess() ) {
-        closeProcessInput( *program );
-        status = "Input closed: the program reads end of file";
+        endProcessInput( *program );
+        status = "End of input sent";
     }
 }
 
@@ -338,7 +338,7 @@ void Session::startDebugging( bool pauseAtEntry ) {
 
     console.clear();
     console.push_back( { "$ debug " + executablePath, MessageKind::Command } );
-    if ( !startDebugger( debugger, executablePath ) ) {
+    if ( !startDebugger( debugger, executablePath, programFilePath ) ) {
         printResult( debugger.error, MessageKind::Error );
         return;
     }
@@ -347,7 +347,11 @@ void Session::startDebugging( bool pauseAtEntry ) {
     registers = readRegisters( debugger );
     hasRegisters = true;
 
-    if ( pauseAtEntry ) {
+    if ( pauseAtEntry && sourceLineAt( debugger, registers.pc ) == 0 ) {
+        // A C program starts in glibc's _start; the step goes to main.
+        stepDebugger( debugger );
+        handleDebuggerState();
+    } else if ( pauseAtEntry ) {
         showPausedLine();
     } else {
         runDebugger( debugger );

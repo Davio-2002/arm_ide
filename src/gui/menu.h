@@ -9,6 +9,7 @@
 class Session;
 
 struct MenuActions {
+    bool newFile = false;
     bool open = false;
     bool save = false;
     bool saveAs = false;

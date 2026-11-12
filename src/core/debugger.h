@@ -23,6 +23,12 @@ struct Debugger {
     // a temporary breakpoint after it, with a breakpoint under the PC lifted meanwhile.
     uint64_t temporaryBreakpoint = 0;
     uint64_t liftedBreakpoint = 0;
+    // A line step runs instructions until the program reaches the start of another line.
+    bool steppingLine = false;
+    uint64_t stepStart = 0;
+    int stepLine = 0;
+    // Where a C program's line steps start, past glibc's _start; 0 for assembly.
+    uint64_t mainAddress = 0;
     DebuggerState state = DebuggerState::Idle;
     int exitCode = 0;
     std::string error;
@@ -36,12 +42,15 @@ struct Registers {
 };
 
 // Starts the program paused at its entry point.
-bool startDebugger( Debugger &debugger, const std::string &executablePath );
+bool startDebugger( Debugger &debugger, const std::string &executablePath,
+                    const std::string &sourcePath );
 void setBreakpointLines( Debugger &debugger, const std::set<int> &lines );
 // Runs from the entry point: a breakpoint on the first instruction stops at once.
 void runDebugger( Debugger &debugger );
 // Resumes from a pause, stepping over a breakpoint under the program counter first.
 void continueDebugger( Debugger &debugger );
+// Runs to the next line of the source. A call into code without lines (glibc) runs until it
+// returns; from code without lines the step goes to main.
 void stepDebugger( Debugger &debugger );
 // Waits up to timeoutMilliseconds for a running program to stop.
 void pollDebugger( Debugger &debugger, int timeoutMilliseconds );

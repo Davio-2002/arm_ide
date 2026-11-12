@@ -135,12 +135,16 @@ static bool request( Debugger &debugger, const std::string &payload, std::string
     return true;
 }
 
-static uint64_t programCounter( Debugger &debugger ) {
+static uint64_t readRegister( Debugger &debugger, int number ) {
     std::string reply;
-    if ( !request( debugger, "p20", reply ) ) {
+    if ( !request( debugger, "p" + toHex( number ), reply ) ) {
         return 0;
     }
     return littleEndian( reply, 0, 8 );
+}
+
+static uint64_t programCounter( Debugger &debugger ) {
+    return readRegister( debugger, 32 );
 }
 
 static void resume( Debugger &debugger, const char *command ) {
@@ -171,22 +175,52 @@ static bool isSystemCall( Debugger &debugger, uint64_t address ) {
     return ( word & svcMask ) == svcBits;
 }
 
-static void stepInstruction( Debugger &debugger ) {
+// Continues to a temporary breakpoint; one under the PC is lifted, as QEMU would stop on it.
+static void runTo( Debugger &debugger, uint64_t address ) {
     uint64_t pc = programCounter( debugger );
-    if ( !isSystemCall( debugger, pc ) ) {
-        resume( debugger, "s" );
-        return;
-    }
     std::string reply;
     if ( debugger.breakpoints.contains( pc ) ) {
         request( debugger, "z0," + toHex( pc ) + ",4", reply );
         debugger.liftedBreakpoint = pc;
     }
-    if ( !debugger.breakpoints.contains( pc + 4 ) ) {
-        request( debugger, "Z0," + toHex( pc + 4 ) + ",4", reply );
-        debugger.temporaryBreakpoint = pc + 4;
+    if ( !debugger.breakpoints.contains( address ) ) {
+        request( debugger, "Z0," + toHex( address ) + ",4", reply );
+        debugger.temporaryBreakpoint = address;
     }
     resume( debugger, "c" );
+}
+
+static void stepInstruction( Debugger &debugger ) {
+    uint64_t pc = programCounter( debugger );
+    if ( isSystemCall( debugger, pc ) ) {
+        runTo( debugger, pc + 4 );
+    } else {
+        resume( debugger, "s" );
+    }
+}
+
+static void continueLineStep( Debugger &debugger ) {
+    uint64_t pc = programCounter( debugger );
+    int line = sourceLineAt( debugger, pc );
+    if ( line == 0 ) {
+        // Right after the call x30 still holds the return address.
+        uint64_t returnAddress = readRegister( debugger, 30 );
+        if ( returnAddress != pc && sourceLineAt( debugger, returnAddress ) != 0 ) {
+            runTo( debugger, returnAddress );
+        } else {
+            debugger.steppingLine = false;
+            resume( debugger, "c" );
+        }
+        return;
+    }
+    // Jumping back to where the step started is a new line too: a loop on one line.
+    bool atLineStart = debugger.sourceLines.contains( pc );
+    bool newLine = line != debugger.stepLine || pc == debugger.stepStart;
+    if ( ( atLineStart && newLine ) || debugger.breakpoints.contains( pc ) ) {
+        debugger.steppingLine = false;
+    } else {
+        stepInstruction( debugger );
+    }
 }
 
 // Breakpoints changed meanwhile stay as the user set them.
@@ -218,13 +252,14 @@ static void handleStopReply( Debugger &debugger, const std::string &reply ) {
         if ( signal != gdbSignalTrap ) {
             debugger.state = DebuggerState::Crashed;
             debugger.error = signalName( signal );
-        } else {
-            restoreStepBreakpoints( debugger );
-            if ( debugger.continueAfterStep ) {
-                finishStepOverBreakpoint( debugger );
-            } else {
-                debugger.state = DebuggerState::Paused;
-            }
+            return;
+        }
+        debugger.state = DebuggerState::Paused;
+        restoreStepBreakpoints( debugger );
+        if ( debugger.continueAfterStep ) {
+            finishStepOverBreakpoint( debugger );
+        } else if ( debugger.steppingLine ) {
+            continueLineStep( debugger );
         }
     } else {
         debugger.state = DebuggerState::Crashed;
@@ -268,9 +303,11 @@ static bool connectToQemu( Debugger &debugger, const std::string &path ) {
     return false;
 }
 
-bool startDebugger( Debugger &debugger, const std::string &executablePath ) {
+bool startDebugger( Debugger &debugger, const std::string &executablePath,
+                    const std::string &sourcePath ) {
     stopDebugger( debugger );
-    debugger.sourceLines = readSourceLines( executablePath );
+    debugger.sourceLines = readSourceLines( executablePath, sourcePath );
+    debugger.mainAddress = symbolAddress( executablePath, "main" );
 
     std::string path = socketPath();
     unlink( path.c_str() );
@@ -354,6 +391,7 @@ void continueDebugger( Debugger &debugger ) {
     if ( debugger.state != DebuggerState::Paused ) {
         return;
     }
+    debugger.steppingLine = false;
     debugger.continueAfterStep = debugger.breakpoints.contains( programCounter( debugger ) );
     if ( debugger.continueAfterStep ) {
         stepInstruction( debugger );
@@ -367,14 +405,30 @@ void stepDebugger( Debugger &debugger ) {
         return;
     }
     debugger.continueAfterStep = false;
-    stepInstruction( debugger );
+    uint64_t pc = programCounter( debugger );
+    int line = sourceLineAt( debugger, pc );
+    if ( line == 0 && debugger.mainAddress != 0 && pc != debugger.mainAddress ) {
+        runTo( debugger, debugger.mainAddress );
+    } else {
+        debugger.steppingLine = true;
+        debugger.stepStart = pc;
+        debugger.stepLine = line;
+        stepInstruction( debugger );
+    }
     pollDebugger( debugger, stepTimeoutMilliseconds );
 }
 
+// A line step is many stop replies; all that arrive in time are handled.
 void pollDebugger( Debugger &debugger, int timeoutMilliseconds ) {
+    auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds( timeoutMilliseconds );
     std::string reply;
-    if ( debugger.state == DebuggerState::Running &&
-         receivePacket( debugger, reply, timeoutMilliseconds ) ) {
+    while ( debugger.state == DebuggerState::Running ) {
+        auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
+            deadline - std::chrono::steady_clock::now() );
+        if ( !receivePacket( debugger, reply, std::max<int>( 0, left.count() ) ) ) {
+            return;
+        }
         handleStopReply( debugger, reply );
     }
 }

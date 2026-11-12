@@ -66,7 +66,8 @@ add_executable(arm_ide
     src/gui/panels/registers.cpp
     src/gui/panels/memory.cpp
     src/language/aarch64_language.cpp
-    src/language/aarch64_words.cpp)
+    src/language/aarch64_words.cpp
+    src/language/c_language.cpp)
 target_include_directories(arm_ide PRIVATE ${nanosvg_SOURCE_DIR}/src)
 target_link_libraries(arm_ide PRIVATE arm_ide_core imgui)
 

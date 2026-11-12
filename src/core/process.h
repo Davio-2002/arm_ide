@@ -7,7 +7,6 @@
 struct Process {
     pid_t pid = -1;
     int outputFd = -1;
-    int inputFd = -1; // the program's stdin
     int exitCode = 0;
     int signal = 0;
 };
@@ -19,10 +18,10 @@ struct CommandResult {
 
 Process startProcess( const std::vector<std::string> &args );
 std::string pollProcess( Process &process );
-// False when the program is not reading and the pipe is full, or its input was closed.
+// Goes to the program's stdin. False when it is not reading and the terminal's buffer is full.
 bool writeToProcess( Process &process, const std::string &text );
-// The program then reads end of file.
-void closeProcessInput( Process &process );
+// The program's next read gets end of file, as after Ctrl+D in a terminal.
+void endProcessInput( Process &process );
 void stopProcess( Process &process );
 bool isRunning( const Process &process );
 

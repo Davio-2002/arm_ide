@@ -14,14 +14,16 @@ static std::string commandLine( const std::vector<std::string> &args ) {
     return line;
 }
 
-static Message parseToolOutputLine( const std::string &text ) {
-    static const std::regex sourceLocation( "^[^:]+:([0-9]+):" );
+// Only locations in the source itself get a line, not those in headers it includes.
+static Message parseToolOutputLine( const std::string &text, const std::string &sourceName ) {
+    static const std::regex sourceLocation( "^([^:]+):([0-9]+):" );
 
     Message message;
     message.text = text;
     std::smatch match;
-    if ( std::regex_search( text, match, sourceLocation ) ) {
-        message.sourceLine = std::stoi( match[1] );
+    if ( std::regex_search( text, match, sourceLocation ) &&
+         std::filesystem::path( match[1].str() ).filename() == sourceName ) {
+        message.sourceLine = std::stoi( match[2] );
     }
 
     bool isError = text.contains( "Error" ) || text.contains( "error" ) ||
@@ -52,10 +54,15 @@ BuildResult buildProgram( const std::string &sourcePath ) {
     std::string objectPath = std::filesystem::path( source ).replace_extension( ".o" );
     std::string executablePath = std::filesystem::path( source ).replace_extension( "" );
 
-    std::vector<std::vector<std::string>> steps = {
-        { "aarch64-linux-gnu-as", "-g", source, "-o", objectPath },
-        { "aarch64-linux-gnu-ld", objectPath, "-o", executablePath },
-    };
+    // C links glibc statically, so QEMU needs no AArch64 libraries on the host.
+    std::vector<std::vector<std::string>> steps;
+    if ( source.extension() == ".c" ) {
+        steps = {
+            { "aarch64-linux-gnu-gcc", "-g", "-O0", "-static", source, "-o", executablePath } };
+    } else {
+        steps = { { "aarch64-linux-gnu-as", "-g", source, "-o", objectPath },
+                  { "aarch64-linux-gnu-ld", objectPath, "-o", executablePath } };
+    }
 
     for ( const std::vector<std::string> &step : steps ) {
         build.messages.push_back( { commandLine( step ), MessageKind::Command } );
@@ -64,7 +71,7 @@ BuildResult buildProgram( const std::string &sourcePath ) {
         std::istringstream output( command.output );
         std::string line;
         while ( std::getline( output, line ) ) {
-            build.messages.push_back( parseToolOutputLine( line ) );
+            build.messages.push_back( parseToolOutputLine( line, source.filename() ) );
         }
         if ( command.exitCode != 0 ) {
             return build;
@@ -76,22 +83,41 @@ BuildResult buildProgram( const std::string &sourcePath ) {
     return build;
 }
 
-std::map<uint64_t, int> readSourceLines( const std::string &executablePath ) {
+// Rows of other files and ends of sequences get line 0, so code without lines of the source
+// (glibc) is not taken for its last line.
+std::map<uint64_t, int> readSourceLines( const std::string &executablePath,
+                                         const std::string &sourcePath ) {
+    static const std::regex lineRow( "^(.*\\S)\\s+([0-9]+|-)\\s+0x([0-9a-f]+)" );
     std::string directory = std::filesystem::path( executablePath ).parent_path();
     CommandResult command = runCommand(
-        { "aarch64-linux-gnu-objdump", "--dwarf=decodedline", executablePath }, directory );
+        { "aarch64-linux-gnu-objdump", "--dwarf=decodedline", "--wide", executablePath },
+        directory );
 
+    std::string sourceName = std::filesystem::path( sourcePath ).filename();
     std::map<uint64_t, int> sourceLines;
     std::istringstream output( command.output );
     std::string row;
+    std::smatch match;
     while ( std::getline( output, row ) ) {
-        std::istringstream columns( row );
-        std::string fileName, line, address;
-        columns >> fileName >> line >> address;
-        bool isLineRow = !line.empty() && std::isdigit( line[0] ) && address.starts_with( "0x" );
-        if ( isLineRow ) {
-            sourceLines[std::stoull( address, nullptr, 16 )] = std::stoi( line );
+        if ( !std::regex_search( row, match, lineRow ) ) {
+            continue;
         }
+        bool isSourceRow = match[1] == sourceName && match[2] != "-";
+        sourceLines[std::stoull( match[3], nullptr, 16 )] = isSourceRow ? std::stoi( match[2] ) : 0;
     }
     return sourceLines;
+}
+
+uint64_t symbolAddress( const std::string &executablePath, const std::string &name ) {
+    std::string directory = std::filesystem::path( executablePath ).parent_path();
+    CommandResult command =
+        runCommand( { "aarch64-linux-gnu-nm", "--defined-only", executablePath }, directory );
+    std::istringstream output( command.output );
+    std::string address, type, symbol;
+    while ( output >> address >> type >> symbol ) {
+        if ( symbol == name ) {
+            return std::stoull( address, nullptr, 16 );
+        }
+    }
+    return 0;
 }
