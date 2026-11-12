@@ -22,9 +22,8 @@ inline constexpr ImU32 warningLineColor = IM_COL32( 242, 197, 92, 30 );
 inline constexpr ImU32 successColor = IM_COL32( 106, 171, 115, 255 );
 inline constexpr ImU32 commandColor = mutedTextColor;
 inline constexpr ImU32 changedValueColor = IM_COL32( 242, 197, 92, 255 );
+inline constexpr ImU32 changedRowColor = IM_COL32( 242, 197, 92, 32 );
 
-inline constexpr ImU32 pausedColor = IM_COL32( 84, 138, 247, 255 );
-inline constexpr ImU32 pausedLineColor = IM_COL32( 84, 138, 247, 45 );
 inline constexpr ImU32 breakpointColor = IM_COL32( 219, 92, 92, 255 );
 inline constexpr ImU32 breakpointHoverColor = IM_COL32( 219, 92, 92, 90 );
 
@@ -44,6 +43,8 @@ ImU32 accentColor();
 // The accent faintly mixed into the island colour: fill of selected and hovered tabs.
 ImU32 accentFillColor();
 void setAccentColor( ImU32 color );
+// The accent at low alpha: background of the line the debugger is paused on.
+ImU32 pausedLineColor();
 ImU32 islandColor();
 // The frame around the islands (toolbar, status bar, tool strip, gaps): the island colour at
 // 65% brightness, so the two levels keep their contrast whatever colour is picked.

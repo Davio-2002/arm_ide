@@ -6,6 +6,28 @@
 #include <core/process.h>
 #include <core/toolchain.h>
 
+std::string crossTool( const std::string &name ) {
+    static const char *const prefixes[] = {
+        "aarch64-linux-gnu-",      "aarch64-unknown-linux-gnu-", "aarch64-suse-linux-",
+        "aarch64-none-linux-gnu-", "aarch64-linux-musl-",        "aarch64-alpine-linux-musl-",
+    };
+    for ( const char *prefix : prefixes ) {
+        if ( isInPath( std::string( prefix ) + "as" ) ) {
+            return prefix + name;
+        }
+    }
+    return prefixes[0] + name;
+}
+
+std::string qemuProgram() {
+    for ( const char *program : { "qemu-aarch64", "qemu-aarch64-static" } ) {
+        if ( isInPath( program ) ) {
+            return program;
+        }
+    }
+    return "";
+}
+
 static std::string commandLine( const std::vector<std::string> &args ) {
     std::string line = "$";
     for ( const std::string &arg : args ) {
@@ -57,15 +79,22 @@ BuildResult buildProgram( const std::string &sourcePath ) {
     // C links glibc statically, so QEMU needs no AArch64 libraries on the host.
     std::vector<std::vector<std::string>> steps;
     if ( source.extension() == ".c" ) {
-        steps = {
-            { "aarch64-linux-gnu-gcc", "-g", "-O0", "-static", source, "-o", executablePath } };
+        steps = { { crossTool( "gcc" ), "-g", "-O0", "-static", source, "-o", executablePath } };
     } else {
-        steps = { { "aarch64-linux-gnu-as", "-g", source, "-o", objectPath },
-                  { "aarch64-linux-gnu-ld", objectPath, "-o", executablePath } };
+        steps = { { crossTool( "as" ), "-g", source, "-o", objectPath },
+                  { crossTool( "ld" ), objectPath, "-o", executablePath } };
     }
 
     for ( const std::vector<std::string> &step : steps ) {
         build.messages.push_back( { commandLine( step ), MessageKind::Command } );
+        if ( !isInPath( step[0] ) ) {
+            bool isCompiler = source.extension() == ".c";
+            build.messages.push_back(
+                { step[0] + " not found in PATH: install the AArch64 " +
+                      ( isCompiler ? "GCC cross compiler with its C library" : "binutils" ),
+                  MessageKind::Error } );
+            return build;
+        }
         CommandResult command = runCommand( step, source.parent_path() );
 
         std::istringstream output( command.output );
@@ -90,8 +119,7 @@ std::map<uint64_t, int> readSourceLines( const std::string &executablePath,
     static const std::regex lineRow( "^(.*\\S)\\s+([0-9]+|-)\\s+0x([0-9a-f]+)" );
     std::string directory = std::filesystem::path( executablePath ).parent_path();
     CommandResult command = runCommand(
-        { "aarch64-linux-gnu-objdump", "--dwarf=decodedline", "--wide", executablePath },
-        directory );
+        { crossTool( "objdump" ), "--dwarf=decodedline", "--wide", executablePath }, directory );
 
     std::string sourceName = std::filesystem::path( sourcePath ).filename();
     std::map<uint64_t, int> sourceLines;
@@ -111,7 +139,7 @@ std::map<uint64_t, int> readSourceLines( const std::string &executablePath,
 uint64_t symbolAddress( const std::string &executablePath, const std::string &name ) {
     std::string directory = std::filesystem::path( executablePath ).parent_path();
     CommandResult command =
-        runCommand( { "aarch64-linux-gnu-nm", "--defined-only", executablePath }, directory );
+        runCommand( { crossTool( "nm" ), "--defined-only", executablePath }, directory );
     std::istringstream output( command.output );
     std::string address, type, symbol;
     while ( output >> address >> type >> symbol ) {

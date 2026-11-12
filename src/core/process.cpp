@@ -1,5 +1,8 @@
+#include <cstdlib>
 #include <fcntl.h>
+#include <filesystem>
 #include <pty.h>
+#include <sstream>
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
@@ -145,4 +148,23 @@ CommandResult runCommand( const std::vector<std::string> &args, const std::strin
     waitpid( pid, &status, 0 );
     result.exitCode = WIFEXITED( status ) ? WEXITSTATUS( status ) : -1;
     return result;
+}
+
+bool isInPath( const std::string &program ) {
+    auto isExecutable = []( const std::filesystem::path &path ) {
+        std::error_code error;
+        return std::filesystem::is_regular_file( path, error ) && access( path.c_str(), X_OK ) == 0;
+    };
+    if ( program.contains( '/' ) ) {
+        return isExecutable( program );
+    }
+    const char *path = std::getenv( "PATH" );
+    std::istringstream directories( path ? path : "" );
+    std::string directory;
+    while ( std::getline( directories, directory, ':' ) ) {
+        if ( !directory.empty() && isExecutable( std::filesystem::path( directory ) / program ) ) {
+            return true;
+        }
+    }
+    return false;
 }

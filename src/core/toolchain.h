@@ -19,6 +19,15 @@ struct BuildResult {
     std::string executablePath;
 };
 
+inline const std::string qemuNotFound =
+    "qemu-aarch64 not found in PATH: install QEMU user-mode emulation (qemu-user)";
+
+// The tool (as, ld, gcc, objdump, nm) under the target prefix of the installed AArch64 binutils,
+// which differs between distributions.
+std::string crossTool( const std::string &name );
+// qemu-aarch64 or its static build, empty when neither is installed.
+std::string qemuProgram();
+
 BuildResult buildProgram( const std::string &sourcePath );
 // Address of each line-table row → line in sourcePath, 0 for code outside it.
 std::map<uint64_t, int> readSourceLines( const std::string &executablePath,

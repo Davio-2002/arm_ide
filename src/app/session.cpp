@@ -92,10 +92,15 @@ void Session::run() {
     }
 
     console.clear();
-    console.push_back( { "$ qemu-aarch64 " + executablePath, MessageKind::Command } );
-    runningProgram = startProcess( { "qemu-aarch64", executablePath } );
+    std::string qemu = qemuProgram();
+    if ( qemu.empty() ) {
+        printResult( qemuNotFound, MessageKind::Error );
+        return;
+    }
+    console.push_back( { "$ " + qemu + " " + executablePath, MessageKind::Command } );
+    runningProgram = startProcess( { qemu, executablePath } );
     if ( !isRunning( runningProgram ) ) {
-        printResult( "Cannot start qemu-aarch64", MessageKind::Error );
+        printResult( "Cannot start " + qemu, MessageKind::Error );
         return;
     }
     programLineOpen = false;

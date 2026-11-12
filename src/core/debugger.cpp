@@ -287,7 +287,7 @@ static bool connectToQemu( Debugger &debugger, const std::string &path ) {
     while ( std::chrono::steady_clock::now() < deadline ) {
         std::string output = pollProcess( debugger.qemu );
         if ( !isRunning( debugger.qemu ) ) {
-            debugger.error = "qemu-aarch64 stopped: " + output;
+            debugger.error = "QEMU stopped: " + output;
             return false;
         }
         debugger.socket = socket( AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0 );
@@ -299,7 +299,7 @@ static bool connectToQemu( Debugger &debugger, const std::string &path ) {
         debugger.socket = -1;
         std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
     }
-    debugger.error = "Cannot connect to qemu-aarch64";
+    debugger.error = "Cannot connect to QEMU";
     return false;
 }
 
@@ -311,9 +311,14 @@ bool startDebugger( Debugger &debugger, const std::string &executablePath,
 
     std::string path = socketPath();
     unlink( path.c_str() );
-    debugger.qemu = startProcess( { "qemu-aarch64", "-g", path, executablePath } );
+    std::string qemu = qemuProgram();
+    if ( qemu.empty() ) {
+        debugger.error = qemuNotFound;
+        return false;
+    }
+    debugger.qemu = startProcess( { qemu, "-g", path, executablePath } );
     if ( !isRunning( debugger.qemu ) ) {
-        debugger.error = "Cannot start qemu-aarch64";
+        debugger.error = "Cannot start " + qemu;
         return false;
     }
     bool connected = connectToQemu( debugger, path );

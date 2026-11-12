@@ -63,8 +63,8 @@ static void addLineMarker( TextEditor &editor, const LineMark &mark ) {
         numberColor = warningColor;
         lineColor = warningLineColor;
     } else if ( mark.kind == LineMarkKind::Paused ) {
-        numberColor = pausedColor;
-        lineColor = pausedLineColor;
+        numberColor = pausedLineColor();
+        lineColor = pausedLineColor();
     }
     editor.AddMarker( mark.line - 1, numberColor, lineColor, mark.message, mark.message );
 }
@@ -88,12 +88,26 @@ static void drawLineDecoration( TextEditor::Decorator &decorator ) {
         drawList->AddCircleFilled( center, radius, breakpointHoverColor );
     }
 
+    // The execution point: a rounded arrow in the accent colour, outlined in the island colour
+    // so it stays readable over a breakpoint dot.
     if ( line == session.pausedLine && showsProgram( document ) ) {
-        float arrow = radius * 0.7f;
-        ImVec2 top( center.x - arrow, center.y - arrow );
-        ImVec2 bottom( center.x - arrow, center.y + arrow );
-        ImVec2 tip( center.x + arrow, center.y );
-        drawList->AddTriangleFilled( top, bottom, tip, pausedColor );
+        float half = size * 0.26f;
+        float left = center.x - size * 0.3f;
+        float neck = center.x + size * 0.02f;
+        float tip = center.x + size * 0.34f;
+        float body = half * 0.55f;
+        ImVec2 points[] = {
+            ImVec2( left, center.y - body ), ImVec2( neck, center.y - body ),
+            ImVec2( neck, center.y - half ), ImVec2( tip, center.y ),
+            ImVec2( neck, center.y + half ), ImVec2( neck, center.y + body ),
+            ImVec2( left, center.y + body ),
+        };
+        drawList->PathClear();
+        for ( ImVec2 point : points ) {
+            drawList->PathLineTo( point );
+        }
+        drawList->PathStroke( islandColor(), ImDrawFlags_Closed, 2.0f );
+        drawList->AddConcavePolyFilled( points, IM_ARRAYSIZE( points ), accentColor() );
     }
 }
 

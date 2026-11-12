@@ -105,7 +105,7 @@ TabClick drawPillTab( const char *id, const PillTab &tab ) {
     ImVec2 closeCenter( bottomRight.x - tabPadding - closeSize * 0.5f, centerY );
     bool overClose = hovered && ImGui::GetMousePos().x >= closeCenter.x - closeSize * 0.5f;
     if ( tab.unsaved && !hovered ) {
-        drawList->AddCircleFilled( closeCenter, 4.0f, pausedColor );
+        drawList->AddCircleFilled( closeCenter, 4.0f, accentColor() );
     } else if ( tab.selected || hovered ) {
         if ( overClose ) {
             drawList->AddRectFilled(

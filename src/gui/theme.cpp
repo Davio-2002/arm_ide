@@ -13,6 +13,10 @@ static ImU32 withAlpha( ImU32 color, int alpha ) {
     return ( color & ~IM_COL32_A_MASK ) | ( static_cast<ImU32>( alpha ) << IM_COL32_A_SHIFT );
 }
 
+ImU32 pausedLineColor() {
+    return withAlpha( accent, 40 );
+}
+
 ImU32 accentFillColor() {
     return ImAlphaBlendColors( island, withAlpha( accent, 46 ) );
 }

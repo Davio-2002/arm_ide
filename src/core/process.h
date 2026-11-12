@@ -25,4 +25,7 @@ void endProcessInput( Process &process );
 void stopProcess( Process &process );
 bool isRunning( const Process &process );
 
+// An executable file of that name in a PATH directory, or at that path when it has a slash.
+bool isInPath( const std::string &program );
+
 CommandResult runCommand( const std::vector<std::string> &args, const std::string &directory );
