@@ -38,17 +38,16 @@ target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_FREETYPE)
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL Freetype::Freetype)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(UNICORN REQUIRED IMPORTED_TARGET unicorn)
 pkg_check_modules(VTERM REQUIRED IMPORTED_TARGET vterm)
 
 add_library(arm_ide_core STATIC
     src/core/process.cpp
     src/core/toolchain.cpp
-    src/core/emulator.cpp
+    src/core/debugger.cpp
     src/core/terminal.cpp
     src/app/session.cpp)
 target_include_directories(arm_ide_core PUBLIC src)
-target_link_libraries(arm_ide_core PUBLIC PkgConfig::UNICORN PkgConfig::VTERM util)
+target_link_libraries(arm_ide_core PUBLIC PkgConfig::VTERM util)
 
 add_executable(arm_ide
     src/main.cpp

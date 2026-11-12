@@ -81,8 +81,9 @@ void beginPanel( const char *name, ImGuiWindowFlags flags ) {
 
     if ( ImGuiDockNode *node = ImGui::GetWindowDockNode() ) {
         ImVec2 islandEnd( node->Pos.x + node->Size.x, node->Pos.y + node->Size.y );
-        ImGui::GetBackgroundDrawList()->AddRectFilled( node->Pos, islandEnd, islandColor,
-                                                       islandRounding );
+        ImDrawList *drawList = ImGui::GetBackgroundDrawList();
+        drawList->AddRectFilled( node->Pos, islandEnd, islandColor(), islandRounding );
+        drawList->AddRect( node->Pos, islandEnd, accentColor(), islandRounding );
     }
 }
 
@@ -108,7 +109,7 @@ static void drawToolStrip() {
     ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( sidePadding, islandGap ) );
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( buttonPadding, buttonPadding ) );
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0.0f, 4.0f ) );
-    ImGui::PushStyleColor( ImGuiCol_WindowBg, groundColor );
+    ImGui::PushStyleColor( ImGuiCol_WindowBg, groundColor() );
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
     if ( ImGui::BeginViewportSideBar( "##ToolStrip", ImGui::GetMainViewport(), ImGuiDir_Right,
                                       toolStripWidth, flags ) ) {

@@ -46,7 +46,7 @@ static bool parseAddress( const std::string &text, const Registers &registers, u
     return true;
 }
 
-static void drawMemoryRow( const Session &session, uint64_t rowAddress ) {
+static void drawMemoryRow( Session &session, uint64_t rowAddress ) {
     std::string hex;
     std::string text;
     char byteText[4];
@@ -66,7 +66,7 @@ static void drawMemoryRow( const Session &session, uint64_t rowAddress ) {
     ImGui::Text( "%s %s", hex.c_str(), text.c_str() );
 }
 
-void drawMemoryPanel( const Session &session ) {
+void drawMemoryPanel( Session &session ) {
     beginPanel( "Memory", ImGuiWindowFlags_HorizontalScrollbar );
     drawPanelTitle( "Memory" );
     float inputWidth = ImGui::GetContentRegionAvail().x * 0.45f;

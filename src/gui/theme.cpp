@@ -1,4 +1,21 @@
+#include <imgui_internal.h>
+
 #include <gui/theme.h>
+
+static ImU32 accent = defaultAccentColor;
+static ImU32 island = defaultIslandColor;
+
+ImU32 accentColor() {
+    return accent;
+}
+
+static ImU32 withAlpha( ImU32 color, int alpha ) {
+    return ( color & ~IM_COL32_A_MASK ) | ( static_cast<ImU32>( alpha ) << IM_COL32_A_SHIFT );
+}
+
+ImU32 accentFillColor() {
+    return ImAlphaBlendColors( island, withAlpha( accent, 46 ) );
+}
 
 static ImVec4 toVec4( ImU32 color ) {
     return ImGui::ColorConvertU32ToFloat4( color );
@@ -26,41 +43,41 @@ static void applySizes( ImGuiStyle &style ) {
 
 static void applyColors( ImGuiStyle &style ) {
     ImU32 scrollbarColor = borderColor;
-    ImU32 pressedColor = IM_COL32( 53, 116, 240, 80 );
+    ImU32 pressedColor = withAlpha( accent, 80 );
 
     ImVec4 *colors = style.Colors;
     colors[ImGuiCol_Text] = toVec4( textColor );
     colors[ImGuiCol_TextDisabled] = toVec4( mutedTextColor );
-    colors[ImGuiCol_WindowBg] = toVec4( islandColor );
-    colors[ImGuiCol_ChildBg] = toVec4( islandColor );
+    colors[ImGuiCol_WindowBg] = toVec4( island );
+    colors[ImGuiCol_ChildBg] = toVec4( island );
     colors[ImGuiCol_PopupBg] = toVec4( selectedColor );
     colors[ImGuiCol_Border] = toVec4( borderColor );
-    colors[ImGuiCol_FrameBg] = toVec4( groundColor );
+    colors[ImGuiCol_FrameBg] = toVec4( groundColor() );
     colors[ImGuiCol_FrameBgHovered] = toVec4( hoveredColor );
     colors[ImGuiCol_FrameBgActive] = toVec4( selectedColor );
-    colors[ImGuiCol_TitleBg] = toVec4( islandColor );
-    colors[ImGuiCol_TitleBgActive] = toVec4( islandColor );
-    colors[ImGuiCol_TitleBgCollapsed] = toVec4( islandColor );
-    colors[ImGuiCol_MenuBarBg] = toVec4( groundColor );
+    colors[ImGuiCol_TitleBg] = toVec4( island );
+    colors[ImGuiCol_TitleBgActive] = toVec4( island );
+    colors[ImGuiCol_TitleBgCollapsed] = toVec4( island );
+    colors[ImGuiCol_MenuBarBg] = toVec4( groundColor() );
     colors[ImGuiCol_ScrollbarBg] = toVec4( transparentColor );
     colors[ImGuiCol_ScrollbarGrab] = toVec4( scrollbarColor );
     colors[ImGuiCol_ScrollbarGrabHovered] = toVec4( mutedTextColor );
     colors[ImGuiCol_ScrollbarGrabActive] = toVec4( mutedTextColor );
-    colors[ImGuiCol_CheckMark] = toVec4( accentColor );
-    colors[ImGuiCol_SliderGrab] = toVec4( accentColor );
-    colors[ImGuiCol_SliderGrabActive] = toVec4( accentColor );
+    colors[ImGuiCol_CheckMark] = toVec4( accent );
+    colors[ImGuiCol_SliderGrab] = toVec4( accent );
+    colors[ImGuiCol_SliderGrabActive] = toVec4( accent );
     colors[ImGuiCol_Button] = toVec4( selectedColor );
     colors[ImGuiCol_ButtonHovered] = toVec4( borderColor );
     colors[ImGuiCol_ButtonActive] = toVec4( pressedColor );
-    colors[ImGuiCol_Header] = toVec4( selectedColor );
+    colors[ImGuiCol_Header] = toVec4( textSelectionColor );
     colors[ImGuiCol_HeaderHovered] = toVec4( hoveredColor );
     colors[ImGuiCol_HeaderActive] = toVec4( pressedColor );
     colors[ImGuiCol_Separator] = toVec4( borderColor );
-    colors[ImGuiCol_SeparatorHovered] = toVec4( accentColor );
-    colors[ImGuiCol_SeparatorActive] = toVec4( accentColor );
+    colors[ImGuiCol_SeparatorHovered] = toVec4( accent );
+    colors[ImGuiCol_SeparatorActive] = toVec4( accent );
     colors[ImGuiCol_ResizeGrip] = toVec4( transparentColor );
     colors[ImGuiCol_ResizeGripHovered] = toVec4( pressedColor );
-    colors[ImGuiCol_ResizeGripActive] = toVec4( accentColor );
+    colors[ImGuiCol_ResizeGripActive] = toVec4( accent );
     colors[ImGuiCol_Tab] = toVec4( transparentColor );
     colors[ImGuiCol_TabHovered] = toVec4( hoveredColor );
     colors[ImGuiCol_TabSelected] = toVec4( selectedColor );
@@ -69,17 +86,35 @@ static void applyColors( ImGuiStyle &style ) {
     colors[ImGuiCol_TabDimmedSelected] = toVec4( selectedColor );
     colors[ImGuiCol_TabDimmedSelectedOverline] = toVec4( transparentColor );
     colors[ImGuiCol_DockingPreview] = toVec4( pressedColor );
-    colors[ImGuiCol_DockingEmptyBg] = toVec4( islandColor );
+    colors[ImGuiCol_DockingEmptyBg] = toVec4( island );
     colors[ImGuiCol_TableRowBg] = toVec4( transparentColor );
     colors[ImGuiCol_TableRowBgAlt] = toVec4( IM_COL32( 255, 255, 255, 6 ) );
-    colors[ImGuiCol_TextSelectedBg] = toVec4( pressedColor );
-    colors[ImGuiCol_NavCursor] = toVec4( accentColor );
+    colors[ImGuiCol_TextSelectedBg] = toVec4( textSelectionColor );
+    colors[ImGuiCol_NavCursor] = toVec4( accent );
 }
 
 void applyIslandsTheme() {
     ImGuiStyle &style = ImGui::GetStyle();
     applySizes( style );
     applyColors( style );
+}
+
+void setAccentColor( ImU32 color ) {
+    accent = withAlpha( color, 255 );
+    applyColors( ImGui::GetStyle() );
+}
+
+ImU32 islandColor() {
+    return island;
+}
+
+ImU32 groundColor() {
+    return ImAlphaBlendColors( island, IM_COL32( 0, 0, 0, 89 ) );
+}
+
+void setIslandColor( ImU32 color ) {
+    island = withAlpha( color, 255 );
+    applyColors( ImGui::GetStyle() );
 }
 
 TextEditor::Palette editorPalette() {
@@ -107,7 +142,7 @@ TextEditor::Palette editorPalette() {
     set( TextEditor::Color::identifier, functionBlue );
     set( TextEditor::Color::knownIdentifier, fieldPurple );
     set( TextEditor::Color::comment, commentGrey );
-    set( TextEditor::Color::background, islandColor );
+    set( TextEditor::Color::background, island );
     set( TextEditor::Color::cursor, textColor );
     set( TextEditor::Color::selection, textSelectionColor );
     set( TextEditor::Color::whitespace, faintColor );

@@ -7,7 +7,8 @@
 #include <app/session.h>
 
 static const size_t maxRecentFiles = 10;
-static const uint64_t emulatorSliceMicroseconds = 10000;
+static const int debuggerPollMilliseconds = 1;
+static const uint64_t memoryBlockSize = 256;
 
 static std::string absolutePath( const std::string &path ) {
     return std::filesystem::absolute( path ).lexically_normal();
@@ -105,7 +106,7 @@ void Session::debugContinue() {
     if ( !isDebugging() ) {
         startDebugging( false );
     } else if ( isPaused() ) {
-        continueEmulator( emulator );
+        continueDebugger( debugger );
         pausedLine = 0;
         setLineMarks( {} );
         status = "Running in debugger";
@@ -116,8 +117,8 @@ void Session::debugStep() {
     if ( !isDebugging() ) {
         startDebugging( true );
     } else if ( isPaused() ) {
-        stepEmulator( emulator );
-        handleEmulatorState();
+        stepDebugger( debugger );
+        handleDebuggerState();
     }
 }
 
@@ -137,7 +138,11 @@ void Session::toggleBreakpoint( const std::string &path, int line ) {
         lines.insert( line );
     }
     if ( isDebugging() && path == programFilePath ) {
-        setBreakpointLines( emulator, lines );
+        bool wasRunning = debugger.state == DebuggerState::Running;
+        setBreakpointLines( debugger, lines );
+        if ( wasRunning ) {
+            handleDebuggerState();
+        }
     }
 }
 
@@ -196,18 +201,18 @@ void Session::clearTerminal() {
 
 void Session::update() {
     updateRunningProgram();
-    updateEmulator();
+    updateDebugger();
     if ( updateTerminal( terminal ) ) {
         terminalActivity = std::chrono::steady_clock::now();
     }
 }
 
 bool Session::isDebugging() const {
-    return emulator.engine != nullptr;
+    return debugger.state != DebuggerState::Idle;
 }
 
 bool Session::isPaused() const {
-    return emulator.state == EmulatorState::Paused;
+    return debugger.state == DebuggerState::Paused;
 }
 
 bool Session::isProgramActive() const {
@@ -215,11 +220,25 @@ bool Session::isProgramActive() const {
 }
 
 bool Session::isProgramBusy() const {
-    return isRunning( runningProgram ) || emulator.state == EmulatorState::Running;
+    return isRunning( runningProgram ) || debugger.state == DebuggerState::Running;
 }
 
-bool Session::readMemory( uint64_t address, uint8_t &byte ) const {
-    return isPaused() && readMemoryByte( emulator, address, byte );
+bool Session::readMemory( uint64_t address, uint8_t &byte ) {
+    if ( !isPaused() ) {
+        return false;
+    }
+    uint64_t blockAddress = address / memoryBlockSize * memoryBlockSize;
+    auto block = memoryBlocks.find( blockAddress );
+    if ( block == memoryBlocks.end() ) {
+        std::vector<uint8_t> bytes;
+        ::readMemory( debugger, blockAddress, memoryBlockSize, bytes );
+        block = memoryBlocks.emplace( blockAddress, std::move( bytes ) ).first;
+    }
+    if ( block->second.empty() ) {
+        return false;
+    }
+    byte = block->second[address - blockAddress];
+    return true;
 }
 
 // Output often follows input by a few milliseconds, so the frame loop stays fast for a while.
@@ -288,49 +307,48 @@ void Session::startDebugging( bool pauseAtEntry ) {
 
     console.clear();
     console.push_back( { "$ debug " + executablePath, MessageKind::Command } );
-    if ( !loadProgram( emulator, executablePath ) ) {
-        printResult( emulator.error, MessageKind::Error );
+    if ( !startDebugger( debugger, executablePath ) ) {
+        printResult( debugger.error, MessageKind::Error );
         return;
     }
-    setBreakpointLines( emulator, breakpoints[programFilePath] );
+    setBreakpointLines( debugger, breakpoints[programFilePath] );
     programLineOpen = false;
-    registers = readRegisters( emulator );
+    registers = readRegisters( debugger );
     hasRegisters = true;
 
     if ( pauseAtEntry ) {
         showPausedLine();
     } else {
-        emulator.state = EmulatorState::Running;
+        runDebugger( debugger );
         status = "Running in debugger";
     }
 }
 
 void Session::endDebugSession() {
-    closeEmulator( emulator );
-    emulator.state = EmulatorState::Idle;
+    stopDebugger( debugger );
     pausedLine = 0;
     setLineMarks( {} );
 }
 
-void Session::handleEmulatorState() {
-    appendProgramOutput( emulator.output );
-    emulator.output.clear();
+void Session::handleDebuggerState() {
+    appendProgramOutput( pollProcess( debugger.qemu ) );
 
-    if ( emulator.state == EmulatorState::Paused ) {
+    if ( debugger.state == DebuggerState::Paused ) {
         showPausedLine();
-    } else if ( emulator.state == EmulatorState::Exited ) {
-        int exitCode = emulator.exitCode;
+    } else if ( debugger.state == DebuggerState::Exited ) {
+        int exitCode = debugger.exitCode;
         endDebugSession();
         printExitCode( exitCode );
-    } else if ( emulator.state == EmulatorState::Crashed ) {
+    } else if ( debugger.state == DebuggerState::Crashed ) {
         showCrash();
     }
 }
 
 void Session::showPausedLine() {
     previousRegisters = registers;
-    registers = readRegisters( emulator );
-    pausedLine = sourceLineAt( emulator, programCounter( emulator ) );
+    memoryBlocks.clear();
+    registers = readRegisters( debugger );
+    pausedLine = sourceLineAt( debugger, registers.pc );
     if ( pausedLine > 0 ) {
         setLineMarks( { { pausedLine, LineMarkKind::Paused, "" } } );
     } else {
@@ -341,8 +359,8 @@ void Session::showPausedLine() {
 }
 
 void Session::showCrash() {
-    int line = sourceLineAt( emulator, programCounter( emulator ) );
-    std::string error = emulator.error;
+    std::string error = debugger.error;
+    int line = sourceLineAt( debugger, readRegisters( debugger ).pc );
     endDebugSession();
 
     std::string location = line > 0 ? " at line " + std::to_string( line ) : "";
@@ -370,10 +388,10 @@ void Session::updateRunningProgram() {
     }
 }
 
-void Session::updateEmulator() {
-    if ( emulator.state != EmulatorState::Running ) {
+void Session::updateDebugger() {
+    if ( debugger.state != DebuggerState::Running ) {
         return;
     }
-    runEmulator( emulator, emulatorSliceMicroseconds );
-    handleEmulatorState();
+    pollDebugger( debugger, debuggerPollMilliseconds );
+    handleDebuggerState();
 }

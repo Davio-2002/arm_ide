@@ -10,10 +10,10 @@ static const float closeSize = 16.0f;
 
 static bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool enabled,
                             bool active ) {
-    ImGui::PushStyleColor( ImGuiCol_Button, active ? activeColor : transparentColor );
-    ImGui::PushStyleColor( ImGuiCol_ButtonHovered, activeColor );
-    ImGui::PushStyleColor( ImGuiCol_ButtonActive, activeColor );
-    ImGui::PushStyleColor( ImGuiCol_Border, activeBorderColor );
+    ImGui::PushStyleColor( ImGuiCol_Button, active ? accentFillColor() : transparentColor );
+    ImGui::PushStyleColor( ImGuiCol_ButtonHovered, accentFillColor() );
+    ImGui::PushStyleColor( ImGuiCol_ButtonActive, accentFillColor() );
+    ImGui::PushStyleColor( ImGuiCol_Border, accentColor() );
     ImGui::PushStyleVar( ImGuiStyleVar_FrameBorderSize, active ? 1.0f : 0.0f );
     ImGui::BeginDisabled( !enabled );
     bool clicked = ImGui::ImageButton( id, iconTexture( icon ), ImVec2( iconSize, iconSize ) );
@@ -73,10 +73,10 @@ TabClick drawPillTab( const char *id, const PillTab &tab ) {
     ImVec2 bottomRight( topLeft.x + size.x, topLeft.y + size.y );
     float rounding = ImGui::GetStyle().FrameRounding;
     if ( tab.selected ) {
-        drawList->AddRectFilled( topLeft, bottomRight, activeColor, rounding );
-        drawList->AddRect( topLeft, bottomRight, activeBorderColor, rounding );
+        drawList->AddRectFilled( topLeft, bottomRight, accentFillColor(), rounding );
+        drawList->AddRect( topLeft, bottomRight, accentColor(), rounding );
     } else if ( hovered ) {
-        drawList->AddRectFilled( topLeft, bottomRight, activeColor, rounding );
+        drawList->AddRectFilled( topLeft, bottomRight, accentFillColor(), rounding );
     }
 
     float x = topLeft.x + tabPadding;

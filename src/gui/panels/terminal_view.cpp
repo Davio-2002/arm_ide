@@ -129,7 +129,7 @@ static void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 top
     ImU32 foreground = cell.defaultForeground ? codeTextColor : cellColor( cell.foreground );
     ImU32 background = cell.defaultBackground ? transparentColor : cellColor( cell.background );
     if ( cell.reverse ) {
-        ImU32 reversedForeground = cell.defaultBackground ? islandColor : background;
+        ImU32 reversedForeground = cell.defaultBackground ? islandColor() : background;
         background = foreground;
         foreground = reversedForeground;
     }
@@ -168,7 +168,7 @@ static void drawCursor( ImDrawList *drawList, const Terminal &terminal, ImVec2 o
     if ( cell.character > U' ' ) {
         char text[5] = {};
         ImTextCharToUtf8( text, cell.character );
-        drawList->AddText( topLeft, islandColor, text );
+        drawList->AddText( topLeft, islandColor(), text );
     }
 }
 

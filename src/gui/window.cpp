@@ -148,6 +148,10 @@ static void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, co
     if ( text.starts_with( "Zoom=" ) ) {
         codeFontSize =
             std::clamp( std::strtof( line + 5, nullptr ), minCodeFontSize, maxCodeFontSize );
+    } else if ( text.starts_with( "Accent=" ) ) {
+        setAccentColor( static_cast<ImU32>( std::strtoul( line + 7, nullptr, 16 ) ) );
+    } else if ( text.starts_with( "PanelBackground=" ) ) {
+        setIslandColor( static_cast<ImU32>( std::strtoul( line + 16, nullptr, 16 ) ) );
     } else if ( text.starts_with( "Recent=" ) && std::filesystem::exists( text.substr( 7 ) ) ) {
         settingsSession->recentFiles.push_back( text.substr( 7 ) );
     }
@@ -157,6 +161,8 @@ static void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler,
                            ImGuiTextBuffer *buffer ) {
     buffer->appendf( "[%s][Settings]\n", handler->TypeName );
     buffer->appendf( "Zoom=%g\n", codeFontSize );
+    buffer->appendf( "Accent=%08X\n", accentColor() );
+    buffer->appendf( "PanelBackground=%08X\n", islandColor() );
     for ( const std::string &path : settingsSession->recentFiles ) {
         buffer->appendf( "Recent=%s\n", path.c_str() );
     }
@@ -221,7 +227,7 @@ void endFrame( GLFWwindow *window ) {
     int width, height;
     glfwGetFramebufferSize( window, &width, &height );
     glViewport( 0, 0, width, height );
-    ImVec4 ground = ImGui::ColorConvertU32ToFloat4( groundColor );
+    ImVec4 ground = ImGui::ColorConvertU32ToFloat4( groundColor() );
     glClearColor( ground.x, ground.y, ground.z, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
     ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );

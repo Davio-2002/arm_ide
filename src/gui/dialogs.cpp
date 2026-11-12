@@ -1,12 +1,15 @@
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include <algorithm>
 #include <filesystem>
+#include <span>
 #include <vector>
 
 #include <gui/dialogs.h>
+#include <gui/theme.h>
 
-enum class DialogKind { None, Open, Save, Discard };
+enum class DialogKind { None, Open, Save, Discard, AccentColor, PanelColor };
 
 struct DirectoryEntry {
     std::string name;
@@ -96,6 +99,24 @@ void askToDiscardChanges( const std::string &documentName, std::function<void()>
     dialog.onDiscard = std::move( onDiscard );
 }
 
+static void openDialog( DialogKind kind ) {
+    dialog = Dialog();
+    dialog.kind = kind;
+    dialog.needsOpening = true;
+}
+
+void openAccentColorDialog() {
+    openDialog( DialogKind::AccentColor );
+}
+
+void openPanelColorDialog() {
+    openDialog( DialogKind::PanelColor );
+}
+
+static bool isColorDialog() {
+    return dialog.kind == DialogKind::AccentColor || dialog.kind == DialogKind::PanelColor;
+}
+
 bool isDialogOpen() {
     return dialog.kind != DialogKind::None;
 }
@@ -106,6 +127,10 @@ static const char *dialogTitle() {
         return "Open File";
     case DialogKind::Save:
         return "Save As";
+    case DialogKind::AccentColor:
+        return "Accent Color";
+    case DialogKind::PanelColor:
+        return "Panel Background";
     case DialogKind::Discard:
     case DialogKind::None:
         break;
@@ -126,6 +151,71 @@ static bool drawDiscardDialog( std::function<void()> &finish ) {
     }
     ImGui::SameLine();
     return cancelPressed();
+}
+
+// One theme colour: preset swatches, the picker itself and a reset button. Returns true when
+// the colour changed.
+static bool drawColorPicker( ImU32 &color, ImU32 defaultColor, std::span<const ImU32> presets ) {
+    ImVec4 value = ImGui::ColorConvertU32ToFloat4( color );
+    bool changed = false;
+    for ( size_t i = 0; i < presets.size(); ++i ) {
+        ImGui::PushID( static_cast<int>( i ) );
+        if ( i > 0 ) {
+            ImGui::SameLine();
+        }
+        ImVec4 preset = ImGui::ColorConvertU32ToFloat4( presets[i] );
+        if ( ImGui::ColorButton( "##preset", preset, ImGuiColorEditFlags_NoTooltip ) ) {
+            value = preset;
+            changed = true;
+        }
+        ImGui::PopID();
+    }
+    ImGui::Spacing();
+
+    ImGui::SetNextItemWidth( ImGui::GetFontSize() * 16 );
+    changed |= ImGui::ColorPicker3( "##picker", &value.x, ImGuiColorEditFlags_PickerHueBar );
+    if ( ImGui::Button( "Reset" ) ) {
+        value = ImGui::ColorConvertU32ToFloat4( defaultColor );
+        changed = true;
+    }
+
+    if ( changed ) {
+        color = ImGui::ColorConvertFloat4ToU32( value );
+    }
+    return changed;
+}
+
+static bool drawAccentColorDialog() {
+    const ImU32 presets[] = {
+        defaultAccentColor,
+        IM_COL32( 53, 116, 240, 255 ),
+        IM_COL32( 227, 140, 70, 255 ),
+        IM_COL32( 168, 112, 220, 255 ),
+        IM_COL32( 219, 92, 92, 255 ),
+        IM_COL32( 42, 172, 184, 255 ),
+    };
+    ImU32 color = accentColor();
+    if ( drawColorPicker( color, defaultAccentColor, presets ) ) {
+        setAccentColor( color );
+        ImGui::MarkIniSettingsDirty();
+    }
+    ImGui::Separator();
+    return ImGui::Button( "Close" ) || ImGui::IsKeyPressed( ImGuiKey_Escape );
+}
+
+static bool drawPanelColorDialog() {
+    const ImU32 presets[] = {
+        defaultIslandColor,
+        IM_COL32( 30, 31, 34, 255 ),
+        IM_COL32( 0, 0, 0, 255 ),
+    };
+    ImU32 color = islandColor();
+    if ( drawColorPicker( color, defaultIslandColor, presets ) ) {
+        setIslandColor( color );
+        ImGui::MarkIniSettingsDirty();
+    }
+    ImGui::Separator();
+    return ImGui::Button( "Close" ) || ImGui::IsKeyPressed( ImGuiKey_Escape );
 }
 
 static bool drawFileList( std::filesystem::path &nextDirectory ) {
@@ -209,13 +299,25 @@ void drawDialogs() {
 
     ImGui::SetNextWindowPos( ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing,
                              ImVec2( 0.5f, 0.5f ) );
-    if ( !ImGui::BeginPopupModal( title, nullptr, ImGuiWindowFlags_AlwaysAutoResize ) ) {
+    // Colour dialogs stay undimmed so the colours can be judged against the window behind.
+    bool visible = isColorDialog() ? ImGui::BeginPopup( title, ImGuiWindowFlags_AlwaysAutoResize )
+                                   : ImGui::BeginPopupModal( title, nullptr,
+                                                             ImGuiWindowFlags_AlwaysAutoResize );
+    if ( !visible ) {
         dialog = Dialog();
         return;
     }
     std::function<void()> finish;
-    bool done =
-        dialog.kind == DialogKind::Discard ? drawDiscardDialog( finish ) : drawFileDialog( finish );
+    bool done = false;
+    if ( dialog.kind == DialogKind::AccentColor ) {
+        done = drawAccentColorDialog();
+    } else if ( dialog.kind == DialogKind::PanelColor ) {
+        done = drawPanelColorDialog();
+    } else if ( dialog.kind == DialogKind::Discard ) {
+        done = drawDiscardDialog( finish );
+    } else {
+        done = drawFileDialog( finish );
+    }
     if ( done ) {
         ImGui::CloseCurrentPopup();
     }

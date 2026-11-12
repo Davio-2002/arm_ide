@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include <core/emulator.h>
+#include <core/debugger.h>
 #include <core/process.h>
 #include <core/terminal.h>
 #include <core/toolchain.h>
@@ -42,7 +42,7 @@ class Session {
     bool isPaused() const;
     bool isProgramActive() const;
     bool isProgramBusy() const;
-    bool readMemory( uint64_t address, uint8_t &byte ) const;
+    bool readMemory( uint64_t address, uint8_t &byte );
     bool hasBreakpoint( const std::string &path, int line ) const;
     bool isTerminalBusy() const;
 
@@ -78,13 +78,15 @@ class Session {
     void stopActiveProgram();
     void startDebugging( bool pauseAtEntry );
     void endDebugSession();
-    void handleEmulatorState();
+    void handleDebuggerState();
     void showPausedLine();
     void showCrash();
     void updateRunningProgram();
-    void updateEmulator();
+    void updateDebugger();
 
-    Emulator emulator;
+    Debugger debugger;
+    // Memory read while paused, in aligned blocks; an empty block could not be read.
+    std::map<uint64_t, std::vector<uint8_t>> memoryBlocks;
     Process runningProgram;
     std::string executablePath;
     bool programLineOpen = false;

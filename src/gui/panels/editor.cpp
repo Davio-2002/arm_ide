@@ -126,7 +126,6 @@ static void suggestCompletions( TextEditor::AutoCompleteState &state ) {
 }
 
 static void configureEditor( TextEditor &editor ) {
-    editor.SetPalette( editorPalette() );
     editor.SetLanguage( aarch64Language() );
     editor.SetTabSize( 8 );
     editor.SetShowWhitespacesEnabled( false );
@@ -322,6 +321,7 @@ void drawEditorPanel() {
     drawingDocument = activeDocument;
     pushCodeFont();
     ImGui::PushID( activeDocument );
+    activeDocument->editor.SetPalette( editorPalette() );
     activeDocument->editor.Render( "##code" );
     ImGui::PopID();
     ImGui::PopFont();

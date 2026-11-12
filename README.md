@@ -59,7 +59,7 @@ Building `foo.s` creates `foo.o` and the program `foo` next to it.
 - clang 18 or newer, CMake 3.24 or newer, Ninja, pkg-config, git
 - GNU binutils for `aarch64-linux-gnu` (the assembler and linker)
 - QEMU user mode (`qemu-aarch64`)
-- development packages for GLFW 3, OpenGL, Unicorn and FreeType
+- development packages for GLFW 3, OpenGL, FreeType and libvterm
 
 Then build and run by hand:
 

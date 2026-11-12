@@ -2,4 +2,4 @@
 
 class Session;
 
-void drawMemoryPanel( const Session &session );
+void drawMemoryPanel( Session &session );

@@ -53,7 +53,7 @@ void drawStatusBar( const Session &session ) {
     float verticalPadding = ( height - ImGui::GetTextLineHeight() ) * 0.5f;
     ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( sidePadding, verticalPadding ) );
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4.0f, 0.0f ) );
-    ImGui::PushStyleColor( ImGuiCol_WindowBg, groundColor );
+    ImGui::PushStyleColor( ImGuiCol_WindowBg, groundColor() );
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
     if ( ImGui::BeginViewportSideBar( "##StatusBar", ImGui::GetMainViewport(), ImGuiDir_Down,
                                       height, flags ) ) {

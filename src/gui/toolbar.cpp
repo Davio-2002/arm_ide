@@ -41,7 +41,7 @@ static bool beginDropdown( const char *id, const std::string &label, ImU32 backg
         ImGui::OpenPopup( id );
     }
 
-    ImU32 fill = ImGui::IsItemHovered() ? activeColor : background;
+    ImU32 fill = ImGui::IsItemHovered() ? accentFillColor() : background;
     ImVec2 bottomRight( topLeft.x + size.x, topLeft.y + size.y );
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled( topLeft, bottomRight, fill, ImGui::GetStyle().FrameRounding );
@@ -61,7 +61,7 @@ static void drawAppBadge() {
     ImVec2 topLeft( cursor.x, cursor.y + margin );
     ImVec2 bottomRight( topLeft.x + badgeSize, topLeft.y + badgeSize );
     ImDrawList *drawList = ImGui::GetWindowDrawList();
-    drawList->AddRectFilled( topLeft, bottomRight, accentColor, 6.0f );
+    drawList->AddRectFilled( topLeft, bottomRight, accentColor(), 6.0f );
 
     ImGui::PushFont( nullptr, badgeFontSize );
     const char *name = "A64";
@@ -115,7 +115,7 @@ void drawToolbarEnd( const Session &session, MenuActions &actions ) {
     float toolbarWidth = dropdownWidth( runFile ) + buttonSpacing * 4.0f + buttonsWidth;
     ImGui::SetCursorPosX( ImGui::GetWindowWidth() - toolbarWidth - toolbarRightMargin );
 
-    if ( beginDropdown( "##openFiles", runFile, islandColor ) ) {
+    if ( beginDropdown( "##openFiles", runFile, islandColor() ) ) {
         drawFileList( openDocumentPaths(), actions );
         ImGui::EndPopup();
     }

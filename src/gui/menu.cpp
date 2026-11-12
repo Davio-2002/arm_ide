@@ -97,6 +97,9 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
         actions.zoomIn |= ImGui::MenuItem( "Zoom In", "Ctrl+=" );
         actions.zoomOut |= ImGui::MenuItem( "Zoom Out", "Ctrl+-" );
         actions.resetZoom |= ImGui::MenuItem( "Reset Zoom", "Ctrl+0" );
+        ImGui::Separator();
+        actions.openAccentColor |= ImGui::MenuItem( "Accent Color..." );
+        actions.openPanelColor |= ImGui::MenuItem( "Panel Background..." );
         ImGui::EndMenu();
     }
     if ( ImGui::BeginMenu( "Build" ) ) {
@@ -142,6 +145,12 @@ static void runActions( Session &session, const MenuActions &actions ) {
     }
     if ( actions.resetZoom ) {
         resetZoom();
+    }
+    if ( actions.openAccentColor ) {
+        openAccentColorDialog();
+    }
+    if ( actions.openPanelColor ) {
+        openPanelColorDialog();
     }
 
     if ( actions.stop ) {
