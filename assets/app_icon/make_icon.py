@@ -9,7 +9,8 @@ here = os.path.dirname(os.path.abspath(__file__))
 
 
 def render(size):
-    return GdkPixbuf.Pixbuf.new_from_file_at_size(f"{here}/icon.svg", size, size)
+    source = "icon_small.svg" if size <= 32 else "icon.svg"
+    return GdkPixbuf.Pixbuf.new_from_file_at_size(f"{here}/{source}", size, size)
 
 
 for size in (32, 64, 128, 256, 512):
