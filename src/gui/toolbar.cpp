@@ -5,9 +5,9 @@
 #include <vector>
 
 #include <app/session.h>
-#include <gui/editor.h>
 #include <gui/icons.h>
 #include <gui/menu.h>
+#include <gui/panels/editor.h>
 #include <gui/theme.h>
 #include <gui/toolbar.h>
 #include <gui/widgets.h>

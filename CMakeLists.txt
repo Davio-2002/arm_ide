@@ -55,16 +55,19 @@ add_executable(arm_ide
     src/gui/window.cpp
     src/gui/dialogs.cpp
     src/gui/menu.cpp
-    src/gui/panels.cpp
-    src/gui/editor.cpp
     src/gui/theme.cpp
     src/gui/icons.cpp
     src/gui/toolbar.cpp
     src/gui/widgets.cpp
     src/gui/statusbar.cpp
-    src/gui/terminal_view.cpp
-    src/gui/aarch64_language.cpp
-    src/gui/aarch64_words.cpp)
+    src/gui/panels/panels.cpp
+    src/gui/panels/editor.cpp
+    src/gui/panels/console.cpp
+    src/gui/panels/terminal_view.cpp
+    src/gui/panels/registers.cpp
+    src/gui/panels/memory.cpp
+    src/language/aarch64_language.cpp
+    src/language/aarch64_words.cpp)
 target_include_directories(arm_ide PRIVATE ${nanosvg_SOURCE_DIR}/src)
 target_link_libraries(arm_ide PRIVATE arm_ide_core imgui)
 
@@ -77,7 +80,7 @@ function(embed_as_bytes input output)
     file(CONFIGURE OUTPUT ${CMAKE_BINARY_DIR}/generated/${output} CONTENT "${bytes}\n")
 endfunction()
 
-embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/icon.rgba icon_rgba.inc)
+embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/app_icon/icon.rgba icon_rgba.inc)
 foreach(icon build run debug stop resume stepOver asmFile console clear registers memory)
     embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/icons/${icon}.svg ${icon}_svg.inc)
 endforeach()

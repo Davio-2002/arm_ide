@@ -7,7 +7,7 @@ class Session;
 
 void setupEditor( Session &session );
 void syncEditorWithSession( Session &session );
-void drawCodeEditor();
+void drawEditorPanel();
 
 void openInEditor( const std::string &path, const std::string &text );
 void jumpToSourceLine( int sourceLine );

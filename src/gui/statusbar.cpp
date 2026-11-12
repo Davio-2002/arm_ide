@@ -6,7 +6,7 @@
 #include <vector>
 
 #include <app/session.h>
-#include <gui/editor.h>
+#include <gui/panels/editor.h>
 #include <gui/statusbar.h>
 #include <gui/theme.h>
 

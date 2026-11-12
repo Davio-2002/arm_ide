@@ -4,14 +4,15 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <language/aarch64_language.h>
 #include <memory>
 #include <set>
 #include <vector>
 
 #include <app/session.h>
-#include <gui/aarch64_language.h>
 #include <gui/dialogs.h>
-#include <gui/editor.h>
+#include <gui/panels/editor.h>
+#include <gui/panels/panels.h>
 #include <gui/theme.h>
 #include <gui/widgets.h>
 #include <gui/window.h>
@@ -314,7 +315,8 @@ static void drawDocumentTabs() {
     }
 }
 
-void drawCodeEditor() {
+void drawEditorPanel() {
+    beginPanel( "Editor" );
     drawDocumentTabs();
     ImGui::SetCursorPosY( ImGui::GetCursorPosY() + editorTabsGap );
     drawingDocument = activeDocument;
@@ -323,4 +325,5 @@ void drawCodeEditor() {
     activeDocument->editor.Render( "##code" );
     ImGui::PopID();
     ImGui::PopFont();
+    ImGui::End();
 }

@@ -7,8 +7,8 @@
 
 #include <app/session.h>
 #include <gui/dialogs.h>
-#include <gui/editor.h>
 #include <gui/menu.h>
+#include <gui/panels/editor.h>
 #include <gui/theme.h>
 #include <gui/toolbar.h>
 #include <gui/window.h>

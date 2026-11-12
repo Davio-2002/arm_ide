@@ -7,7 +7,7 @@
 
 #include <app/session.h>
 #include <gui/menu.h>
-#include <gui/terminal_view.h>
+#include <gui/panels/terminal_view.h>
 #include <gui/theme.h>
 #include <gui/window.h>
 
