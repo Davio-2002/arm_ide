@@ -12,7 +12,25 @@ static ImVec4 changeColor( bool changed ) {
     return ImGui::ColorConvertU32ToFloat4( changed ? changedValueColor : codeTextColor );
 }
 
-static void drawRegisterRow( const std::string &name, uint64_t value, uint64_t previousValue ) {
+// The value as unsigned and signed, and its low 32 bits as the w register (none for pc).
+static void drawValueTooltip( const std::string &name, const char *lowName, uint64_t value ) {
+    if ( !ImGui::BeginItemTooltip() ) {
+        return;
+    }
+    ImGui::Text( "%s  0x%016llx", name.c_str(), static_cast<unsigned long long>( value ) );
+    ImGui::TextDisabled( "  unsigned %llu", static_cast<unsigned long long>( value ) );
+    ImGui::TextDisabled( "  signed   %lld", static_cast<long long>( value ) );
+    if ( lowName != nullptr ) {
+        uint32_t low = static_cast<uint32_t>( value );
+        ImGui::Text( "%s  0x%08x", lowName, low );
+        ImGui::TextDisabled( "  unsigned %u", low );
+        ImGui::TextDisabled( "  signed   %d", static_cast<int32_t>( low ) );
+    }
+    ImGui::EndTooltip();
+}
+
+static void drawRegisterRow( const std::string &name, const char *lowName, uint64_t value,
+                             uint64_t previousValue ) {
     bool changed = value != previousValue;
     ImVec4 color = changeColor( changed );
     ImGui::TableNextRow();
@@ -23,8 +41,10 @@ static void drawRegisterRow( const std::string &name, uint64_t value, uint64_t p
     ImGui::TextDisabled( "%s", name.c_str() );
     ImGui::TableNextColumn();
     ImGui::TextColored( color, "0x%016llx", static_cast<unsigned long long>( value ) );
+    drawValueTooltip( name, lowName, value );
     ImGui::TableNextColumn();
     ImGui::TextColored( color, "%lld", static_cast<long long>( value ) );
+    drawValueTooltip( name, lowName, value );
 }
 
 struct Flags {
@@ -136,15 +156,16 @@ void drawRegistersPanel( const Session &session ) {
     if ( ImGui::BeginTable( "registers", 3, flags ) ) {
         for ( int i = 0; i < 31; i++ ) {
             std::string name = "x" + std::to_string( i );
+            std::string lowName = "w" + std::to_string( i );
             if ( i == 29 ) {
                 name += " fp";
             } else if ( i == 30 ) {
                 name += " lr";
             }
-            drawRegisterRow( name, registers.x[i], previous.x[i] );
+            drawRegisterRow( name, lowName.c_str(), registers.x[i], previous.x[i] );
         }
-        drawRegisterRow( "sp", registers.sp, previous.sp );
-        drawRegisterRow( "pc", registers.pc, previous.pc );
+        drawRegisterRow( "sp", "wsp", registers.sp, previous.sp );
+        drawRegisterRow( "pc", nullptr, registers.pc, previous.pc );
         ImGui::EndTable();
     }
     ImGui::PopFont();

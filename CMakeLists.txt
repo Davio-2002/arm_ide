@@ -5,6 +5,28 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# The newest library parts the code uses; old compilers fail here instead of midway through.
+include(CheckCXXSourceCompiles)
+set(CMAKE_REQUIRED_FLAGS ${CMAKE_CXX23_STANDARD_COMPILE_OPTION})
+check_cxx_source_compiles([[
+    #include <algorithm>
+    #include <span>
+    #include <string>
+    #include <vector>
+    int main() {
+        std::vector<int> v;
+        std::ranges::stable_sort( v );
+        std::span<int> s( v );
+        return std::string( "ab" ).contains( 'a' ) && std::string( "ab" ).starts_with( "a" ) ? 0 : s.size();
+    }
+]] HAS_CXX23_LIBRARY)
+unset(CMAKE_REQUIRED_FLAGS)
+if(NOT HAS_CXX23_LIBRARY)
+    message(FATAL_ERROR "${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_VERSION} lacks the C++23 "
+        "library the IDE needs (std::string::contains). Use a newer compiler, for example: "
+        "rm -rf build && cmake --preset release -DCMAKE_CXX_COMPILER=g++")
+endif()
+
 include(FetchContent)
 FetchContent_Declare(imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
