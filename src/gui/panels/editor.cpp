@@ -104,14 +104,31 @@ static bool startsWithIgnoringCase( const std::string &word, const std::string &
            } );
 }
 
+static std::string withCase( std::string word, int ( *convert )( int ) ) {
+    for ( char &c : word ) {
+        c = static_cast<char>( convert( static_cast<unsigned char>( c ) ) );
+    }
+    return word;
+}
+
 static void suggestCompletions( TextEditor::AutoCompleteState &state ) {
     const TextEditor::Language &language = *aarch64Language();
+    const std::string &term = state.searchTerm;
+    bool upper = term == withCase( term, std::toupper ) && term != withCase( term, std::tolower );
+    std::set<std::string> languageWords;
+    languageWords.insert( language.keywords.begin(), language.keywords.end() );
+    languageWords.insert( language.declarations.begin(), language.declarations.end() );
+    languageWords.insert( language.identifiers.begin(), language.identifiers.end() );
+
     std::set<std::string> words;
-    words.insert( language.keywords.begin(), language.keywords.end() );
-    words.insert( language.declarations.begin(), language.declarations.end() );
-    words.insert( language.identifiers.begin(), language.identifiers.end() );
-    drawingDocument->editor.IterateIdentifiers(
-        [&words]( const std::string &word ) { words.insert( word ); } );
+    for ( const std::string &word : languageWords ) {
+        words.insert( upper ? withCase( word, std::toupper ) : word );
+    }
+    drawingDocument->editor.IterateIdentifiers( [&]( const std::string &word ) {
+        if ( !languageWords.contains( withCase( word, std::tolower ) ) ) {
+            words.insert( word );
+        }
+    } );
 
     state.suggestions.clear();
     for ( const std::string &word : words ) {
