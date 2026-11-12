@@ -10,6 +10,9 @@ bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled = 
 // An icon button that stays highlighted while on; a click flips on.
 void iconToggle( const char *id, Icon icon, const char *tooltip, bool &on );
 
+// A rounded accent outline around the last item: hovered toolbar items, edited text fields.
+void outlineLastItem( bool show );
+
 // A short vertical line between groups in a header row.
 void drawVerticalSeparator();
 

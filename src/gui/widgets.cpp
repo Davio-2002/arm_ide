@@ -18,10 +18,18 @@ static bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool
     ImGui::BeginDisabled( !enabled );
     bool clicked = ImGui::ImageButton( id, iconTexture( icon ), ImVec2( iconSize, iconSize ) );
     ImGui::SetItemTooltip( "%s", tooltip );
+    outlineLastItem( ImGui::IsItemHovered() );
     ImGui::EndDisabled();
     ImGui::PopStyleVar();
     ImGui::PopStyleColor( 4 );
     return clicked;
+}
+
+void outlineLastItem( bool show ) {
+    if ( show ) {
+        ImGui::GetWindowDrawList()->AddRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+                                             accentColor(), ImGui::GetStyle().FrameRounding );
+    }
 }
 
 bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled ) {

@@ -41,10 +41,12 @@ static bool beginDropdown( const char *id, const std::string &label, ImU32 backg
         ImGui::OpenPopup( id );
     }
 
-    ImU32 fill = ImGui::IsItemHovered() ? accentFillColor() : background;
+    bool highlighted = ImGui::IsItemHovered() || ImGui::IsPopupOpen( id );
+    ImU32 fill = highlighted ? accentFillColor() : background;
     ImVec2 bottomRight( topLeft.x + size.x, topLeft.y + size.y );
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled( topLeft, bottomRight, fill, ImGui::GetStyle().FrameRounding );
+    outlineLastItem( highlighted );
     float textY = topLeft.y + ( size.y - ImGui::GetTextLineHeight() ) * 0.5f;
     drawList->AddText( ImVec2( topLeft.x + dropdownPadding, textY ), textColor, label.c_str() );
     ImVec2 chevronCenter( bottomRight.x - dropdownPadding - chevronSize * 0.5f,

@@ -35,6 +35,7 @@ static void applySizes( ImGuiStyle &style ) {
     style.ScrollbarSize = 10.0f;
     style.WindowBorderSize = 0.0f;
     style.PopupBorderSize = 1.0f;
+    style.FrameBorderSize = 1.0f;
     style.TabBarBorderSize = 0.0f;
     style.TabBarOverlineSize = 0.0f;
     style.DockingSeparatorSize = islandGap;

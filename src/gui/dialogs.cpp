@@ -8,6 +8,7 @@
 
 #include <gui/dialogs.h>
 #include <gui/theme.h>
+#include <gui/widgets.h>
 
 enum class DialogKind { None, Open, Save, Discard, AccentColor, PanelColor };
 
@@ -257,6 +258,7 @@ static bool drawFileDialog( std::function<void()> &finish ) {
     }
     chosen |= ImGui::InputText( "##name", dialog.fileName, sizeof( dialog.fileName ),
                                 ImGuiInputTextFlags_EnterReturnsTrue );
+    outlineLastItem( ImGui::IsItemActive() );
     ImGui::PopItemWidth();
 
     std::filesystem::path target = cleanPath( dialog.directory / dialog.fileName );

@@ -7,6 +7,7 @@
 #include <app/session.h>
 #include <gui/panels/memory.h>
 #include <gui/panels/panels.h>
+#include <gui/widgets.h>
 #include <gui/window.h>
 
 static const uint64_t memoryRowSize = 8;
@@ -78,6 +79,7 @@ void drawMemoryPanel( Session &session ) {
     ImGui::SetNextItemWidth( inputWidth );
     ImGui::InputTextWithHint( "##address", "x1, sp, 0x4100d8", memoryAddressInput,
                               sizeof( memoryAddressInput ) );
+    outlineLastItem( ImGui::IsItemActive() );
 
     uint64_t address = 0;
     if ( !session.isPaused() ) {

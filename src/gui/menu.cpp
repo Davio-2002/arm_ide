@@ -11,6 +11,7 @@
 #include <gui/panels/editor.h>
 #include <gui/theme.h>
 #include <gui/toolbar.h>
+#include <gui/widgets.h>
 #include <gui/window.h>
 
 void openDocument( Session &session, const std::string &path ) {
@@ -69,16 +70,31 @@ static MenuActions readShortcuts() {
     return actions;
 }
 
-static void drawMenus( const Session &session, MenuActions &actions ) {
+// Menus and their items light up in the accent, rounded like the tabs.
+static void pushMenuStyle() {
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding,
                          ImVec2( ImGui::GetStyle().FramePadding.x, toolbarFramePaddingY ) );
+    ImGui::PushStyleVar( ImGuiStyleVar_SelectableRounding, ImGui::GetStyle().FrameRounding );
+    for ( ImGuiCol color : { ImGuiCol_Header, ImGuiCol_HeaderHovered, ImGuiCol_HeaderActive } ) {
+        ImGui::PushStyleColor( color, accentFillColor() );
+    }
+}
+
+static void popMenuStyle() {
+    ImGui::PopStyleColor( 3 );
+    ImGui::PopStyleVar( 2 );
+}
+
+static void drawMenus( const Session &session, MenuActions &actions ) {
+    pushMenuStyle();
     if ( !ImGui::BeginMainMenuBar() ) {
-        ImGui::PopStyleVar();
+        popMenuStyle();
         return;
     }
     drawToolbarStart( session, actions );
 
-    if ( ImGui::BeginMenu( "File" ) ) {
+    bool fileOpen = ImGui::BeginMenu( "File" );
+    if ( fileOpen ) {
         actions.open |= ImGui::MenuItem( "Open...", "Ctrl+O" );
         if ( ImGui::BeginMenu( "Open Recent", !session.recentFiles.empty() ) ) {
             for ( const std::string &path : session.recentFiles ) {
@@ -93,7 +109,9 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
         actions.saveAs |= ImGui::MenuItem( "Save As...", "Ctrl+Shift+S" );
         ImGui::EndMenu();
     }
-    if ( ImGui::BeginMenu( "View" ) ) {
+    outlineLastItem( fileOpen || ImGui::IsItemHovered() );
+    bool viewOpen = ImGui::BeginMenu( "View" );
+    if ( viewOpen ) {
         actions.zoomIn |= ImGui::MenuItem( "Zoom In", "Ctrl+=" );
         actions.zoomOut |= ImGui::MenuItem( "Zoom Out", "Ctrl+-" );
         actions.resetZoom |= ImGui::MenuItem( "Reset Zoom", "Ctrl+0" );
@@ -102,26 +120,33 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
         actions.openPanelColor |= ImGui::MenuItem( "Panel Background..." );
         ImGui::EndMenu();
     }
-    if ( ImGui::BeginMenu( "Build" ) ) {
+    outlineLastItem( viewOpen || ImGui::IsItemHovered() );
+    bool buildOpen = ImGui::BeginMenu( "Build" );
+    if ( buildOpen ) {
         actions.build |= ImGui::MenuItem( "Build", "F7" );
         ImGui::EndMenu();
     }
-    if ( ImGui::BeginMenu( "Run" ) ) {
+    outlineLastItem( buildOpen || ImGui::IsItemHovered() );
+    bool runOpen = ImGui::BeginMenu( "Run" );
+    if ( runOpen ) {
         actions.run |= ImGui::MenuItem( "Build and Run", "F5" );
         actions.stop |= ImGui::MenuItem( "Stop", "Shift+F5", false, session.isProgramActive() );
         ImGui::EndMenu();
     }
-    if ( ImGui::BeginMenu( "Debug" ) ) {
+    outlineLastItem( runOpen || ImGui::IsItemHovered() );
+    bool debugOpen = ImGui::BeginMenu( "Debug" );
+    if ( debugOpen ) {
         const char *continueLabel = session.isDebugging() ? "Continue" : "Start Debugging";
         actions.debugContinue |= ImGui::MenuItem( continueLabel, "F8" );
         actions.debugStep |= ImGui::MenuItem( "Step", "F10" );
         actions.toggleBreakpoint |= ImGui::MenuItem( "Toggle Breakpoint", "F9" );
         ImGui::EndMenu();
     }
+    outlineLastItem( debugOpen || ImGui::IsItemHovered() );
 
     drawToolbarEnd( session, actions );
     ImGui::EndMainMenuBar();
-    ImGui::PopStyleVar();
+    popMenuStyle();
 }
 
 static void runProgramActions( Session &session, const MenuActions &actions ) {
