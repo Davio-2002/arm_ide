@@ -10,13 +10,18 @@
 
 static const size_t maxScrollbackLines = 10000;
 
+/// @param[in] color libvterm colour already converted to RGB.
+/// @return The colour as 0xRRGGBB.
 static uint32_t packColor( const VTermColor &color ) {
     return ( color.rgb.red << 16 ) | ( color.rgb.green << 8 ) | color.rgb.blue;
 }
 
+/// @brief Converts a libvterm cell to the IDE's cell with RGB colours.
+/// @param[in] screen Screen that owns the palette.
+/// @param[in] cell   Cell as libvterm returns it.
+/// @return Converted cell.
 static TerminalCell convertCell( const VTermScreen *screen, VTermScreenCell cell ) {
     TerminalCell result;
-    // libvterm marks the right half of a wide character with 0xffffffff.
     result.character = cell.chars[0] == 0xffffffff ? 0 : cell.chars[0];
     result.width = cell.width;
     result.defaultForeground = VTERM_COLOR_IS_DEFAULT_FG( &cell.fg );
@@ -31,6 +36,10 @@ static TerminalCell convertCell( const VTermScreen *screen, VTermScreenCell cell
     return result;
 }
 
+/// @brief libvterm output callback: writes encoded keys and pastes to the shell.
+/// @param[in] bytes  Bytes to write.
+/// @param[in] length Number of bytes.
+/// @param[in] user   The Terminal.
 static void writeToShell( const char *bytes, size_t length, void *user ) {
     Terminal &terminal = *static_cast<Terminal *>( user );
     while ( length > 0 && terminal.masterFd >= 0 ) {
@@ -43,6 +52,11 @@ static void writeToShell( const char *bytes, size_t length, void *user ) {
     }
 }
 
+/// @brief libvterm callback: tracks whether the shell shows the cursor.
+/// @param[in] property Changed property.
+/// @param[in] value    New value.
+/// @param[in] user     The Terminal.
+/// @return 1, as the property is accepted.
 static int setProperty( VTermProp property, VTermValue *value, void *user ) {
     if ( property == VTERM_PROP_CURSORVISIBLE ) {
         static_cast<Terminal *>( user )->cursorVisible = value->boolean;
@@ -50,6 +64,13 @@ static int setProperty( VTermProp property, VTermValue *value, void *user ) {
     return 1;
 }
 
+/// @brief libvterm callback: keeps a line scrolled off the top of the screen.
+///
+/// The oldest line is dropped beyond maxScrollbackLines.
+/// @param[in] columns Number of cells in the line.
+/// @param[in] cells   Cells of the line.
+/// @param[in] user    The Terminal.
+/// @return 1, as the line is kept.
 static int pushScrollbackLine( int columns, const VTermScreenCell *cells, void *user ) {
     Terminal &terminal = *static_cast<Terminal *>( user );
     TerminalLine line;
@@ -63,6 +84,9 @@ static int pushScrollbackLine( int columns, const VTermScreenCell *cells, void *
     return 1;
 }
 
+/// @brief libvterm callback: clears the scrollback when the shell asks, as `clear` does.
+/// @param[in] user The Terminal.
+/// @return 1, as the request is handled.
 static int clearScrollback( void *user ) {
     static_cast<Terminal *>( user )->scrollback.clear();
     return 1;
@@ -74,6 +98,8 @@ static VTermScreenCallbacks screenCallbacks = {
     .sb_clear = clearScrollback,
 };
 
+/// @brief Frees the libvterm screen and clears the scrollback.
+/// @param[in,out] terminal Terminal whose screen is freed.
 static void freeScreen( Terminal &terminal ) {
     if ( terminal.vterm ) {
         vterm_free( terminal.vterm );
@@ -83,13 +109,14 @@ static void freeScreen( Terminal &terminal ) {
     terminal.scrollback.clear();
 }
 
+/// @brief Closes the pty and forgets the shell process. The screen stays.
+/// @param[in,out] terminal Terminal whose shell is closed.
 static void closeShell( Terminal &terminal ) {
     close( terminal.masterFd );
     terminal.masterFd = -1;
     terminal.pid = -1;
 }
 
-// The shell is the user's login shell, interactive because it runs on a terminal.
 bool startTerminal( Terminal &terminal, const std::string &directory, int rows, int columns ) {
     freeScreen( terminal );
     terminal.exited = false;
@@ -172,6 +199,8 @@ void resizeTerminal( Terminal &terminal, int rows, int columns ) {
     }
 }
 
+/// @param[in] key IDE key.
+/// @return The matching libvterm key; VTERM_KEY_NONE for TerminalKey::None.
 static VTermKey vtermKey( TerminalKey key ) {
     switch ( key ) {
     case TerminalKey::None:
@@ -242,7 +271,6 @@ void pasteToTerminal( Terminal &terminal, const std::string &text ) {
     vterm_keyboard_end_paste( terminal.vterm );
 }
 
-// Closing the pty hangs up the programs running in it; the shell itself is killed.
 void stopTerminal( Terminal &terminal ) {
     if ( !isRunning( terminal ) ) {
         return;
@@ -258,7 +286,6 @@ bool isRunning( const Terminal &terminal ) {
     return terminal.pid > 0;
 }
 
-// Rows below zero are scrollback lines, -1 being the newest.
 TerminalCell terminalCell( const Terminal &terminal, int row, int column ) {
     if ( row < 0 ) {
         int index = static_cast<int>( terminal.scrollback.size() ) + row;

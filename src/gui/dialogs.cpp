@@ -12,11 +12,13 @@
 
 enum class DialogKind { None, Open, Save, Discard, AccentColor, PanelColor };
 
+/// @brief One row of the file list.
 struct DirectoryEntry {
     std::string name;
     bool isDirectory = false;
 };
 
+/// @brief State of the one dialog that can be open at a time.
 struct Dialog {
     DialogKind kind = DialogKind::None;
     bool needsOpening = false;
@@ -30,6 +32,9 @@ struct Dialog {
 
 static Dialog dialog;
 
+/// @brief Makes a path absolute and normalized, without a trailing slash.
+/// @param[in] path Any path.
+/// @return Clean absolute path.
 static std::filesystem::path cleanPath( const std::filesystem::path &path ) {
     std::error_code error;
     std::filesystem::path clean = std::filesystem::absolute( path, error ).lexically_normal();
@@ -39,11 +44,16 @@ static std::filesystem::path cleanPath( const std::filesystem::path &path ) {
     return clean.parent_path();
 }
 
+/// @param[in] path File path.
+/// @return True for .s, .S and .asm files.
 static bool isAssemblyFile( const std::filesystem::path &path ) {
     std::string extension = path.extension().string();
     return extension == ".s" || extension == ".S" || extension == ".asm";
 }
 
+/// @brief Shows a directory in the file list: subdirectories first, then assembly files.
+///        Hidden entries are skipped.
+/// @param[in] directory Directory to list.
 static void enterDirectory( const std::filesystem::path &directory ) {
     dialog.directory = cleanPath( directory );
     dialog.entries.clear();
@@ -67,6 +77,8 @@ static void enterDirectory( const std::filesystem::path &directory ) {
     } );
 }
 
+/// @brief Fills the file name field, truncating a name that does not fit.
+/// @param[in] name File name.
 static void setFileName( const std::string &name ) {
     name.copy( dialog.fileName, sizeof( dialog.fileName ) - 1 );
     dialog.fileName[std::min( name.size(), sizeof( dialog.fileName ) - 1 )] = '\0';
@@ -100,6 +112,8 @@ void askToDiscardChanges( const std::string &documentName, std::function<void()>
     dialog.onDiscard = std::move( onDiscard );
 }
 
+/// @brief Opens a dialog that needs no arguments.
+/// @param[in] kind Dialog to open.
 static void openDialog( DialogKind kind ) {
     dialog = Dialog();
     dialog.kind = kind;
@@ -114,6 +128,7 @@ void openPanelColorDialog() {
     openDialog( DialogKind::PanelColor );
 }
 
+/// @return True if the open dialog is a colour picker.
 static bool isColorDialog() {
     return dialog.kind == DialogKind::AccentColor || dialog.kind == DialogKind::PanelColor;
 }
@@ -122,6 +137,7 @@ bool isDialogOpen() {
     return dialog.kind != DialogKind::None;
 }
 
+/// @return Window title of the open dialog, also used as its ImGui popup ID.
 static const char *dialogTitle() {
     switch ( dialog.kind ) {
     case DialogKind::Open:
@@ -139,10 +155,15 @@ static const char *dialogTitle() {
     return "Unsaved Changes";
 }
 
+/// @brief Draws the Cancel button.
+/// @return True if Cancel was clicked or Escape pressed.
 static bool cancelPressed() {
     return ImGui::Button( "Cancel" ) || ImGui::IsKeyPressed( ImGuiKey_Escape );
 }
 
+/// @brief Draws the unsaved changes question.
+/// @param[out] finish Set to the discard callback when the user chooses Discard.
+/// @return True when the dialog should close.
 static bool drawDiscardDialog( std::function<void()> &finish ) {
     ImGui::TextUnformatted( dialog.message.c_str() );
     ImGui::Spacing();
@@ -154,8 +175,11 @@ static bool drawDiscardDialog( std::function<void()> &finish ) {
     return cancelPressed();
 }
 
-// One theme colour: preset swatches, the picker itself and a reset button. Returns true when
-// the colour changed.
+/// @brief Draws a picker for one theme colour: preset swatches, the picker and a Reset button.
+/// @param[in,out] color        Colour being edited.
+/// @param[in]     defaultColor Colour Reset restores.
+/// @param[in]     presets      Colours offered as swatches.
+/// @return True if the colour changed.
 static bool drawColorPicker( ImU32 &color, ImU32 defaultColor, std::span<const ImU32> presets ) {
     ImVec4 value = ImGui::ColorConvertU32ToFloat4( color );
     bool changed = false;
@@ -186,6 +210,8 @@ static bool drawColorPicker( ImU32 &color, ImU32 defaultColor, std::span<const I
     return changed;
 }
 
+/// @brief Draws the accent colour picker and applies the colour at once.
+/// @return True when the dialog should close.
 static bool drawAccentColorDialog() {
     const ImU32 presets[] = {
         defaultAccentColor,
@@ -204,6 +230,8 @@ static bool drawAccentColorDialog() {
     return ImGui::Button( "Close" ) || ImGui::IsKeyPressed( ImGuiKey_Escape );
 }
 
+/// @brief Draws the panel background colour picker and applies the colour at once.
+/// @return True when the dialog should close.
 static bool drawPanelColorDialog() {
     const ImU32 presets[] = {
         defaultIslandColor,
@@ -219,6 +247,9 @@ static bool drawPanelColorDialog() {
     return ImGui::Button( "Close" ) || ImGui::IsKeyPressed( ImGuiKey_Escape );
 }
 
+/// @brief Draws the list of the current directory. A click on a file fills the name field.
+/// @param[out] nextDirectory Set to the directory the user clicked; unchanged otherwise.
+/// @return True if a file was double-clicked.
 static bool drawFileList( std::filesystem::path &nextDirectory ) {
     bool chosen = false;
     float height = ImGui::GetTextLineHeightWithSpacing() * 16;
@@ -246,6 +277,9 @@ static bool drawFileList( std::filesystem::path &nextDirectory ) {
     return chosen;
 }
 
+/// @brief Draws the Open or Save As dialog: file list, name field and buttons.
+/// @param[out] finish Set to call the chosen-file callback when a file is accepted.
+/// @return True when the dialog should close.
 static bool drawFileDialog( std::function<void()> &finish ) {
     bool isSave = dialog.kind == DialogKind::Save;
     ImGui::TextDisabled( "%s", dialog.directory.c_str() );
@@ -301,7 +335,6 @@ void drawDialogs() {
 
     ImGui::SetNextWindowPos( ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing,
                              ImVec2( 0.5f, 0.5f ) );
-    // Colour dialogs stay undimmed so the colours can be judged against the window behind.
     bool visible = isColorDialog() ? ImGui::BeginPopup( title, ImGuiWindowFlags_AlwaysAutoResize )
                                    : ImGui::BeginPopupModal( title, nullptr,
                                                              ImGuiWindowFlags_AlwaysAutoResize );

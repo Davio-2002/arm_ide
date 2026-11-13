@@ -16,6 +16,9 @@ static const float toolStripWidth = 44.0f;
 static bool showRegisters = true;
 static bool showMemory = true;
 
+/// @brief Docks the panels in the default layout: editor with the console below it on the
+///        left, registers with memory below them on the right.
+/// @param[in] dockspace Dock space to build.
 static void createDefaultLayout( ImGuiID dockspace ) {
     ImGui::DockBuilderAddNode( dockspace, ImGuiDockNodeFlags_DockSpace );
     ImGui::DockBuilderSetNodeSize( dockspace, ImGui::GetMainViewport()->WorkSize );
@@ -34,8 +37,10 @@ static void createDefaultLayout( ImGuiID dockspace ) {
     ImGui::DockBuilderFinish( dockspace );
 }
 
-// The panels are islands: the ground window and dock title bars stay transparent, and each
-// docked panel draws its rounded background behind everything.
+/// @brief Draws the dock space over the whole work area, creating the default layout once.
+///
+/// The ground window and dock title bars stay transparent, and each docked panel draws its
+/// rounded island background itself.
 static void drawDockSpace() {
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos( viewport->WorkPos );
@@ -63,7 +68,6 @@ static void drawDockSpace() {
     ImGui::End();
 }
 
-// Panels draw their own header row, so the dock tab bar is hidden.
 void beginPanel( const char *name, ImGuiWindowFlags flags ) {
     ImGuiWindowClass withoutDockTabBar;
     withoutDockTabBar.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoTabBar;
@@ -92,7 +96,6 @@ void drawPanelTitle( const char *title ) {
     ImGui::TextUnformatted( title );
 }
 
-// Header buttons as tall as the header row.
 void pushHeaderButtonPadding() {
     float padding = ( ImGui::GetFrameHeight() - iconSize ) * 0.5f;
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( padding, padding ) );
@@ -102,7 +105,7 @@ float headerButtonWidth() {
     return ImGui::GetFrameHeight();
 }
 
-// The bar on the right edge whose buttons show and hide the side panels.
+/// @brief Draws the bar on the right edge whose buttons show and hide the side panels.
 static void drawToolStrip() {
     float buttonPadding = 6.0f;
     float sidePadding = ( toolStripWidth - iconSize ) * 0.5f - buttonPadding;

@@ -16,6 +16,9 @@ static Session session;
 
 static bool quitRequested = false;
 
+/// @brief Turns a window close into a quit request, after the user agrees to discard unsaved
+///        changes.
+/// @param[in] window Main window.
 static void handleCloseRequest( GLFWwindow *window ) {
     if ( !glfwWindowShouldClose( window ) ) {
         return;
@@ -26,11 +29,15 @@ static void handleCloseRequest( GLFWwindow *window ) {
     }
 }
 
+/// @return Window title: file path, "*" if unsaved, and the app name.
 static std::string windowTitle() {
     std::string name = session.filePath.empty() ? "untitled" : session.filePath;
     return name + ( isEditorModified() ? " *" : "" ) + " - ARM IDE";
 }
 
+/// @brief Opens the file given on the command line, or else the most recent file.
+/// @param[in] argc Argument count of main.
+/// @param[in] argv Arguments of main.
 static void openStartupFile( int argc, char **argv ) {
     if ( argc > 1 ) {
         openDocument( session, argv[1] );

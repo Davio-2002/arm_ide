@@ -20,6 +20,9 @@ static const float badgeSize = 26.0f;
 static const float badgeFontSize = 11.0f;
 static const float toolbarRightMargin = 32.0f;
 
+/// @brief Draws a down arrow.
+/// @param[in] center Centre of the arrow in screen coordinates.
+/// @param[in] color  Line colour.
 static void drawChevronDown( ImVec2 center, ImU32 color ) {
     float half = chevronSize * 0.5f;
     ImVec2 points[] = { ImVec2( center.x - half, center.y - half * 0.5f ),
@@ -28,12 +31,18 @@ static void drawChevronDown( ImVec2 center, ImU32 color ) {
     ImGui::GetWindowDrawList()->AddPolyline( points, 3, color, ImDrawFlags_None, 1.5f );
 }
 
+/// @param[in] label Dropdown label.
+/// @return Width of a dropdown with this label, arrow included.
 static float dropdownWidth( const std::string &label ) {
     return ImGui::CalcTextSize( label.c_str() ).x + chevronSize + dropdownPadding * 3.0f;
 }
 
-// A label with a down arrow that opens the popup named id below it. Returns true while the
-// popup is open, between it and ImGui::EndPopup.
+/// @brief Draws a label with a down arrow that opens a popup below it.
+/// @param[in] id         ImGui ID of the button and the popup.
+/// @param[in] label      Text shown.
+/// @param[in] background Fill when not hovered.
+/// @return True while the popup is open; then the caller draws its items and calls
+///         ImGui::EndPopup.
 static bool beginDropdown( const char *id, const std::string &label, ImU32 background ) {
     ImVec2 size( dropdownWidth( label ), ImGui::GetFrameHeight() );
     ImVec2 topLeft = ImGui::GetCursorScreenPos();
@@ -57,6 +66,7 @@ static bool beginDropdown( const char *id, const std::string &label, ImU32 backg
     return ImGui::BeginPopup( id );
 }
 
+/// @brief Draws the "A64" badge in the accent colour.
 static void drawAppBadge() {
     float margin = ( ImGui::GetFrameHeight() - badgeSize ) * 0.5f;
     ImVec2 cursor = ImGui::GetCursorScreenPos();
@@ -75,10 +85,14 @@ static void drawAppBadge() {
     ImGui::Dummy( ImVec2( badgeSize, ImGui::GetFrameHeight() ) );
 }
 
+/// @param[in] path File path; may be empty.
+/// @return File name without directory, or "untitled".
 static std::string fileName( const std::string &path ) {
     return path.empty() ? "untitled" : std::filesystem::path( path ).filename().string();
 }
 
+/// @param[in] path File path; may be empty.
+/// @return Name of the folder holding the file, or "No folder".
 static std::string folderName( const std::string &path ) {
     if ( path.empty() ) {
         return "No folder";
@@ -86,6 +100,9 @@ static std::string folderName( const std::string &path ) {
     return std::filesystem::path( path ).parent_path().filename().string();
 }
 
+/// @brief Draws files as selectable names, with the full path as tooltip.
+/// @param[in]     paths   Absolute file paths.
+/// @param[in,out] actions Receives the clicked file in fileToOpen.
 static void drawFileList( const std::vector<std::string> &paths, MenuActions &actions ) {
     for ( const std::string &path : paths ) {
         ImGui::PushID( path.c_str() );

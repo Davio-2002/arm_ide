@@ -51,6 +51,8 @@ static const Icon allIcons[] = { Icon::Build,  Icon::Run,       Icon::Debug,   I
                                  Icon::Clear,  Icon::Registers, Icon::Memory };
 static std::array<GLuint, std::size( allIcons )> textures = {};
 
+/// @param[in] icon Icon.
+/// @return Null-terminated SVG source of the icon.
 static const unsigned char *iconSvg( Icon icon ) {
     switch ( icon ) {
     case Icon::Build:
@@ -79,8 +81,12 @@ static const unsigned char *iconSvg( Icon icon ) {
     return memorySvg;
 }
 
+/// @brief Renders an SVG to a square RGBA image.
+/// @param[in] svg  Null-terminated SVG source.
+/// @param[in] size Image width and height in pixels.
+/// @return RGBA pixels, row by row.
 static std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int size ) {
-    std::string text = reinterpret_cast<const char *>( svg ); // nsvgParse writes into its input
+    std::string text = reinterpret_cast<const char *>( svg );
     NSVGimage *image = nsvgParse( text.data(), "px", 96.0f );
     NSVGrasterizer *rasterizer = nsvgCreateRasterizer();
     std::vector<unsigned char> pixels( size * size * 4 );
@@ -91,6 +97,10 @@ static std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int si
     return pixels;
 }
 
+/// @brief Uploads a square RGBA image as an OpenGL texture.
+/// @param[in] pixels RGBA pixels, row by row.
+/// @param[in] size   Image width and height in pixels.
+/// @return Texture name.
 static GLuint createTexture( const std::vector<unsigned char> &pixels, int size ) {
     GLuint texture = 0;
     glGenTextures( 1, &texture );

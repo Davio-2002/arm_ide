@@ -14,6 +14,9 @@ static const int breadcrumbDepth = 3;
 static const float itemGap = 16.0f;
 static const float sidePadding = 14.0f;
 
+/// @brief Shows the last parts of a path, separated by "›".
+/// @param[in] path File path; may be empty.
+/// @return The last breadcrumbDepth parts, or "untitled" for an empty path.
 static std::string breadcrumb( const std::string &path ) {
     if ( path.empty() ) {
         return "untitled";
@@ -30,6 +33,8 @@ static std::string breadcrumb( const std::string &path ) {
     return text;
 }
 
+/// @param[in] session Current session.
+/// @return Warning colour while paused, success colour while running, transparent otherwise.
 static ImU32 programStateColor( const Session &session ) {
     if ( session.isPaused() ) {
         return warningColor;
@@ -40,6 +45,8 @@ static ImU32 programStateColor( const Session &session ) {
     return transparentColor;
 }
 
+/// @brief Draws a small dot one text line high.
+/// @param[in] color Dot colour.
 static void drawStateDot( ImU32 color ) {
     float size = ImGui::GetTextLineHeight();
     ImVec2 topLeft = ImGui::GetCursorScreenPos();
@@ -60,7 +67,6 @@ void drawStatusBar( const Session &session ) {
         ImGui::PushStyleColor( ImGuiCol_Text, secondaryTextColor );
         ImGui::TextUnformatted( breadcrumb( session.filePath ).c_str() );
 
-        // Files are read as UTF-8 and the editor saves lines ending in "\n".
         std::string cursor =
             std::to_string( editorCursorLine() ) + ":" + std::to_string( editorCursorColumn() );
         std::vector<std::string> facts = { cursor, "LF", "UTF-8", "AArch64" };

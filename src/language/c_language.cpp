@@ -1,7 +1,6 @@
 #include <language/c_language.h>
 
 static const char *const libraryNames[] = {
-    // stdio.h
     "printf",
     "fprintf",
     "sprintf",
@@ -38,7 +37,6 @@ static const char *const libraryNames[] = {
     "SEEK_CUR",
     "SEEK_END",
     "BUFSIZ",
-    // stdlib.h
     "malloc",
     "calloc",
     "realloc",
@@ -69,7 +67,6 @@ static const char *const libraryNames[] = {
     "EXIT_FAILURE",
     "RAND_MAX",
     "NULL",
-    // string.h
     "strlen",
     "strcpy",
     "strncpy",
@@ -87,7 +84,6 @@ static const char *const libraryNames[] = {
     "memset",
     "memcmp",
     "memchr",
-    // ctype.h
     "isalpha",
     "isdigit",
     "isalnum",
@@ -99,7 +95,6 @@ static const char *const libraryNames[] = {
     "isprint",
     "toupper",
     "tolower",
-    // math.h
     "sqrt",
     "pow",
     "fabs",
@@ -113,7 +108,6 @@ static const char *const libraryNames[] = {
     "log",
     "log10",
     "fmod",
-    // stddef.h, stdint.h, stdbool.h, limits.h
     "size_t",
     "ptrdiff_t",
     "offsetof",
@@ -137,7 +131,6 @@ static const char *const libraryNames[] = {
     "LONG_MAX",
     "CHAR_BIT",
     "SIZE_MAX",
-    // assert.h, errno.h, time.h, unistd.h
     "assert",
     "errno",
     "time",

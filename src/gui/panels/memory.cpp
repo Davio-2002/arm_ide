@@ -15,6 +15,11 @@ static const uint64_t memoryRowCount = 64;
 
 static char memoryAddressInput[64] = "sp";
 
+/// @brief Parses the address field.
+/// @param[in]  text      "sp", "pc", a register x0 to x30, or a number in C notation.
+/// @param[in]  registers Current register values.
+/// @param[out] address   Parsed address.
+/// @return True if the text is valid.
 static bool parseAddress( const std::string &text, const Registers &registers, uint64_t &address ) {
     if ( text == "sp" ) {
         address = registers.sp;
@@ -47,6 +52,9 @@ static bool parseAddress( const std::string &text, const Registers &registers, u
     return true;
 }
 
+/// @brief Draws one row: address, bytes in hex and as ASCII. Unreadable bytes show "??".
+/// @param[in,out] session    Session that reads the memory.
+/// @param[in]     rowAddress Address of the first byte.
 static void drawMemoryRow( Session &session, uint64_t rowAddress ) {
     std::string hex;
     std::string text;

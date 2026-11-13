@@ -28,6 +28,9 @@ std::string qemuProgram() {
     return "";
 }
 
+/// @brief Formats a command as it is shown in the build log.
+/// @param[in] args Program and its arguments.
+/// @return "$ program arg1 arg2 ...".
 static std::string commandLine( const std::vector<std::string> &args ) {
     std::string line = "$";
     for ( const std::string &arg : args ) {
@@ -36,7 +39,12 @@ static std::string commandLine( const std::vector<std::string> &args ) {
     return line;
 }
 
-// Only locations in the source itself get a line, not those in headers it includes.
+/// @brief Turns one line of assembler, linker or compiler output into a build message.
+///
+/// Only locations in the source itself get a line, not those in headers it includes.
+/// @param[in] text       Output line.
+/// @param[in] sourceName File name of the source, without directory.
+/// @return Message with its kind and source line detected.
 static Message parseToolOutputLine( const std::string &text, const std::string &sourceName ) {
     static const std::regex sourceLocation( "^([^:]+):([0-9]+):" );
 
@@ -76,7 +84,6 @@ BuildResult buildProgram( const std::string &sourcePath ) {
     std::string objectPath = std::filesystem::path( source ).replace_extension( ".o" );
     std::string executablePath = std::filesystem::path( source ).replace_extension( "" );
 
-    // C links glibc statically, so QEMU needs no AArch64 libraries on the host.
     std::vector<std::vector<std::string>> steps;
     if ( source.extension() == ".c" ) {
         steps = { { crossTool( "gcc" ), "-g", "-O0", "-static", source, "-o", executablePath } };
@@ -112,8 +119,6 @@ BuildResult buildProgram( const std::string &sourcePath ) {
     return build;
 }
 
-// Rows of other files and ends of sequences get line 0, so code without lines of the source
-// (glibc) is not taken for its last line.
 std::map<uint64_t, int> readSourceLines( const std::string &executablePath,
                                          const std::string &sourcePath ) {
     static const std::regex lineRow( "^(.*\\S)\\s+([0-9]+|-)\\s+0x([0-9a-f]+)" );

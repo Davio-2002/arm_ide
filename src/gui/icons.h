@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 
+/// @brief Icons of the toolbar, panels and tool strip.
 enum class Icon {
     Build,
     Run,
@@ -18,6 +19,11 @@ enum class Icon {
 
 inline constexpr float iconSize = 20.0f;
 
-// Turns the SVG icons into textures, so it needs the OpenGL context.
+/// @brief Rasterizes the embedded SVG icons into textures.
+///
+/// Needs the OpenGL context, so it is called after the window is created.
 void loadIcons();
+
+/// @param[in] icon Icon to draw.
+/// @return Texture of the icon, for ImGui::Image.
 ImTextureID iconTexture( Icon icon );

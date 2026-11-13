@@ -10,6 +10,9 @@ static const size_t maxRecentFiles = 10;
 static const int debuggerPollMilliseconds = 1;
 static const uint64_t memoryBlockSize = 256;
 
+/// @brief Makes a path absolute and removes "." and ".." parts.
+/// @param[in] path Relative or absolute path.
+/// @return Normalized absolute path.
 static std::string absolutePath( const std::string &path ) {
     return std::filesystem::absolute( path ).lexically_normal();
 }
@@ -163,7 +166,6 @@ bool Session::acceptsInput() const {
     return isRunning( runningProgram ) || isRunning( debugger.qemu );
 }
 
-// The line is echoed into the console like a terminal does.
 void Session::sendProgramInput( const std::string &line ) {
     Process *program = programProcess();
     if ( !program ) {
@@ -188,6 +190,9 @@ void Session::clearOutput() {
     programLineOpen = false;
 }
 
+/// @brief Picks the directory a new shell starts in.
+/// @param[in] filePath Current file; may be empty.
+/// @return Directory of the file, or $HOME when no file is open.
 static std::string terminalStartDirectory( const std::string &filePath ) {
     std::string directory = std::filesystem::path( filePath ).parent_path();
     const char *home = std::getenv( "HOME" );
@@ -203,7 +208,6 @@ void Session::openTerminal( int rows, int columns ) {
     }
 }
 
-// After the shell exited, a key press starts a new one.
 void Session::sendTerminalInput( const std::vector<TerminalInput> &inputs,
                                  const std::string &paste ) {
     if ( inputs.empty() && paste.empty() ) {
@@ -277,7 +281,6 @@ bool Session::readMemory( uint64_t address, uint8_t &byte ) {
     return true;
 }
 
-// Output often follows input by a few milliseconds, so the frame loop stays fast for a while.
 bool Session::isTerminalBusy() const {
     return std::chrono::steady_clock::now() - terminalActivity < std::chrono::milliseconds( 500 );
 }
@@ -287,7 +290,6 @@ bool Session::hasBreakpoint( const std::string &path, int line ) const {
     return lines != breakpoints.end() && lines->second.contains( line );
 }
 
-// The path is copied first: it may be an element of recentFiles, which erase moves.
 void Session::addRecentFile( const std::string &path ) {
     std::string recentPath = absolutePath( path );
     std::erase( recentFiles, recentPath );
@@ -353,7 +355,6 @@ void Session::startDebugging( bool pauseAtEntry ) {
     hasRegisters = true;
 
     if ( pauseAtEntry && sourceLineAt( debugger, registers.pc ) == 0 ) {
-        // A C program starts in glibc's _start; the step goes to main.
         stepDebugger( debugger );
         handleDebuggerState();
     } else if ( pauseAtEntry ) {
@@ -386,7 +387,6 @@ void Session::handleDebuggerState() {
     }
 }
 
-// A step can leave the program running, e.g. when it waits in read for input.
 void Session::showRunning() {
     if ( pausedLine == 0 && !lineMarks.empty() ) {
         return;

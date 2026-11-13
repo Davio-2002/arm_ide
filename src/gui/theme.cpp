@@ -9,6 +9,9 @@ ImU32 accentColor() {
     return accent;
 }
 
+/// @param[in] color Colour.
+/// @param[in] alpha New alpha, 0 to 255.
+/// @return The colour with its alpha replaced.
 static ImU32 withAlpha( ImU32 color, int alpha ) {
     return ( color & ~IM_COL32_A_MASK ) | ( static_cast<ImU32>( alpha ) << IM_COL32_A_SHIFT );
 }
@@ -21,10 +24,14 @@ ImU32 accentFillColor() {
     return ImAlphaBlendColors( island, withAlpha( accent, 46 ) );
 }
 
+/// @param[in] color Packed colour.
+/// @return The colour as floats, as ImGuiStyle stores it.
 static ImVec4 toVec4( ImU32 color ) {
     return ImGui::ColorConvertU32ToFloat4( color );
 }
 
+/// @brief Sets paddings, roundings and borders of the theme.
+/// @param[in,out] style Style to change.
 static void applySizes( ImGuiStyle &style ) {
     style.WindowPadding = ImVec2( 12.0f, 10.0f );
     style.FramePadding = ImVec2( 8.0f, 5.0f );
@@ -46,6 +53,8 @@ static void applySizes( ImGuiStyle &style ) {
     style.WindowMenuButtonPosition = ImGuiDir_None;
 }
 
+/// @brief Sets the theme colours from the current accent and island colours.
+/// @param[in,out] style Style to change.
 static void applyColors( ImGuiStyle &style ) {
     ImU32 scrollbarColor = borderColor;
     ImU32 pressedColor = withAlpha( accent, 80 );
@@ -127,7 +136,6 @@ TextEditor::Palette editorPalette() {
     auto set = [&palette]( TextEditor::Color color, ImU32 value ) {
         palette[static_cast<size_t>( color )] = value;
     };
-    // The JetBrains "Dark" scheme that Islands Dark uses.
     ImU32 keywordOrange = IM_COL32( 207, 142, 109, 255 );
     ImU32 metadataYellow = IM_COL32( 179, 174, 96, 255 );
     ImU32 numberCyan = IM_COL32( 42, 172, 184, 255 );

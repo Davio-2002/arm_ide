@@ -2,22 +2,30 @@
 #include <language/aarch64_words.h>
 #include <string>
 
+/// @return True for 0-9.
 static bool isDigit( ImWchar c ) {
     return c >= '0' && c <= '9';
 }
 
+/// @return True for 0-9, a-f and A-F.
 static bool isHexDigit( ImWchar c ) {
     return isDigit( c ) || ( c >= 'a' && c <= 'f' ) || ( c >= 'A' && c <= 'F' );
 }
 
+/// @return True for a character that can start a word: a letter, '_', '.' or '$'.
 static bool isIdentifierStart( ImWchar c ) {
     return ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) || c == '_' || c == '.' || c == '$';
 }
 
+/// @return True for a character that can continue a word.
 static bool isIdentifierChar( ImWchar c ) {
     return isIdentifierStart( c ) || isDigit( c );
 }
 
+/// @brief Tokenizer callback: finds the end of a word, such as a mnemonic, b.eq or .global.
+/// @param[in] start Start of the text to scan.
+/// @param[in] end   End of the line.
+/// @return End of the word, or @p start if no word starts there.
 static TextEditor::Iterator getIdentifier( TextEditor::Iterator start, TextEditor::Iterator end ) {
     if ( start == end || !isIdentifierStart( *start ) ) {
         return start;
@@ -30,6 +38,10 @@ static TextEditor::Iterator getIdentifier( TextEditor::Iterator start, TextEdito
     return i;
 }
 
+/// @brief Tokenizer callback: finds the end of a decimal or 0x hex number.
+/// @param[in] start Start of the text to scan.
+/// @param[in] end   End of the line.
+/// @return End of the number, or @p start if no number starts there.
 static TextEditor::Iterator getNumber( TextEditor::Iterator start, TextEditor::Iterator end ) {
     if ( start == end || !isDigit( *start ) ) {
         return start;

@@ -26,7 +26,10 @@ static std::string droppedFilePath;
 static std::string settingsPath;
 static Session *settingsSession = nullptr;
 
-// Wayland takes the icon from the .desktop file matching the app id instead.
+/// @brief Sets the embedded window icon in 32, 64, 128 and 256 pixel sizes.
+///
+/// Not used on Wayland: it takes the icon from the .desktop file matching the app id.
+/// @param[in] window Main window.
 static void setWindowIcon( GLFWwindow *window ) {
     static unsigned char pixels[] = {
 #include "icon_rgba.inc"
@@ -48,7 +51,7 @@ GLFWwindow *createWindow() {
     glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );
     glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 3 );
     glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
-#ifdef GLFW_WAYLAND_APP_ID // GLFW 3.4+
+#ifdef GLFW_WAYLAND_APP_ID
     glfwWindowHintString( GLFW_WAYLAND_APP_ID, "arm_ide" );
 #endif
     glfwWindowHintString( GLFW_X11_CLASS_NAME, "arm_ide" );
@@ -70,6 +73,8 @@ GLFWwindow *createWindow() {
     return window;
 }
 
+/// @param[in] paths Candidate files, in order of preference.
+/// @return The first file that exists, or an empty string.
 static std::string findFirstExistingFile( const std::vector<std::string> &paths ) {
     for ( const std::string &path : paths ) {
         if ( std::filesystem::exists( path ) ) {
@@ -79,6 +84,8 @@ static std::string findFirstExistingFile( const std::vector<std::string> &paths 
     return "";
 }
 
+/// @brief Loads the first installed UI font and code font. ImGui's built-in font is used
+///        when none is found.
 static void loadFonts() {
     std::string home = std::getenv( "HOME" ) ? std::getenv( "HOME" ) : "";
     std::string uiFontPath = findFirstExistingFile( {
@@ -101,6 +108,8 @@ static void loadFonts() {
     }
 }
 
+/// @brief Sets the code font size, clamped to its limits, and marks the settings for saving.
+/// @param[in] size New size in points.
 static void setCodeFontSize( float size ) {
     codeFontSize = std::clamp( size, minCodeFontSize, maxCodeFontSize );
     ImGui::MarkIniSettingsDirty();
@@ -118,6 +127,10 @@ void resetZoom() {
     setCodeFontSize( defaultCodeFontSize );
 }
 
+/// @brief GLFW scroll callback: Ctrl+wheel zooms the code, other scrolling goes to ImGui.
+/// @param[in] window  Main window.
+/// @param[in] xOffset Horizontal scroll.
+/// @param[in] yOffset Vertical scroll.
 static void scrollCallback( GLFWwindow *window, double xOffset, double yOffset ) {
     bool ctrlDown = glfwGetKey( window, GLFW_KEY_LEFT_CONTROL ) == GLFW_PRESS ||
                     glfwGetKey( window, GLFW_KEY_RIGHT_CONTROL ) == GLFW_PRESS;
@@ -128,6 +141,9 @@ static void scrollCallback( GLFWwindow *window, double xOffset, double yOffset )
     ImGui_ImplGlfw_ScrollCallback( window, xOffset, yOffset );
 }
 
+/// @brief GLFW drop callback: keeps the first dropped file for takeDroppedFile().
+/// @param[in] count Number of dropped paths.
+/// @param[in] paths Dropped paths.
 static void dropCallback( GLFWwindow *, int count, const char **paths ) {
     if ( count > 0 ) {
         droppedFilePath = paths[0];
@@ -138,11 +154,16 @@ std::string takeDroppedFile() {
     return std::exchange( droppedFilePath, "" );
 }
 
+/// @brief ImGui settings callback: starts reading the IDE's section of the settings file.
+/// @return The session, passed to readSettingsLine() as the entry.
 static void *openSettingsEntry( ImGuiContext *, ImGuiSettingsHandler *, const char * ) {
     settingsSession->recentFiles.clear();
     return settingsSession;
 }
 
+/// @brief ImGui settings callback: applies one line of the IDE's section: zoom, colours or
+///        a recent file that still exists.
+/// @param[in] line Line in "Key=value" form.
 static void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line ) {
     std::string text = line;
     if ( text.starts_with( "Zoom=" ) ) {
@@ -157,6 +178,9 @@ static void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, co
     }
 }
 
+/// @brief ImGui settings callback: writes the IDE's section of the settings file.
+/// @param[in]     handler The IDE's settings handler.
+/// @param[in,out] buffer  Settings text being written.
 static void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler,
                            ImGuiTextBuffer *buffer ) {
     buffer->appendf( "[%s][Settings]\n", handler->TypeName );
@@ -169,6 +193,8 @@ static void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler,
     buffer->append( "\n" );
 }
 
+/// @brief Registers the IDE's settings handler and loads $XDG_CONFIG_HOME/arm_ide/imgui.ini.
+/// @param[in,out] session Session whose recent files are read and written.
 static void loadSettings( Session &session ) {
     const char *configHome = std::getenv( "XDG_CONFIG_HOME" );
     const char *home = std::getenv( "HOME" );

@@ -16,10 +16,14 @@ static const int requestTimeoutMilliseconds = 2000;
 static const int connectTimeoutMilliseconds = 3000;
 static const int stepTimeoutMilliseconds = 200;
 static const int gdbSignalTrap = 5;
-static const int registerCount = 33; // x0-x30, sp, pc; cpsr follows as 32 bits
+static const int registerCount = 33;
 static const uint64_t flagsMask = 0xf0000000;
 
-// GDB's own signal numbers, which the stub reports (they differ from Linux's from 7 on).
+/// @brief Names a signal reported by the GDB stub.
+///
+/// The stub uses GDB's own signal numbers, which differ from Linux's from 7 on.
+/// @param[in] signal GDB signal number.
+/// @return Human-readable signal name.
 static std::string signalName( int signal ) {
     static const char *names[] = { "",
                                    "Hangup",
@@ -43,16 +47,27 @@ static std::string signalName( int signal ) {
     return "Signal " + std::to_string( signal );
 }
 
+/// @brief Formats a number as lower-case hex without a prefix, as the GDB protocol expects.
+/// @param[in] value Number to format.
+/// @return Hex digits.
 static std::string toHex( uint64_t value ) {
     char text[17];
     std::snprintf( text, sizeof( text ), "%llx", static_cast<unsigned long long>( value ) );
     return text;
 }
 
+/// @brief Parses hex digits without a prefix.
+/// @param[in] text Hex digits.
+/// @return Parsed number; 0 for invalid text.
 static uint64_t parseHex( const std::string &text ) {
     return std::strtoull( text.c_str(), nullptr, 16 );
 }
 
+/// @brief Decodes a little-endian number from a hex string, two digits per byte.
+/// @param[in] hex       Hex string, as in register and memory replies.
+/// @param[in] offset    Index of the first hex digit.
+/// @param[in] byteCount Number of bytes to decode.
+/// @return Decoded number.
 static uint64_t littleEndian( const std::string &hex, size_t offset, size_t byteCount ) {
     uint64_t value = 0;
     for ( size_t i = 0; i < byteCount; i++ ) {
@@ -61,6 +76,10 @@ static uint64_t littleEndian( const std::string &hex, size_t offset, size_t byte
     return value;
 }
 
+/// @brief Sends bytes to the GDB stub as they are.
+/// @param[in] debugger Connected debugger.
+/// @param[in] data     Bytes to send.
+/// @return True if all bytes were sent.
 static bool sendRaw( Debugger &debugger, const std::string &data ) {
     size_t sent = 0;
     while ( sent < data.size() ) {
@@ -74,6 +93,10 @@ static bool sendRaw( Debugger &debugger, const std::string &data ) {
     return true;
 }
 
+/// @brief Sends a GDB packet: "$payload#xx" with its checksum.
+/// @param[in] debugger Connected debugger.
+/// @param[in] payload  Command, for example "g" or "m1000,4".
+/// @return True if the packet was sent.
 static bool sendPacket( Debugger &debugger, const std::string &payload ) {
     unsigned checksum = 0;
     for ( char c : payload ) {
@@ -84,7 +107,11 @@ static bool sendPacket( Debugger &debugger, const std::string &payload ) {
     return sendRaw( debugger, "$" + payload + end );
 }
 
-// Takes one complete "$payload#xx" from what has been received, skipping acknowledgements.
+/// @brief Takes one complete "$payload#xx" from the received bytes and acknowledges it.
+///        Acknowledgements before it are skipped.
+/// @param[in,out] debugger Debugger whose received bytes are consumed.
+/// @param[out]    payload  Packet payload, without "$" and the checksum.
+/// @return True if a complete packet was taken.
 static bool takePacket( Debugger &debugger, std::string &payload ) {
     size_t start = debugger.received.find( '$' );
     if ( start == std::string::npos ) {
@@ -102,7 +129,11 @@ static bool takePacket( Debugger &debugger, std::string &payload ) {
     return true;
 }
 
-// False when nothing arrived in time; a lost connection marks the program crashed.
+/// @brief Waits for the next packet from the GDB stub.
+/// @param[in,out] debugger            Connected debugger; a lost connection marks it crashed.
+/// @param[out]    payload             Packet payload.
+/// @param[in]     timeoutMilliseconds Longest time to wait.
+/// @return True if a packet arrived in time.
 static bool receivePacket( Debugger &debugger, std::string &payload, int timeoutMilliseconds ) {
     auto deadline =
         std::chrono::steady_clock::now() + std::chrono::milliseconds( timeoutMilliseconds );
@@ -125,6 +156,11 @@ static bool receivePacket( Debugger &debugger, std::string &payload, int timeout
     return true;
 }
 
+/// @brief Sends a command and waits for its reply.
+/// @param[in,out] debugger Connected debugger; marked crashed if QEMU does not answer.
+/// @param[in]     payload  Command.
+/// @param[out]    reply    Reply payload.
+/// @return True if a reply arrived.
 static bool request( Debugger &debugger, const std::string &payload, std::string &reply ) {
     if ( debugger.socket < 0 || !sendPacket( debugger, payload ) ||
          !receivePacket( debugger, reply, requestTimeoutMilliseconds ) ) {
@@ -135,6 +171,10 @@ static bool request( Debugger &debugger, const std::string &payload, std::string
     return true;
 }
 
+/// @brief Reads one register of the paused program.
+/// @param[in,out] debugger Paused debugger.
+/// @param[in]     number   GDB register number: 0-30 for x0-x30, 31 for sp, 32 for pc.
+/// @return Register value, or 0 if QEMU did not answer.
 static uint64_t readRegister( Debugger &debugger, int number ) {
     std::string reply;
     if ( !request( debugger, "p" + toHex( number ), reply ) ) {
@@ -143,10 +183,15 @@ static uint64_t readRegister( Debugger &debugger, int number ) {
     return littleEndian( reply, 0, 8 );
 }
 
+/// @param[in,out] debugger Paused debugger.
+/// @return Program counter of the paused program.
 static uint64_t programCounter( Debugger &debugger ) {
     return readRegister( debugger, 32 );
 }
 
+/// @brief Resumes the program without waiting for it to stop.
+/// @param[in,out] debugger Paused debugger; becomes running, or crashed if sending fails.
+/// @param[in]     command  "c" to continue or "s" to step one instruction.
 static void resume( Debugger &debugger, const char *command ) {
     debugger.state = DebuggerState::Running;
     if ( !sendPacket( debugger, command ) ) {
@@ -155,7 +200,9 @@ static void resume( Debugger &debugger, const char *command ) {
     }
 }
 
-// After stepping off a breakpoint the program goes on, unless it landed on another one.
+/// @brief Continues after the instruction under a breakpoint was stepped over, unless the
+///        step landed on another breakpoint.
+/// @param[in,out] debugger Debugger that just stopped after the step.
 static void finishStepOverBreakpoint( Debugger &debugger ) {
     debugger.continueAfterStep = false;
     debugger.state = DebuggerState::Paused;
@@ -164,6 +211,10 @@ static void finishStepOverBreakpoint( Debugger &debugger ) {
     }
 }
 
+/// @brief Tells if the instruction at an address is an svc.
+/// @param[in,out] debugger Paused debugger.
+/// @param[in]     address  Instruction address.
+/// @return True for an svc; false for other instructions or unreadable memory.
 static bool isSystemCall( Debugger &debugger, uint64_t address ) {
     static const uint32_t svcMask = 0xffe0001f;
     static const uint32_t svcBits = 0xd4000001;
@@ -175,7 +226,11 @@ static bool isSystemCall( Debugger &debugger, uint64_t address ) {
     return ( word & svcMask ) == svcBits;
 }
 
-// Continues to a temporary breakpoint; one under the PC is lifted, as QEMU would stop on it.
+/// @brief Continues to a temporary breakpoint.
+///
+/// A breakpoint under the PC is lifted meanwhile, as QEMU would stop on it at once.
+/// @param[in,out] debugger Paused debugger.
+/// @param[in]     address  Address to stop at.
 static void runTo( Debugger &debugger, uint64_t address ) {
     uint64_t pc = programCounter( debugger );
     std::string reply;
@@ -190,6 +245,9 @@ static void runTo( Debugger &debugger, uint64_t address ) {
     resume( debugger, "c" );
 }
 
+/// @brief Steps one instruction. An svc is run to the next instruction instead, because
+///        QEMU's single step runs one instruction too many after it.
+/// @param[in,out] debugger Paused debugger.
 static void stepInstruction( Debugger &debugger ) {
     uint64_t pc = programCounter( debugger );
     if ( isSystemCall( debugger, pc ) ) {
@@ -199,11 +257,13 @@ static void stepInstruction( Debugger &debugger ) {
     }
 }
 
+/// @brief Takes the next step of a line step, or ends it at the start of a new line or at a
+///        breakpoint.
+/// @param[in,out] debugger Debugger stopped during a line step.
 static void continueLineStep( Debugger &debugger ) {
     uint64_t pc = programCounter( debugger );
     int line = sourceLineAt( debugger, pc );
     if ( line == 0 ) {
-        // Right after the call x30 still holds the return address.
         uint64_t returnAddress = readRegister( debugger, 30 );
         if ( returnAddress != pc && sourceLineAt( debugger, returnAddress ) != 0 ) {
             runTo( debugger, returnAddress );
@@ -213,7 +273,6 @@ static void continueLineStep( Debugger &debugger ) {
         }
         return;
     }
-    // Jumping back to where the step started is a new line too: a loop on one line.
     bool atLineStart = debugger.sourceLines.contains( pc );
     bool newLine = line != debugger.stepLine || pc == debugger.stepStart;
     if ( ( atLineStart && newLine ) || debugger.breakpoints.contains( pc ) ) {
@@ -223,7 +282,10 @@ static void continueLineStep( Debugger &debugger ) {
     }
 }
 
-// Breakpoints changed meanwhile stay as the user set them.
+/// @brief Removes the temporary breakpoint and puts back the lifted one.
+///
+/// Breakpoints the user changed meanwhile stay as the user set them.
+/// @param[in,out] debugger Paused debugger.
 static void restoreStepBreakpoints( Debugger &debugger ) {
     std::string reply;
     uint64_t temporary = debugger.temporaryBreakpoint;
@@ -238,6 +300,10 @@ static void restoreStepBreakpoints( Debugger &debugger ) {
     debugger.liftedBreakpoint = 0;
 }
 
+/// @brief Updates the debugger state from a stop reply: exit, kill, signal or trap.
+///        A trap continues a pending step over a breakpoint or a line step.
+/// @param[in,out] debugger Debugger that received the reply.
+/// @param[in]     reply    Stop reply payload, such as "W00" or "T05...".
 static void handleStopReply( Debugger &debugger, const std::string &reply ) {
     char kind = reply.empty() ? '\0' : reply[0];
     if ( kind == 'W' ) {
@@ -267,12 +333,17 @@ static void handleStopReply( Debugger &debugger, const std::string &reply ) {
     }
 }
 
+/// @return Path of the Unix socket QEMU listens on, unique to this IDE process.
 static std::string socketPath() {
     const char *runtime = std::getenv( "XDG_RUNTIME_DIR" );
     std::string directory = runtime ? runtime : "/tmp";
     return directory + "/arm_ide-" + std::to_string( getpid() ) + ".sock";
 }
 
+/// @brief Connects to QEMU's GDB socket, retrying until QEMU has created it.
+/// @param[in,out] debugger Debugger with QEMU started; gets the socket.
+/// @param[in]     path     Socket path passed to QEMU.
+/// @return True if connected; otherwise debugger.error holds the reason.
 static bool connectToQemu( Debugger &debugger, const std::string &path ) {
     sockaddr_un address = {};
     address.sun_family = AF_UNIX;
@@ -336,6 +407,9 @@ bool startDebugger( Debugger &debugger, const std::string &executablePath,
     return true;
 }
 
+/// @brief Removes and inserts breakpoints in QEMU so they match the given addresses.
+/// @param[in,out] debugger  Paused debugger.
+/// @param[in]     addresses New breakpoint addresses.
 static void applyBreakpoints( Debugger &debugger, const std::set<uint64_t> &addresses ) {
     std::string reply;
     for ( uint64_t address : debugger.breakpoints ) {
@@ -362,8 +436,6 @@ void setBreakpointLines( Debugger &debugger, const std::set<int> &lines ) {
     if ( debugger.state == DebuggerState::Paused ) {
         applyBreakpoints( debugger, addresses );
     } else if ( debugger.state == DebuggerState::Running ) {
-        // The user-mode stub ignores the interrupt byte. SIGTRAP sent to QEMU stops the program
-        // like a breakpoint does, and "c" continues without delivering it.
         std::string reply;
         if ( kill( debugger.qemu.pid, SIGTRAP ) != 0 ||
              !receivePacket( debugger, reply, requestTimeoutMilliseconds ) ) {
@@ -423,7 +495,6 @@ void stepDebugger( Debugger &debugger ) {
     pollDebugger( debugger, stepTimeoutMilliseconds );
 }
 
-// A line step is many stop replies; all that arrive in time are handled.
 void pollDebugger( Debugger &debugger, int timeoutMilliseconds ) {
     auto deadline =
         std::chrono::steady_clock::now() + std::chrono::milliseconds( timeoutMilliseconds );

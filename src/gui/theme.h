@@ -3,7 +3,6 @@
 #include <TextEditor.h>
 #include <imgui.h>
 
-// Islands Dark: every panel is a rounded island on a darker ground.
 inline constexpr ImU32 hoveredColor = IM_COL32( 38, 40, 43, 255 );
 inline constexpr ImU32 selectedColor = IM_COL32( 43, 45, 48, 255 );
 inline constexpr ImU32 borderColor = IM_COL32( 57, 59, 64, 255 );
@@ -32,22 +31,38 @@ inline constexpr float islandGap = 6.0f;
 inline constexpr float toolbarFramePaddingY = 9.0f;
 inline constexpr float editorTabsGap = 6.0f;
 
-// JetBrains green, the colour of the Run icon, until the user picks another one.
 inline constexpr ImU32 defaultAccentColor = IM_COL32( 87, 150, 92, 255 );
-// Background of every panel and of the code, until the user picks another one.
 inline constexpr ImU32 defaultIslandColor = IM_COL32( 24, 25, 27, 255 );
 
+/// @brief Applies the Islands Dark sizes and colours to the ImGui style.
 void applyIslandsTheme();
-// The accent marks selected tabs, switched-on buttons and panel outlines.
+
+/// @return The accent: selected tabs, switched-on buttons and panel outlines.
 ImU32 accentColor();
-// The accent faintly mixed into the island colour: fill of selected and hovered tabs.
+
+/// @return The accent faintly mixed into the island colour: fill of selected and hovered tabs.
 ImU32 accentFillColor();
+
+/// @brief Sets the accent colour and updates the ImGui style.
+/// @param[in] color New accent; its alpha is ignored.
 void setAccentColor( ImU32 color );
-// The accent at low alpha: background of the line the debugger is paused on.
+
+/// @return The accent at low alpha: background of the line the debugger is paused on.
 ImU32 pausedLineColor();
+
+/// @return Background of every panel and of the code.
 ImU32 islandColor();
-// The frame around the islands (toolbar, status bar, tool strip, gaps): the island colour at
-// 65% brightness, so the two levels keep their contrast whatever colour is picked.
+
+/// @brief Colour of the frame around the islands: toolbar, status bar, tool strip and gaps.
+///
+/// It is the island colour at 65% brightness, so the two levels keep their contrast whatever
+/// colour is picked.
+/// @return Ground colour.
 ImU32 groundColor();
+
+/// @brief Sets the panel background colour and updates the ImGui style.
+/// @param[in] color New island colour; its alpha is ignored.
 void setIslandColor( ImU32 color );
+
+/// @return Syntax colours of the code editor, on the current island colour.
 TextEditor::Palette editorPalette();

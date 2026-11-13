@@ -33,6 +33,9 @@ void whenChangesDiscarded( std::function<void()> action ) {
     askToDiscardChanges( what, std::move( action ) );
 }
 
+/// @brief Saves the active editor tab and marks it saved.
+/// @param[in,out] session Session that writes the file.
+/// @param[in]     path    File to write.
 static void saveDocument( Session &session, const std::string &path ) {
     if ( session.saveFile( path, editorText() ) ) {
         markEditorSaved( session.filePath );
@@ -48,6 +51,8 @@ std::string displayPath( const std::string &path ) {
     return path;
 }
 
+/// @brief Reads the global keyboard shortcuts.
+/// @return Actions whose shortcut was pressed this frame.
 static MenuActions readShortcuts() {
     ImGuiInputFlags global = ImGuiInputFlags_RouteGlobal;
     MenuActions actions;
@@ -71,7 +76,8 @@ static MenuActions readShortcuts() {
     return actions;
 }
 
-// Menus and their items light up in the accent, rounded like the tabs.
+/// @brief Pushes the menu bar style: items light up in the accent, rounded like the tabs.
+///        Undo with popMenuStyle().
 static void pushMenuStyle() {
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding,
                          ImVec2( ImGui::GetStyle().FramePadding.x, toolbarFramePaddingY ) );
@@ -81,11 +87,16 @@ static void pushMenuStyle() {
     }
 }
 
+/// @brief Pops the style pushed by pushMenuStyle().
 static void popMenuStyle() {
     ImGui::PopStyleColor( 3 );
     ImGui::PopStyleVar( 2 );
 }
 
+/// @brief Draws the main menu bar: toolbar start, the File, View, Build, Run and Debug menus,
+///        and toolbar end.
+/// @param[in]     session Current session.
+/// @param[in,out] actions Receives the chosen actions.
 static void drawMenus( const Session &session, MenuActions &actions ) {
     pushMenuStyle();
     if ( !ImGui::BeginMainMenuBar() ) {
@@ -151,6 +162,9 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
     popMenuStyle();
 }
 
+/// @brief Runs the one build, run or debug action chosen, in that priority.
+/// @param[in,out] session Session to act on.
+/// @param[in]     actions Collected actions.
 static void runProgramActions( Session &session, const MenuActions &actions ) {
     if ( actions.run ) {
         session.run();
@@ -163,6 +177,10 @@ static void runProgramActions( Session &session, const MenuActions &actions ) {
     }
 }
 
+/// @brief Runs all collected actions. Saves the file before a build, asking for a name
+///        first if it has none.
+/// @param[in,out] session Session to act on.
+/// @param[in]     actions Collected actions.
 static void runActions( Session &session, const MenuActions &actions ) {
     if ( actions.zoomIn ) {
         zoomCode( 2.0f );

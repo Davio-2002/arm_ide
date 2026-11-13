@@ -18,6 +18,7 @@
 #include <gui/widgets.h>
 #include <gui/window.h>
 
+/// @brief One editor tab.
 struct Document {
     std::string path;
     TextEditor editor;
@@ -31,10 +32,14 @@ static Document *activeDocument = nullptr;
 static Document *drawingDocument = nullptr;
 static Session *editorSession = nullptr;
 
+/// @param[in] document Tab to check.
+/// @return True if the tab changed since it was opened or saved.
 static bool isModified( const Document &document ) {
     return document.editor.GetUndoIndex() != document.savedUndoIndex;
 }
 
+/// @param[in] document Tab.
+/// @return File name of the tab, or "untitled".
 static std::string documentName( const Document &document ) {
     if ( document.path.empty() ) {
         return "untitled";
@@ -42,11 +47,16 @@ static std::string documentName( const Document &document ) {
     return std::filesystem::path( document.path ).filename();
 }
 
-// Build errors and the paused line belong to the file last built.
+/// @brief Tells if a tab shows the file last built, which owns the build errors and the
+///        paused line.
+/// @param[in] document Tab to check.
+/// @return True if the tab shows the built file.
 static bool showsProgram( const Document &document ) {
     return !document.path.empty() && document.path == editorSession->programFilePath;
 }
 
+/// @param[in] path Absolute file path.
+/// @return The tab showing the file, or nullptr.
 static Document *findDocument( const std::string &path ) {
     for ( const std::unique_ptr<Document> &document : documents ) {
         if ( document->path == path ) {
@@ -56,6 +66,9 @@ static Document *findDocument( const std::string &path ) {
     return nullptr;
 }
 
+/// @brief Colours a marked line and its number by the mark kind.
+/// @param[in,out] editor Editor to mark.
+/// @param[in]     mark   Line mark; its message becomes the tooltip.
 static void addLineMarker( TextEditor &editor, const LineMark &mark ) {
     ImU32 numberColor = errorColor;
     ImU32 lineColor = errorLineColor;
@@ -69,6 +82,9 @@ static void addLineMarker( TextEditor &editor, const LineMark &mark ) {
     editor.AddMarker( mark.line - 1, numberColor, lineColor, mark.message, mark.message );
 }
 
+/// @brief Line decorator callback: draws the breakpoint dot and the execution arrow left of
+///        a line. A click toggles the breakpoint.
+/// @param[in] decorator Line and size of the decoration area.
 static void drawLineDecoration( TextEditor::Decorator &decorator ) {
     Session &session = *editorSession;
     const Document &document = *drawingDocument;
@@ -88,8 +104,6 @@ static void drawLineDecoration( TextEditor::Decorator &decorator ) {
         drawList->AddCircleFilled( center, radius, breakpointHoverColor );
     }
 
-    // The execution point: a rounded arrow in the accent colour, outlined in the island colour
-    // so it stays readable over a breakpoint dot.
     if ( line == session.pausedLine && showsProgram( document ) ) {
         float half = size * 0.26f;
         float left = center.x - size * 0.3f;
@@ -111,6 +125,9 @@ static void drawLineDecoration( TextEditor::Decorator &decorator ) {
     }
 }
 
+/// @param[in] word   Word to check.
+/// @param[in] prefix Prefix to look for.
+/// @return True if word starts with prefix, ignoring case.
 static bool startsWithIgnoringCase( const std::string &word, const std::string &prefix ) {
     return word.size() >= prefix.size() &&
            std::equal( prefix.begin(), prefix.end(), word.begin(), []( char a, char b ) {
@@ -119,6 +136,9 @@ static bool startsWithIgnoringCase( const std::string &word, const std::string &
            } );
 }
 
+/// @param[in] word    Word to convert.
+/// @param[in] convert std::toupper or std::tolower.
+/// @return The word with each character converted.
 static std::string withCase( std::string word, int ( *convert )( int ) ) {
     for ( char &c : word ) {
         c = static_cast<char>( convert( static_cast<unsigned char>( c ) ) );
@@ -126,10 +146,12 @@ static std::string withCase( std::string word, int ( *convert )( int ) ) {
     return word;
 }
 
+/// @brief Autocomplete callback: suggests language words and identifiers of the document
+///        that start with the typed term, shortest first.
+/// @param[in,out] state Typed term in, suggestions out.
 static void suggestCompletions( TextEditor::AutoCompleteState &state ) {
     const TextEditor::Language &language = *drawingDocument->editor.GetLanguage();
     const std::string &term = state.searchTerm;
-    // Assembly ignores case, so its words follow an upper-case term; C keeps them as they are.
     bool ignoresCase = !language.caseSensitive;
     bool upper = ignoresCase && term == withCase( term, std::toupper ) &&
                  term != withCase( term, std::tolower );
@@ -160,7 +182,11 @@ static void suggestCompletions( TextEditor::AutoCompleteState &state ) {
     } );
 }
 
-// C for .c and .h files, AArch64 assembly for everything else. In C a '.' ends a word.
+/// @brief Picks the language from the file extension: C for .c and .h files, AArch64
+///        assembly for everything else.
+///
+/// In assembly a '.' is part of a word (directives, b.cond) and starts autocomplete.
+/// @param[in,out] document Tab to configure.
 static void setLanguage( Document &document ) {
     std::string extension = std::filesystem::path( document.path ).extension();
     bool isC = extension == ".c" || extension == ".h";
@@ -173,6 +199,8 @@ static void setLanguage( Document &document ) {
     document.editor.SetAutoCompleteConfig( &autoComplete );
 }
 
+/// @brief Sets tab size, whitespace display and the breakpoint decorator.
+/// @param[in,out] editor Editor to configure.
 static void configureEditor( TextEditor &editor ) {
     editor.SetTabSize( 5 );
     editor.SetInsertSpacesOnTabs( true );
@@ -180,6 +208,10 @@ static void configureEditor( TextEditor &editor ) {
     editor.SetLineDecorator( 2, drawLineDecoration );
 }
 
+/// @brief Adds a tab at the end, marked as saved.
+/// @param[in] path Absolute file path; empty for untitled.
+/// @param[in] text Initial text.
+/// @return The new tab.
 static Document *addDocument( const std::string &path, const std::string &text ) {
     auto document = std::make_unique<Document>();
     document->path = path;
@@ -191,12 +223,15 @@ static Document *addDocument( const std::string &path, const std::string &text )
     return documents.back().get();
 }
 
-// The active document is the one Session builds, runs and saves.
+/// @brief Makes a tab active. The active tab is the file Session builds, runs and saves.
+/// @param[in] document Tab to activate.
 static void makeActive( Document *document ) {
     activeDocument = document;
     editorSession->filePath = document->path;
 }
 
+/// @brief Closes a tab without asking. The last tab is replaced by an empty untitled one.
+/// @param[in] document Tab to close.
 static void closeDocument( Document *document ) {
     auto position = std::ranges::find( documents, document, &std::unique_ptr<Document>::get );
     size_t index = position - documents.begin();
@@ -209,6 +244,8 @@ static void closeDocument( Document *document ) {
     }
 }
 
+/// @brief Closes a tab, asking first if it has unsaved changes.
+/// @param[in] document Tab to close.
 static void askToCloseDocument( Document *document ) {
     if ( !isModified( *document ) ) {
         closeDocument( document );
@@ -295,6 +332,10 @@ void jumpToSourceLine( int sourceLine ) {
     ImGui::SetWindowFocus( "Editor" );
 }
 
+/// @brief Updates a tab's markers when the session's line marks changed. Only the built file
+///        shows them.
+/// @param[in,out] document Tab to update.
+/// @param[in]     session  Current session.
 static void showLineMarks( Document &document, const Session &session ) {
     bool marksVisible = showsProgram( document );
     if ( document.shownLineMarksVersion == session.lineMarksVersion &&
@@ -326,6 +367,7 @@ void syncEditorWithSession( Session &session ) {
     }
 }
 
+/// @brief Draws the tab row. Selecting and closing apply after the row is drawn.
 static void drawDocumentTabs() {
     Document *documentToShow = nullptr;
     Document *documentToClose = nullptr;
