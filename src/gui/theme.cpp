@@ -1,5 +1,7 @@
 #include <imgui_internal.h>
 
+#include <optional>
+
 #include <gui/theme.h>
 
 namespace {
@@ -195,8 +197,11 @@ const ColorScheme schemes[] = {
     },
 };
 
-const ColorScheme *scheme = &schemes[0];
-ImU32 accent = scheme->accent;
+ThemeMode mode = ThemeMode::System;
+const ColorScheme *darkScheme = &schemes[0];
+const ColorScheme *lightScheme = &schemes[1];
+const ColorScheme *scheme = darkScheme;
+std::optional<ImU32> customAccent;
 
 } // anonymous namespace
 
@@ -204,20 +209,49 @@ const ColorScheme &currentScheme() {
     return *scheme;
 }
 
+std::span<const ColorScheme> colorSchemes() {
+    return schemes;
+}
+
+const ColorScheme *findColorScheme( std::string_view name ) {
+    for ( const ColorScheme &candidate : schemes ) {
+        if ( name == candidate.name ) {
+            return &candidate;
+        }
+    }
+    return nullptr;
+}
+
+ThemeMode themeMode() {
+    return mode;
+}
+
+const ColorScheme &darkColorScheme() {
+    return *darkScheme;
+}
+
+const ColorScheme &lightColorScheme() {
+    return *lightScheme;
+}
+
 ImU32 withAlpha( ImU32 color, int alpha ) {
     return ( color & ~IM_COL32_A_MASK ) | ( static_cast<ImU32>( alpha ) << IM_COL32_A_SHIFT );
 }
 
 ImU32 accentColor() {
-    return accent;
+    return customAccent.value_or( scheme->accent );
+}
+
+bool hasCustomAccent() {
+    return customAccent.has_value();
 }
 
 ImU32 pausedLineColor() {
-    return withAlpha( accent, 40 );
+    return withAlpha( accentColor(), 40 );
 }
 
 ImU32 accentFillColor() {
-    return ImAlphaBlendColors( scheme->background, withAlpha( accent, 46 ) );
+    return ImAlphaBlendColors( scheme->background, withAlpha( accentColor(), 46 ) );
 }
 
 namespace {
@@ -256,6 +290,7 @@ void applySizes( ImGuiStyle &style ) {
 void applyColors( ImGuiStyle &style ) {
     const ColorScheme &colorScheme = *scheme;
     ImU32 scrollbarColor = colorScheme.border;
+    ImU32 accent = accentColor();
     ImU32 pressedColor = withAlpha( accent, 80 );
 
     ImVec4 *colors = style.Colors;
@@ -314,8 +349,33 @@ void applyTheme() {
     applyColors( style );
 }
 
+namespace {
+
+/// @brief Picks the dark or the light scheme by the mode and updates the ImGui style.
+void selectScheme() {
+    scheme = mode == ThemeMode::Light ? lightScheme : darkScheme;
+    applyColors( ImGui::GetStyle() );
+}
+
+} // anonymous namespace
+
+void setThemeMode( ThemeMode newMode ) {
+    mode = newMode;
+    selectScheme();
+}
+
+void setColorScheme( const ColorScheme &newScheme ) {
+    ( newScheme.dark ? darkScheme : lightScheme ) = &newScheme;
+    selectScheme();
+}
+
 void setAccentColor( ImU32 color ) {
-    accent = withAlpha( color, 255 );
+    customAccent = withAlpha( color, 255 );
+    applyColors( ImGui::GetStyle() );
+}
+
+void resetAccentColor() {
+    customAccent.reset();
     applyColors( ImGui::GetStyle() );
 }
 

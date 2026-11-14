@@ -246,7 +246,7 @@ void *openSettingsEntry( ImGuiContext *, ImGuiSettingsHandler *, const char * ) 
     return settingsSession;
 }
 
-/// @brief ImGui settings callback: applies one line of the IDE's section: zoom, fonts, colours or
+/// @brief ImGui settings callback: applies one line of the IDE's section: zoom, fonts, theme or
 ///        a recent file that still exists.
 /// @param[in] line Line in "Key=value" form.
 void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line ) {
@@ -258,6 +258,17 @@ void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const cha
         uiFont.requestedFamily = text.substr( 7 );
     } else if ( text.starts_with( "CodeFont=" ) ) {
         codeFont.requestedFamily = text.substr( 9 );
+    } else if ( text.starts_with( "Theme=" ) ) {
+        for ( size_t i = 0; i < std::size( themeModeNames ); i++ ) {
+            if ( text.substr( 6 ) == themeModeNames[i] ) {
+                setThemeMode( static_cast<ThemeMode>( i ) );
+            }
+        }
+    } else if ( text.starts_with( "DarkScheme=" ) || text.starts_with( "LightScheme=" ) ) {
+        const ColorScheme *scheme = findColorScheme( text.substr( text.find( '=' ) + 1 ) );
+        if ( scheme && scheme->dark == text.starts_with( "Dark" ) ) {
+            setColorScheme( *scheme );
+        }
     } else if ( text.starts_with( "Accent=" ) ) {
         setAccentColor( static_cast<ImU32>( std::strtoul( line + 7, nullptr, 16 ) ) );
     } else if ( text.starts_with( "Recent=" ) && std::filesystem::exists( text.substr( 7 ) ) ) {
@@ -273,7 +284,12 @@ void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler, ImGuiTextBuff
     buffer->appendf( "Zoom=%g\n", codeFontSize );
     buffer->appendf( "UiFont=%s\n", uiFont.family.c_str() );
     buffer->appendf( "CodeFont=%s\n", codeFont.family.c_str() );
-    buffer->appendf( "Accent=%08X\n", accentColor() );
+    buffer->appendf( "Theme=%s\n", themeModeNames[static_cast<size_t>( themeMode() )] );
+    buffer->appendf( "DarkScheme=%s\n", darkColorScheme().name );
+    buffer->appendf( "LightScheme=%s\n", lightColorScheme().name );
+    if ( hasCustomAccent() ) {
+        buffer->appendf( "Accent=%08X\n", accentColor() );
+    }
     for ( const std::string &path : settingsSession->recentFiles ) {
         buffer->appendf( "Recent=%s\n", path.c_str() );
     }

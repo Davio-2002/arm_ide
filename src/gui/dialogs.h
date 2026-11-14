@@ -20,9 +20,6 @@ void askForFileToSave( const std::string &suggestedPath,
 /// @param[in] onDiscard    Called if the user chooses Discard.
 void askToDiscardChanges( const std::string &documentName, std::function<void()> onDiscard );
 
-/// @brief Opens the accent colour picker. The colour applies while it is picked.
-void openAccentColorDialog();
-
 /// @return True while any dialog is open.
 bool isDialogOpen();
 

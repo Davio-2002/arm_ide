@@ -3,9 +3,12 @@
 #include <array>
 #include <iterator>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include <gui/icons.h>
+#include <gui/theme.h>
 
 #define NANOSVG_IMPLEMENTATION
 #include <nanosvg.h>
@@ -52,6 +55,14 @@ const Icon allIcons[] = { Icon::Build,  Icon::Run,       Icon::Debug,   Icon::St
                           Icon::Resume, Icon::StepOver,  Icon::AsmFile, Icon::Console,
                           Icon::Clear,  Icon::Registers, Icon::Memory };
 std::array<GLuint, std::size( allIcons )> textures = {};
+bool loaded = false;
+bool loadedDark = false;
+
+/// @brief Colours of the dark icons and the ones the light variants of JetBrains icons use.
+const std::pair<const char *, const char *> lightColors[] = {
+    { "#CED0D6", "#6C707E" }, { "#57965C", "#208A3C" }, { "#253627", "#F2FCF3" },
+    { "#DB5C5C", "#E55765" }, { "#5E3838", "#FFF7F7" }, { "#8C94F0", "#5E68D9" },
+};
 
 /// @param[in] icon Icon.
 /// @return Null-terminated SVG source of the icon.
@@ -84,11 +95,20 @@ const unsigned char *iconSvg( Icon icon ) {
 }
 
 /// @brief Renders an SVG to a square RGBA image.
-/// @param[in] svg  Null-terminated SVG source.
-/// @param[in] size Image width and height in pixels.
+/// @param[in] svg   Null-terminated SVG source.
+/// @param[in] size  Image width and height in pixels.
+/// @param[in] light True to swap the colours for those of light icons.
 /// @return RGBA pixels, row by row.
-std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int size ) {
+std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int size, bool light ) {
     std::string text = reinterpret_cast<const char *>( svg );
+    if ( light ) {
+        for ( const auto &[dark, lightColor] : lightColors ) {
+            for ( size_t at = text.find( dark ); at != std::string::npos;
+                  at = text.find( dark, at ) ) {
+                text.replace( at, std::string_view( dark ).size(), lightColor );
+            }
+        }
+    }
     NSVGimage *image = nsvgParse( text.data(), "px", 96.0f );
     NSVGrasterizer *rasterizer = nsvgCreateRasterizer();
     std::vector<unsigned char> pixels( size * size * 4 );
@@ -117,12 +137,21 @@ GLuint createTexture( const std::vector<unsigned char> &pixels, int size ) {
 
 } // anonymous namespace
 
-void loadIcons() {
+void updateIcons() {
+    bool dark = currentScheme().dark;
+    if ( loaded && dark == loadedDark ) {
+        return;
+    }
+    if ( loaded ) {
+        glDeleteTextures( static_cast<GLsizei>( textures.size() ), textures.data() );
+    }
     int size = static_cast<int>( iconSize );
     for ( Icon icon : allIcons ) {
-        std::vector<unsigned char> pixels = rasterizeSvg( iconSvg( icon ), size );
+        std::vector<unsigned char> pixels = rasterizeSvg( iconSvg( icon ), size, !dark );
         textures[static_cast<size_t>( icon )] = createTexture( pixels, size );
     }
+    loaded = true;
+    loadedDark = dark;
 }
 
 ImTextureID iconTexture( Icon icon ) {

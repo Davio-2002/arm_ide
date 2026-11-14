@@ -3,16 +3,14 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <span>
 #include <vector>
 
 #include <gui/dialogs.h>
-#include <gui/theme.h>
 #include <gui/widgets.h>
 
 namespace {
 
-enum class DialogKind { None, Open, Save, Discard, AccentColor };
+enum class DialogKind { None, Open, Save, Discard };
 
 /// @brief One row of the file list.
 struct DirectoryEntry {
@@ -128,19 +126,6 @@ void openDialog( DialogKind kind ) {
 
 } // anonymous namespace
 
-void openAccentColorDialog() {
-    openDialog( DialogKind::AccentColor );
-}
-
-namespace {
-
-/// @return True if the open dialog is a colour picker.
-bool isColorDialog() {
-    return dialog.kind == DialogKind::AccentColor;
-}
-
-} // anonymous namespace
-
 bool isDialogOpen() {
     return dialog.kind != DialogKind::None;
 }
@@ -154,8 +139,6 @@ const char *dialogTitle() {
         return "Open File";
     case DialogKind::Save:
         return "Save As";
-    case DialogKind::AccentColor:
-        return "Accent Color";
     case DialogKind::Discard:
     case DialogKind::None:
         break;
@@ -181,62 +164,6 @@ bool drawDiscardDialog( std::function<void()> &finish ) {
     }
     ImGui::SameLine();
     return cancelPressed();
-}
-
-/// @brief Draws a picker for one theme colour: preset swatches, the picker and a Reset button.
-/// @param[in,out] color        Colour being edited.
-/// @param[in]     defaultColor Colour Reset restores.
-/// @param[in]     presets      Colours offered as swatches.
-/// @return True if the colour changed.
-bool drawColorPicker( ImU32 &color, ImU32 defaultColor, std::span<const ImU32> presets ) {
-    ImVec4 value = ImGui::ColorConvertU32ToFloat4( color );
-    bool changed = false;
-    for ( size_t i = 0; i < presets.size(); ++i ) {
-        ImGui::PushID( static_cast<int>( i ) );
-        if ( i > 0 ) {
-            ImGui::SameLine();
-        }
-        ImVec4 preset = ImGui::ColorConvertU32ToFloat4( presets[i] );
-        if ( ImGui::ColorButton( "##preset", preset, ImGuiColorEditFlags_NoTooltip ) ) {
-            value = preset;
-            changed = true;
-        }
-        ImGui::PopID();
-    }
-    ImGui::Spacing();
-
-    ImGui::SetNextItemWidth( ImGui::GetFontSize() * 16 );
-    changed |= ImGui::ColorPicker3( "##picker", &value.x, ImGuiColorEditFlags_PickerHueBar );
-    if ( ImGui::Button( "Reset" ) ) {
-        value = ImGui::ColorConvertU32ToFloat4( defaultColor );
-        changed = true;
-    }
-
-    if ( changed ) {
-        color = ImGui::ColorConvertFloat4ToU32( value );
-    }
-    return changed;
-}
-
-/// @brief Draws the accent colour picker and applies the colour at once.
-/// @return True when the dialog should close.
-bool drawAccentColorDialog() {
-    ImU32 defaultAccent = currentScheme().accent;
-    const ImU32 presets[] = {
-        defaultAccent,
-        IM_COL32( 53, 116, 240, 255 ),
-        IM_COL32( 227, 140, 70, 255 ),
-        IM_COL32( 168, 112, 220, 255 ),
-        IM_COL32( 219, 92, 92, 255 ),
-        IM_COL32( 42, 172, 184, 255 ),
-    };
-    ImU32 color = accentColor();
-    if ( drawColorPicker( color, defaultAccent, presets ) ) {
-        setAccentColor( color );
-        ImGui::MarkIniSettingsDirty();
-    }
-    ImGui::Separator();
-    return ImGui::Button( "Close" ) || ImGui::IsKeyPressed( ImGuiKey_Escape );
 }
 
 /// @brief Draws the list of the current directory. A click on a file fills the name field.
@@ -329,18 +256,13 @@ void drawDialogs() {
 
     ImGui::SetNextWindowPos( ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing,
                              ImVec2( 0.5f, 0.5f ) );
-    bool visible = isColorDialog() ? ImGui::BeginPopup( title, ImGuiWindowFlags_AlwaysAutoResize )
-                                   : ImGui::BeginPopupModal( title, nullptr,
-                                                             ImGuiWindowFlags_AlwaysAutoResize );
-    if ( !visible ) {
+    if ( !ImGui::BeginPopupModal( title, nullptr, ImGuiWindowFlags_AlwaysAutoResize ) ) {
         dialog = Dialog();
         return;
     }
     std::function<void()> finish;
     bool done = false;
-    if ( dialog.kind == DialogKind::AccentColor ) {
-        done = drawAccentColorDialog();
-    } else if ( dialog.kind == DialogKind::Discard ) {
+    if ( dialog.kind == DialogKind::Discard ) {
         done = drawDiscardDialog( finish );
     } else {
         done = drawFileDialog( finish );

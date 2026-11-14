@@ -137,7 +137,6 @@ void drawMenus( const Session &session, MenuActions &actions ) {
         actions.resetZoom |= ImGui::MenuItem( "Reset Zoom", "Ctrl+0" );
         ImGui::Separator();
         actions.openAppearance |= ImGui::MenuItem( "Appearance..." );
-        actions.openAccentColor |= ImGui::MenuItem( "Accent Color..." );
         ImGui::EndMenu();
     }
     outlineLastItem( viewOpen || ImGui::IsItemHovered() );
@@ -200,9 +199,6 @@ void runActions( Session &session, const MenuActions &actions ) {
     }
     if ( actions.openAppearance ) {
         openAppearance();
-    }
-    if ( actions.openAccentColor ) {
-        openAccentColorDialog();
     }
 
     if ( actions.stop ) {

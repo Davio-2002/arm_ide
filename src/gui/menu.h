@@ -18,7 +18,6 @@ struct MenuActions {
     bool save = false;
     bool saveAs = false;
     bool openAppearance = false;
-    bool openAccentColor = false;
     std::string fileToOpen;
     bool zoomIn = false;
     bool zoomOut = false;
