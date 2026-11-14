@@ -17,6 +17,7 @@ struct MenuActions {
     bool open = false;
     bool save = false;
     bool saveAs = false;
+    bool openAppearance = false;
     bool openAccentColor = false;
     bool openPanelColor = false;
     std::string fileToOpen;

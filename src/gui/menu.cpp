@@ -6,6 +6,7 @@
 #include <filesystem>
 
 #include <app/session.h>
+#include <gui/appearance.h>
 #include <gui/dialogs.h>
 #include <gui/menu.h>
 #include <gui/panels/editor.h>
@@ -135,6 +136,7 @@ void drawMenus( const Session &session, MenuActions &actions ) {
         actions.zoomOut |= ImGui::MenuItem( "Zoom Out", "Ctrl+-" );
         actions.resetZoom |= ImGui::MenuItem( "Reset Zoom", "Ctrl+0" );
         ImGui::Separator();
+        actions.openAppearance |= ImGui::MenuItem( "Appearance..." );
         actions.openAccentColor |= ImGui::MenuItem( "Accent Color..." );
         actions.openPanelColor |= ImGui::MenuItem( "Panel Background..." );
         ImGui::EndMenu();
@@ -196,6 +198,9 @@ void runActions( Session &session, const MenuActions &actions ) {
     }
     if ( actions.resetZoom ) {
         resetZoom();
+    }
+    if ( actions.openAppearance ) {
+        openAppearance();
     }
     if ( actions.openAccentColor ) {
         openAccentColorDialog();
