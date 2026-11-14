@@ -1,7 +1,9 @@
 #include <imgui_internal.h>
 
 #include <optional>
+#include <string>
 
+#include <core/process.h>
 #include <gui/theme.h>
 
 namespace {
@@ -198,6 +200,8 @@ const ColorScheme schemes[] = {
 };
 
 ThemeMode mode = ThemeMode::System;
+ThemeMode desktopMode = ThemeMode::Dark;
+
 const ColorScheme *darkScheme = &schemes[0];
 const ColorScheme *lightScheme = &schemes[1];
 const ColorScheme *scheme = darkScheme;
@@ -351,9 +355,35 @@ void applyTheme() {
 
 namespace {
 
-/// @brief Picks the dark or the light scheme by the mode and updates the ImGui style.
+/// @brief Reads the desktop's light or dark setting from the XDG Desktop Portal
+///        (`org.freedesktop.appearance color-scheme`), which GNOME, KDE and the GTK portal
+///        provide.
+/// @return Dark or Light, or nullopt if there is no portal, no such setting or no `gdbus`.
+/// @todo Think about this, how this will be ported to other platforms ??
+std::optional<ThemeMode> desktopThemeMode() {
+    if ( !isInPath( "gdbus" ) ) {
+        return std::nullopt;
+    }
+    CommandResult result = runCommand(
+        { "gdbus", "call", "--session", "--dest", "org.freedesktop.portal.Desktop", "--object-path",
+          "/org/freedesktop/portal/desktop", "--method", "org.freedesktop.portal.Settings.ReadOne",
+          "org.freedesktop.appearance", "color-scheme" },
+        "" );
+    // The reply is "(<uint32 N>,)": 1 is dark, 2 is light, 0 is no preference (light on GNOME).
+    const std::string valuePrefix = "uint32 ";
+    size_t at = result.output.find( valuePrefix );
+    if ( result.exitCode != 0 || at == std::string::npos ) {
+        return std::nullopt;
+    }
+    bool dark = result.output.compare( at + valuePrefix.size(), 1, "1" ) == 0;
+    return dark ? ThemeMode::Dark : ThemeMode::Light;
+}
+
+/// @brief Picks the dark or the light scheme by the mode, or by the desktop for System, and
+///        updates the ImGui style.
 void selectScheme() {
-    scheme = mode == ThemeMode::Light ? lightScheme : darkScheme;
+    ThemeMode effectiveMode = mode == ThemeMode::System ? desktopMode : mode;
+    scheme = effectiveMode == ThemeMode::Light ? lightScheme : darkScheme;
     applyColors( ImGui::GetStyle() );
 }
 
@@ -361,6 +391,13 @@ void selectScheme() {
 
 void setThemeMode( ThemeMode newMode ) {
     mode = newMode;
+    selectScheme();
+}
+
+void followDesktopTheme() {
+    if ( std::optional<ThemeMode> desktop = desktopThemeMode() ) {
+        desktopMode = *desktop;
+    }
     selectScheme();
 }
 

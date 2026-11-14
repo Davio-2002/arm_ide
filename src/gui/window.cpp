@@ -222,6 +222,17 @@ void scrollCallback( GLFWwindow *window, double xOffset, double yOffset ) {
     ImGui_ImplGlfw_ScrollCallback( window, xOffset, yOffset );
 }
 
+/// @brief GLFW focus callback: passes the event to ImGui and, when the window gets the focus,
+///        reads the desktop theme again, since it may have been changed in another window.
+/// @param[in] window  Main window.
+/// @param[in] focused GLFW_TRUE if the window got the focus.
+void focusCallback( GLFWwindow *window, int focused ) {
+    ImGui_ImplGlfw_WindowFocusCallback( window, focused );
+    if ( focused ) {
+        followDesktopTheme();
+    }
+}
+
 /// @brief GLFW drop callback: keeps the first dropped file for takeDroppedFile().
 /// @param[in] count Number of dropped paths.
 /// @param[in] paths Dropped paths.
@@ -331,11 +342,13 @@ void setupImGui( GLFWwindow *window, Session &session ) {
     applyTheme();
     ImGui::GetStyle().FontSizeBase = uiFontSize;
     loadSettings( session );
+    followDesktopTheme();
     loadFonts();
 
     ImGui_ImplGlfw_InitForOpenGL( window, true );
     ImGui_ImplOpenGL3_Init( "#version 330" );
     glfwSetScrollCallback( window, scrollCallback );
+    glfwSetWindowFocusCallback( window, focusCallback );
     glfwSetDropCallback( window, dropCallback );
 }
 

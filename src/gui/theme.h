@@ -18,7 +18,8 @@ struct ColorScheme {
     ImU32 keyword, declaration, number, string, identifier, knownIdentifier, comment;
 };
 
-/// @brief Which of the two chosen schemes is used.
+/// @brief Which of the two chosen schemes is used: the desktop's light or dark (System), or
+///        always one of them.
 enum class ThemeMode { System, Dark, Light };
 
 /// @brief Names of the ThemeMode values, in their order, for the settings file and the UI.
@@ -38,8 +39,12 @@ const ColorScheme *findColorScheme( std::string_view name );
 ThemeMode themeMode();
 
 /// @brief Switches between the dark and the light scheme and updates the ImGui style.
-/// @param[in] mode New mode. System uses the dark scheme.
+/// @param[in] mode New mode. System follows the desktop, as last read by followDesktopTheme().
 void setThemeMode( ThemeMode mode );
+
+/// @brief Reads the desktop's light or dark setting, which System follows, and updates the
+///        ImGui style. Without an answer the last one is kept; dark before any.
+void followDesktopTheme();
 
 /// @return Scheme used when the theme is dark.
 const ColorScheme &darkColorScheme();
