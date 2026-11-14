@@ -345,7 +345,7 @@ void endFrame( GLFWwindow *window ) {
     int width, height;
     glfwGetFramebufferSize( window, &width, &height );
     glViewport( 0, 0, width, height );
-    ImVec4 ground = ImGui::ColorConvertU32ToFloat4( groundColor() );
+    ImVec4 ground = ImGui::ColorConvertU32ToFloat4( currentScheme().ground );
     glClearColor( ground.x, ground.y, ground.z, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
     ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );

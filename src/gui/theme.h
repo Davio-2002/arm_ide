@@ -7,7 +7,7 @@
 struct ColorScheme {
     const char *name;
     bool dark;
-    ImU32 background, accent;
+    ImU32 background, ground, accent;
     ImU32 hovered, selected, border, textSelection, rowStripe;
     ImU32 text, mutedText, secondaryText, codeText;
     ImU32 error, warning, success, changedValue, breakpoint;
@@ -45,13 +45,6 @@ void setAccentColor( ImU32 color );
 
 /// @return The accent at low alpha: background of the line the debugger is paused on.
 ImU32 pausedLineColor();
-
-/// @brief Colour of the frame around the panels: toolbar, status bar, tool strip and gaps.
-///
-/// It is the panel background at 65% brightness, so the two levels keep their contrast in every
-/// scheme.
-/// @return Ground colour.
-ImU32 groundColor();
 
 /// @return Syntax colours of the code editor, on the current panel background.
 TextEditor::Palette editorPalette();

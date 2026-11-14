@@ -118,7 +118,7 @@ void drawToolStrip() {
     ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( sidePadding, panelGap ) );
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( buttonPadding, buttonPadding ) );
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0.0f, 4.0f ) );
-    ImGui::PushStyleColor( ImGuiCol_WindowBg, groundColor() );
+    ImGui::PushStyleColor( ImGuiCol_WindowBg, currentScheme().ground );
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
     if ( ImGui::BeginViewportSideBar( "##ToolStrip", ImGui::GetMainViewport(), ImGuiDir_Right,
                                       toolStripWidth, flags ) ) {

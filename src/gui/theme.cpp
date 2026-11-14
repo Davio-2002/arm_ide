@@ -9,6 +9,7 @@ const ColorScheme schemes[] = {
         .name = "Islands Dark",
         .dark = true,
         .background = IM_COL32( 24, 25, 27, 255 ),
+        .ground = IM_COL32( 15, 16, 17, 255 ),
         .accent = IM_COL32( 87, 150, 92, 255 ),
         .hovered = IM_COL32( 38, 40, 43, 255 ),
         .selected = IM_COL32( 43, 45, 48, 255 ),
@@ -34,6 +35,163 @@ const ColorScheme schemes[] = {
         .identifier = IM_COL32( 86, 168, 245, 255 ),
         .knownIdentifier = IM_COL32( 199, 125, 187, 255 ),
         .comment = IM_COL32( 122, 126, 133, 255 ),
+    },
+    {
+        .name = "Islands Light",
+        .dark = false,
+        .background = IM_COL32( 255, 255, 255, 255 ),
+        .ground = IM_COL32( 235, 236, 240, 255 ),
+        .accent = IM_COL32( 32, 138, 60, 255 ),
+        .hovered = IM_COL32( 240, 241, 243, 255 ),
+        .selected = IM_COL32( 235, 236, 240, 255 ),
+        .border = IM_COL32( 223, 225, 229, 255 ),
+        .textSelection = IM_COL32( 166, 210, 255, 255 ),
+        .rowStripe = IM_COL32( 0, 0, 0, 8 ),
+        .text = IM_COL32( 8, 8, 8, 255 ),
+        .mutedText = IM_COL32( 129, 133, 148, 255 ),
+        .secondaryText = IM_COL32( 108, 112, 126, 255 ),
+        .codeText = IM_COL32( 8, 8, 8, 255 ),
+        .error = IM_COL32( 219, 59, 75, 255 ),
+        .warning = IM_COL32( 194, 125, 4, 255 ),
+        .success = IM_COL32( 32, 138, 60, 255 ),
+        .changedValue = IM_COL32( 194, 125, 4, 255 ),
+        .breakpoint = IM_COL32( 219, 59, 75, 255 ),
+        .lineNumber = IM_COL32( 174, 179, 194, 255 ),
+        .currentLineNumber = IM_COL32( 118, 122, 138, 255 ),
+        .currentLine = IM_COL32( 245, 248, 254, 255 ),
+        .keyword = IM_COL32( 0, 51, 179, 255 ),
+        .declaration = IM_COL32( 158, 136, 13, 255 ),
+        .number = IM_COL32( 23, 80, 235, 255 ),
+        .string = IM_COL32( 6, 125, 23, 255 ),
+        .identifier = IM_COL32( 0, 98, 122, 255 ),
+        .knownIdentifier = IM_COL32( 135, 16, 148, 255 ),
+        .comment = IM_COL32( 140, 140, 140, 255 ),
+    },
+    // Catppuccin, https://github.com/catppuccin/catppuccin, MIT licence.
+    {
+        .name = "Catppuccin Mocha",
+        .dark = true,
+        .background = IM_COL32( 30, 30, 46, 255 ),
+        .ground = IM_COL32( 17, 17, 27, 255 ),
+        .accent = IM_COL32( 203, 166, 247, 255 ),
+        .hovered = IM_COL32( 42, 43, 60, 255 ),
+        .selected = IM_COL32( 49, 50, 68, 255 ),
+        .border = IM_COL32( 69, 71, 90, 255 ),
+        .textSelection = IM_COL32( 147, 153, 178, 70 ),
+        .rowStripe = IM_COL32( 255, 255, 255, 6 ),
+        .text = IM_COL32( 205, 214, 244, 255 ),
+        .mutedText = IM_COL32( 127, 132, 156, 255 ),
+        .secondaryText = IM_COL32( 166, 173, 200, 255 ),
+        .codeText = IM_COL32( 205, 214, 244, 255 ),
+        .error = IM_COL32( 243, 139, 168, 255 ),
+        .warning = IM_COL32( 249, 226, 175, 255 ),
+        .success = IM_COL32( 166, 227, 161, 255 ),
+        .changedValue = IM_COL32( 249, 226, 175, 255 ),
+        .breakpoint = IM_COL32( 243, 139, 168, 255 ),
+        .lineNumber = IM_COL32( 108, 112, 134, 255 ),
+        .currentLineNumber = IM_COL32( 180, 190, 254, 255 ),
+        .currentLine = IM_COL32( 39, 40, 57, 255 ),
+        .keyword = IM_COL32( 203, 166, 247, 255 ),
+        .declaration = IM_COL32( 249, 226, 175, 255 ),
+        .number = IM_COL32( 250, 179, 135, 255 ),
+        .string = IM_COL32( 166, 227, 161, 255 ),
+        .identifier = IM_COL32( 137, 180, 250, 255 ),
+        .knownIdentifier = IM_COL32( 148, 226, 213, 255 ),
+        .comment = IM_COL32( 147, 153, 178, 255 ),
+    },
+    {
+        .name = "Catppuccin Latte",
+        .dark = false,
+        .background = IM_COL32( 239, 241, 245, 255 ),
+        .ground = IM_COL32( 220, 224, 232, 255 ),
+        .accent = IM_COL32( 136, 57, 239, 255 ),
+        .hovered = IM_COL32( 230, 233, 239, 255 ),
+        .selected = IM_COL32( 220, 224, 232, 255 ),
+        .border = IM_COL32( 204, 208, 218, 255 ),
+        .textSelection = IM_COL32( 124, 127, 147, 70 ),
+        .rowStripe = IM_COL32( 0, 0, 0, 8 ),
+        .text = IM_COL32( 76, 79, 105, 255 ),
+        .mutedText = IM_COL32( 140, 143, 161, 255 ),
+        .secondaryText = IM_COL32( 108, 111, 133, 255 ),
+        .codeText = IM_COL32( 76, 79, 105, 255 ),
+        .error = IM_COL32( 210, 15, 57, 255 ),
+        .warning = IM_COL32( 223, 142, 29, 255 ),
+        .success = IM_COL32( 64, 160, 43, 255 ),
+        .changedValue = IM_COL32( 223, 142, 29, 255 ),
+        .breakpoint = IM_COL32( 210, 15, 57, 255 ),
+        .lineNumber = IM_COL32( 156, 160, 176, 255 ),
+        .currentLineNumber = IM_COL32( 114, 135, 253, 255 ),
+        .currentLine = IM_COL32( 230, 233, 239, 255 ),
+        .keyword = IM_COL32( 136, 57, 239, 255 ),
+        .declaration = IM_COL32( 223, 142, 29, 255 ),
+        .number = IM_COL32( 254, 100, 11, 255 ),
+        .string = IM_COL32( 64, 160, 43, 255 ),
+        .identifier = IM_COL32( 30, 102, 245, 255 ),
+        .knownIdentifier = IM_COL32( 23, 146, 153, 255 ),
+        .comment = IM_COL32( 124, 127, 147, 255 ),
+    },
+    // Gruvbox, https://github.com/morhetz/gruvbox, MIT licence.
+    {
+        .name = "Gruvbox Dark",
+        .dark = true,
+        .background = IM_COL32( 40, 40, 40, 255 ),
+        .ground = IM_COL32( 29, 32, 33, 255 ),
+        .accent = IM_COL32( 254, 128, 25, 255 ),
+        .hovered = IM_COL32( 50, 48, 47, 255 ),
+        .selected = IM_COL32( 60, 56, 54, 255 ),
+        .border = IM_COL32( 80, 73, 69, 255 ),
+        .textSelection = IM_COL32( 80, 73, 69, 255 ),
+        .rowStripe = IM_COL32( 255, 255, 255, 6 ),
+        .text = IM_COL32( 235, 219, 178, 255 ),
+        .mutedText = IM_COL32( 146, 131, 116, 255 ),
+        .secondaryText = IM_COL32( 168, 153, 132, 255 ),
+        .codeText = IM_COL32( 235, 219, 178, 255 ),
+        .error = IM_COL32( 251, 73, 52, 255 ),
+        .warning = IM_COL32( 250, 189, 47, 255 ),
+        .success = IM_COL32( 184, 187, 38, 255 ),
+        .changedValue = IM_COL32( 250, 189, 47, 255 ),
+        .breakpoint = IM_COL32( 251, 73, 52, 255 ),
+        .lineNumber = IM_COL32( 124, 111, 100, 255 ),
+        .currentLineNumber = IM_COL32( 250, 189, 47, 255 ),
+        .currentLine = IM_COL32( 50, 48, 47, 255 ),
+        .keyword = IM_COL32( 251, 73, 52, 255 ),
+        .declaration = IM_COL32( 142, 192, 124, 255 ),
+        .number = IM_COL32( 211, 134, 155, 255 ),
+        .string = IM_COL32( 184, 187, 38, 255 ),
+        .identifier = IM_COL32( 131, 165, 152, 255 ),
+        .knownIdentifier = IM_COL32( 250, 189, 47, 255 ),
+        .comment = IM_COL32( 146, 131, 116, 255 ),
+    },
+    {
+        .name = "Gruvbox Light",
+        .dark = false,
+        .background = IM_COL32( 251, 241, 199, 255 ),
+        .ground = IM_COL32( 235, 219, 178, 255 ),
+        .accent = IM_COL32( 175, 58, 3, 255 ),
+        .hovered = IM_COL32( 242, 229, 188, 255 ),
+        .selected = IM_COL32( 235, 219, 178, 255 ),
+        .border = IM_COL32( 213, 196, 161, 255 ),
+        .textSelection = IM_COL32( 213, 196, 161, 255 ),
+        .rowStripe = IM_COL32( 0, 0, 0, 8 ),
+        .text = IM_COL32( 60, 56, 54, 255 ),
+        .mutedText = IM_COL32( 146, 131, 116, 255 ),
+        .secondaryText = IM_COL32( 124, 111, 100, 255 ),
+        .codeText = IM_COL32( 60, 56, 54, 255 ),
+        .error = IM_COL32( 157, 0, 6, 255 ),
+        .warning = IM_COL32( 181, 118, 20, 255 ),
+        .success = IM_COL32( 121, 116, 14, 255 ),
+        .changedValue = IM_COL32( 181, 118, 20, 255 ),
+        .breakpoint = IM_COL32( 204, 36, 29, 255 ),
+        .lineNumber = IM_COL32( 168, 153, 132, 255 ),
+        .currentLineNumber = IM_COL32( 181, 118, 20, 255 ),
+        .currentLine = IM_COL32( 242, 229, 188, 255 ),
+        .keyword = IM_COL32( 157, 0, 6, 255 ),
+        .declaration = IM_COL32( 66, 123, 88, 255 ),
+        .number = IM_COL32( 143, 63, 113, 255 ),
+        .string = IM_COL32( 121, 116, 14, 255 ),
+        .identifier = IM_COL32( 7, 102, 120, 255 ),
+        .knownIdentifier = IM_COL32( 181, 118, 20, 255 ),
+        .comment = IM_COL32( 146, 131, 116, 255 ),
     },
 };
 
@@ -107,13 +265,13 @@ void applyColors( ImGuiStyle &style ) {
     colors[ImGuiCol_ChildBg] = toVec4( colorScheme.background );
     colors[ImGuiCol_PopupBg] = toVec4( colorScheme.selected );
     colors[ImGuiCol_Border] = toVec4( colorScheme.border );
-    colors[ImGuiCol_FrameBg] = toVec4( groundColor() );
+    colors[ImGuiCol_FrameBg] = toVec4( colorScheme.ground );
     colors[ImGuiCol_FrameBgHovered] = toVec4( colorScheme.hovered );
     colors[ImGuiCol_FrameBgActive] = toVec4( colorScheme.selected );
     colors[ImGuiCol_TitleBg] = toVec4( colorScheme.background );
     colors[ImGuiCol_TitleBgActive] = toVec4( colorScheme.background );
     colors[ImGuiCol_TitleBgCollapsed] = toVec4( colorScheme.background );
-    colors[ImGuiCol_MenuBarBg] = toVec4( groundColor() );
+    colors[ImGuiCol_MenuBarBg] = toVec4( colorScheme.ground );
     colors[ImGuiCol_ScrollbarBg] = toVec4( transparentColor );
     colors[ImGuiCol_ScrollbarGrab] = toVec4( scrollbarColor );
     colors[ImGuiCol_ScrollbarGrabHovered] = toVec4( colorScheme.mutedText );
@@ -161,12 +319,9 @@ void setAccentColor( ImU32 color ) {
     applyColors( ImGui::GetStyle() );
 }
 
-ImU32 groundColor() {
-    return ImAlphaBlendColors( scheme->background, IM_COL32( 0, 0, 0, 89 ) );
-}
-
 TextEditor::Palette editorPalette() {
-    TextEditor::Palette palette = TextEditor::GetDarkPalette();
+    TextEditor::Palette palette =
+        scheme->dark ? TextEditor::GetDarkPalette() : TextEditor::GetLightPalette();
     auto set = [&palette]( TextEditor::Color color, ImU32 value ) {
         palette[static_cast<size_t>( color )] = value;
     };
