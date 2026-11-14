@@ -14,7 +14,7 @@
 #include <vector>
 
 #include <app/session.h>
-#include <core/fonts.h>
+#include <gui/fonts.h>
 #include <gui/theme.h>
 #include <gui/window.h>
 

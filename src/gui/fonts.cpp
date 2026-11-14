@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <sstream>
 
-#include <core/fonts.h>
 #include <core/process.h>
+#include <gui/fonts.h>
 
 namespace {
 
