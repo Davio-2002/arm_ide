@@ -1,6 +1,7 @@
 #include <imgui.h>
 
 #include <app/session.h>
+#include <gui/fonts.h>
 #include <gui/menu.h>
 #include <gui/panels/console.h>
 #include <gui/panels/editor.h>
@@ -17,17 +18,17 @@ namespace {
 ImU32 messageColor( MessageKind kind ) {
     switch ( kind ) {
     case MessageKind::Command:
-        return commandColor;
+        return currentScheme().mutedText;
     case MessageKind::Error:
-        return errorColor;
+        return currentScheme().error;
     case MessageKind::Warning:
-        return warningColor;
+        return currentScheme().warning;
     case MessageKind::Success:
-        return successColor;
+        return currentScheme().success;
     case MessageKind::Output:
         break;
     }
-    return codeTextColor;
+    return currentScheme().codeText;
 }
 
 enum class OutputTab { Console, Build, Terminal };

@@ -59,10 +59,11 @@ bool beginDropdown( const char *id, const std::string &label, ImU32 background )
     drawList->AddRectFilled( topLeft, bottomRight, fill, ImGui::GetStyle().FrameRounding );
     outlineLastItem( highlighted );
     float textY = topLeft.y + ( size.y - ImGui::GetTextLineHeight() ) * 0.5f;
-    drawList->AddText( ImVec2( topLeft.x + dropdownPadding, textY ), textColor, label.c_str() );
+    drawList->AddText( ImVec2( topLeft.x + dropdownPadding, textY ), currentScheme().text,
+                       label.c_str() );
     ImVec2 chevronCenter( bottomRight.x - dropdownPadding - chevronSize * 0.5f,
                           topLeft.y + size.y * 0.5f );
-    drawChevronDown( chevronCenter, mutedTextColor );
+    drawChevronDown( chevronCenter, currentScheme().mutedText );
 
     ImGui::SetNextWindowPos( ImVec2( topLeft.x, bottomRight.y + 4.0f ) );
     return ImGui::BeginPopup( id );
@@ -138,7 +139,7 @@ void drawToolbarEnd( const Session &session, MenuActions &actions ) {
     float toolbarWidth = dropdownWidth( runFile ) + buttonSpacing * 4.0f + buttonsWidth;
     ImGui::SetCursorPosX( ImGui::GetWindowWidth() - toolbarWidth - toolbarRightMargin );
 
-    if ( beginDropdown( "##openFiles", runFile, islandColor() ) ) {
+    if ( beginDropdown( "##openFiles", runFile, currentScheme().background ) ) {
         drawFileList( openDocumentPaths(), actions );
         ImGui::EndPopup();
     }

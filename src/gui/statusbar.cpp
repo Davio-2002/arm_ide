@@ -39,10 +39,10 @@ std::string breadcrumb( const std::string &path ) {
 /// @return Warning colour while paused, success colour while running, transparent otherwise.
 ImU32 programStateColor( const Session &session ) {
     if ( session.isPaused() ) {
-        return warningColor;
+        return currentScheme().warning;
     }
     if ( session.isProgramActive() ) {
-        return successColor;
+        return currentScheme().success;
     }
     return transparentColor;
 }
@@ -64,11 +64,11 @@ void drawStatusBar( const Session &session ) {
     float verticalPadding = ( height - ImGui::GetTextLineHeight() ) * 0.5f;
     ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( sidePadding, verticalPadding ) );
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4.0f, 0.0f ) );
-    ImGui::PushStyleColor( ImGuiCol_WindowBg, groundColor() );
+    ImGui::PushStyleColor( ImGuiCol_WindowBg, currentScheme().ground );
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
     if ( ImGui::BeginViewportSideBar( "##StatusBar", ImGui::GetMainViewport(), ImGuiDir_Down,
                                       height, flags ) ) {
-        ImGui::PushStyleColor( ImGuiCol_Text, secondaryTextColor );
+        ImGui::PushStyleColor( ImGuiCol_Text, currentScheme().secondaryText );
         ImGui::TextUnformatted( breadcrumb( session.filePath ).c_str() );
 
         std::string cursor =

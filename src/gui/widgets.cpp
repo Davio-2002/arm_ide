@@ -33,36 +33,6 @@ bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool enable
     return clicked;
 }
 
-} // anonymous namespace
-
-void outlineLastItem( bool show ) {
-    if ( show ) {
-        ImGui::GetWindowDrawList()->AddRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
-                                             accentColor(), ImGui::GetStyle().FrameRounding );
-    }
-}
-
-bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled ) {
-    return drawIconButton( id, icon, tooltip, enabled, false );
-}
-
-void iconToggle( const char *id, Icon icon, const char *tooltip, bool &on ) {
-    if ( drawIconButton( id, icon, tooltip, true, on ) ) {
-        on = !on;
-    }
-}
-
-void drawVerticalSeparator() {
-    float height = ImGui::GetFrameHeight();
-    ImVec2 cursor = ImGui::GetCursorScreenPos();
-    float x = cursor.x + 6.0f;
-    ImGui::GetWindowDrawList()->AddLine( ImVec2( x, cursor.y + height * 0.25f ),
-                                         ImVec2( x, cursor.y + height * 0.75f ), borderColor );
-    ImGui::Dummy( ImVec2( 12.0f, height ) );
-}
-
-namespace {
-
 /// @param[in] tab Tab to measure.
 /// @return Width of the tab with its padding, icon and × button.
 float pillTabWidth( const PillTab &tab ) {
@@ -90,6 +60,33 @@ void drawCross( ImVec2 center, ImU32 color ) {
 
 } // anonymous namespace
 
+void outlineLastItem( bool show ) {
+    if ( show ) {
+        ImGui::GetWindowDrawList()->AddRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+                                             accentColor(), ImGui::GetStyle().FrameRounding );
+    }
+}
+
+bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled ) {
+    return drawIconButton( id, icon, tooltip, enabled, false );
+}
+
+void iconToggle( const char *id, Icon icon, const char *tooltip, bool &on ) {
+    if ( drawIconButton( id, icon, tooltip, true, on ) ) {
+        on = !on;
+    }
+}
+
+void drawVerticalSeparator() {
+    float height = ImGui::GetFrameHeight();
+    ImVec2 cursor = ImGui::GetCursorScreenPos();
+    float x = cursor.x + 6.0f;
+    ImGui::GetWindowDrawList()->AddLine( ImVec2( x, cursor.y + height * 0.25f ),
+                                         ImVec2( x, cursor.y + height * 0.75f ),
+                                         currentScheme().border );
+    ImGui::Dummy( ImVec2( 12.0f, height ) );
+}
+
 TabClick drawPillTab( const char *id, const PillTab &tab ) {
     ImVec2 size( pillTabWidth( tab ), ImGui::GetFrameHeight() );
     ImVec2 topLeft = ImGui::GetCursorScreenPos();
@@ -114,7 +111,7 @@ TabClick drawPillTab( const char *id, const PillTab &tab ) {
         drawList->AddImage( iconTexture( tab.icon ), iconTopLeft, iconBottomRight );
         x += iconSize + tabIconGap;
     }
-    ImU32 labelColor = tab.selected ? textColor : secondaryTextColor;
+    ImU32 labelColor = tab.selected ? currentScheme().text : currentScheme().secondaryText;
     drawList->AddText( ImVec2( x, centerY - ImGui::GetTextLineHeight() * 0.5f ), labelColor,
                        tab.label.c_str() );
     if ( !tab.closable ) {
@@ -129,10 +126,10 @@ TabClick drawPillTab( const char *id, const PillTab &tab ) {
         if ( overClose ) {
             drawList->AddRectFilled(
                 ImVec2( closeCenter.x - closeSize * 0.5f, centerY - closeSize * 0.5f ),
-                ImVec2( closeCenter.x + closeSize * 0.5f, centerY + closeSize * 0.5f ), borderColor,
-                4.0f );
+                ImVec2( closeCenter.x + closeSize * 0.5f, centerY + closeSize * 0.5f ),
+                currentScheme().border, 4.0f );
         }
-        drawCross( closeCenter, overClose ? textColor : mutedTextColor );
+        drawCross( closeCenter, overClose ? currentScheme().text : currentScheme().mutedText );
     }
 
     if ( !clicked ) {

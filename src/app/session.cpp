@@ -19,6 +19,15 @@ std::string absolutePath( const std::string &path ) {
     return std::filesystem::absolute( path ).lexically_normal();
 }
 
+/// @brief Picks the directory a new shell starts in.
+/// @param[in] filePath Current file; may be empty.
+/// @return Directory of the file, or $HOME when no file is open.
+std::string terminalStartDirectory( const std::string &filePath ) {
+    std::string directory = std::filesystem::path( filePath ).parent_path();
+    const char *home = std::getenv( "HOME" );
+    return directory.empty() && home ? home : directory;
+}
+
 } // anonymous namespace
 
 bool Session::openFile( const std::string &path, std::string &text ) {
@@ -193,19 +202,6 @@ void Session::clearOutput() {
     buildLog.clear();
     programLineOpen = false;
 }
-
-namespace {
-
-/// @brief Picks the directory a new shell starts in.
-/// @param[in] filePath Current file; may be empty.
-/// @return Directory of the file, or $HOME when no file is open.
-std::string terminalStartDirectory( const std::string &filePath ) {
-    std::string directory = std::filesystem::path( filePath ).parent_path();
-    const char *home = std::getenv( "HOME" );
-    return directory.empty() && home ? home : directory;
-}
-
-} // anonymous namespace
 
 void Session::openTerminal( int rows, int columns ) {
     if ( !isRunning( terminal ) && !terminal.exited ) {

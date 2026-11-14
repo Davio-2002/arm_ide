@@ -67,7 +67,6 @@ add_library(arm_ide_core STATIC
     src/core/toolchain.cpp
     src/core/debugger.cpp
     src/core/terminal.cpp
-    src/core/fonts.cpp
     src/app/session.cpp)
 target_include_directories(arm_ide_core PUBLIC src)
 target_link_libraries(arm_ide_core PUBLIC PkgConfig::VTERM util)
@@ -75,7 +74,10 @@ target_link_libraries(arm_ide_core PUBLIC PkgConfig::VTERM util)
 add_executable(arm_ide
     src/main.cpp
     src/gui/window.cpp
+    src/gui/settings.cpp
     src/gui/dialogs.cpp
+    src/gui/appearance.cpp
+    src/gui/fonts.cpp
     src/gui/menu.cpp
     src/gui/theme.cpp
     src/gui/icons.cpp

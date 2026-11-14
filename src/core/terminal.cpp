@@ -119,6 +119,47 @@ void closeShell( Terminal &terminal ) {
     terminal.pid = -1;
 }
 
+/// @param[in] key IDE key.
+/// @return The matching libvterm key; VTERM_KEY_NONE for TerminalKey::None.
+VTermKey vtermKey( TerminalKey key ) {
+    switch ( key ) {
+    case TerminalKey::None:
+        break;
+    case TerminalKey::Enter:
+        return VTERM_KEY_ENTER;
+    case TerminalKey::Tab:
+        return VTERM_KEY_TAB;
+    case TerminalKey::Backspace:
+        return VTERM_KEY_BACKSPACE;
+    case TerminalKey::Escape:
+        return VTERM_KEY_ESCAPE;
+    case TerminalKey::Up:
+        return VTERM_KEY_UP;
+    case TerminalKey::Down:
+        return VTERM_KEY_DOWN;
+    case TerminalKey::Left:
+        return VTERM_KEY_LEFT;
+    case TerminalKey::Right:
+        return VTERM_KEY_RIGHT;
+    case TerminalKey::Insert:
+        return VTERM_KEY_INS;
+    case TerminalKey::Delete:
+        return VTERM_KEY_DEL;
+    case TerminalKey::Home:
+        return VTERM_KEY_HOME;
+    case TerminalKey::End:
+        return VTERM_KEY_END;
+    case TerminalKey::PageUp:
+        return VTERM_KEY_PAGEUP;
+    case TerminalKey::PageDown:
+        return VTERM_KEY_PAGEDOWN;
+    default:
+        return static_cast<VTermKey>( VTERM_KEY_FUNCTION(
+            static_cast<int>( key ) - static_cast<int>( TerminalKey::F1 ) + 1 ) );
+    }
+    return VTERM_KEY_NONE;
+}
+
 } // anonymous namespace
 
 bool startTerminal( Terminal &terminal, const std::string &directory, int rows, int columns ) {
@@ -202,51 +243,6 @@ void resizeTerminal( Terminal &terminal, int rows, int columns ) {
         ioctl( terminal.masterFd, TIOCSWINSZ, &size );
     }
 }
-
-namespace {
-
-/// @param[in] key IDE key.
-/// @return The matching libvterm key; VTERM_KEY_NONE for TerminalKey::None.
-VTermKey vtermKey( TerminalKey key ) {
-    switch ( key ) {
-    case TerminalKey::None:
-        break;
-    case TerminalKey::Enter:
-        return VTERM_KEY_ENTER;
-    case TerminalKey::Tab:
-        return VTERM_KEY_TAB;
-    case TerminalKey::Backspace:
-        return VTERM_KEY_BACKSPACE;
-    case TerminalKey::Escape:
-        return VTERM_KEY_ESCAPE;
-    case TerminalKey::Up:
-        return VTERM_KEY_UP;
-    case TerminalKey::Down:
-        return VTERM_KEY_DOWN;
-    case TerminalKey::Left:
-        return VTERM_KEY_LEFT;
-    case TerminalKey::Right:
-        return VTERM_KEY_RIGHT;
-    case TerminalKey::Insert:
-        return VTERM_KEY_INS;
-    case TerminalKey::Delete:
-        return VTERM_KEY_DEL;
-    case TerminalKey::Home:
-        return VTERM_KEY_HOME;
-    case TerminalKey::End:
-        return VTERM_KEY_END;
-    case TerminalKey::PageUp:
-        return VTERM_KEY_PAGEUP;
-    case TerminalKey::PageDown:
-        return VTERM_KEY_PAGEDOWN;
-    default:
-        return static_cast<VTermKey>( VTERM_KEY_FUNCTION(
-            static_cast<int>( key ) - static_cast<int>( TerminalKey::F1 ) + 1 ) );
-    }
-    return VTERM_KEY_NONE;
-}
-
-} // anonymous namespace
 
 void sendTerminalInput( Terminal &terminal, const TerminalInput &input ) {
     if ( !isRunning( terminal ) ) {

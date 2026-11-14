@@ -6,6 +6,7 @@
 #include <string>
 
 #include <app/session.h>
+#include <gui/fonts.h>
 #include <gui/menu.h>
 #include <gui/panels/terminal_view.h>
 #include <gui/theme.h>
@@ -74,14 +75,6 @@ void pasteClipboard( MenuActions &actions ) {
     actions.terminalPaste += clipboard ? clipboard : "";
 }
 
-} // anonymous namespace
-
-void focusTerminalView() {
-    focused = true;
-}
-
-namespace {
-
 /// @brief Makes a terminal input with the modifiers held now.
 /// @param[in] key       Special key, or TerminalKey::None for a character.
 /// @param[in] character Typed character when key is None.
@@ -149,15 +142,16 @@ ImU32 cellColor( uint32_t rgb ) {
 /// @param[in] selected True to draw the selection background.
 void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 topLeft, ImVec2 cellSize,
                bool selected ) {
-    ImU32 foreground = cell.defaultForeground ? codeTextColor : cellColor( cell.foreground );
+    ImU32 foreground =
+        cell.defaultForeground ? currentScheme().codeText : cellColor( cell.foreground );
     ImU32 background = cell.defaultBackground ? transparentColor : cellColor( cell.background );
     if ( cell.reverse ) {
-        ImU32 reversedForeground = cell.defaultBackground ? islandColor() : background;
+        ImU32 reversedForeground = cell.defaultBackground ? currentScheme().background : background;
         background = foreground;
         foreground = reversedForeground;
     }
     if ( selected ) {
-        background = textSelectionColor;
+        background = currentScheme().textSelection;
     }
 
     ImVec2 bottomRight( topLeft.x + cellSize.x * std::max( cell.width, 1 ),
@@ -187,15 +181,15 @@ void drawCursor( ImDrawList *drawList, const Terminal &terminal, ImVec2 origin, 
     ImVec2 topLeft( origin.x + column * cellSize.x, origin.y + row * cellSize.y );
     ImVec2 bottomRight( topLeft.x + cellSize.x, topLeft.y + cellSize.y );
     if ( !focused ) {
-        drawList->AddRect( topLeft, bottomRight, textColor );
+        drawList->AddRect( topLeft, bottomRight, currentScheme().text );
         return;
     }
-    drawList->AddRectFilled( topLeft, bottomRight, textColor );
+    drawList->AddRectFilled( topLeft, bottomRight, currentScheme().text );
     TerminalCell cell = terminalCell( terminal, row, column );
     if ( cell.character > U' ' ) {
         char text[5] = {};
         ImTextCharToUtf8( text, cell.character );
-        drawList->AddText( topLeft, islandColor(), text );
+        drawList->AddText( topLeft, currentScheme().background, text );
     }
 }
 
@@ -354,6 +348,10 @@ void drawContextMenu( const Terminal &terminal, MenuActions &actions ) {
 
 } // anonymous namespace
 
+void focusTerminalView() {
+    focused = true;
+}
+
 void drawTerminalView( const Session &session, MenuActions &actions ) {
     const Terminal &terminal = session.terminal;
     pushCodeFont();
@@ -407,7 +405,7 @@ void drawTerminalView( const Session &session, MenuActions &actions ) {
         std::string text = "Shell exited with code " + std::to_string( terminal.exitCode ) +
                            ". Press any key to start a new one.";
         ImVec2 bottomLeft( origin.x, origin.y + area.y - cellSize.y );
-        drawList->AddText( bottomLeft, mutedTextColor, text.c_str() );
+        drawList->AddText( bottomLeft, currentScheme().mutedText, text.c_str() );
     }
     ImGui::PopFont();
 }

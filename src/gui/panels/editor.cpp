@@ -12,6 +12,7 @@
 
 #include <app/session.h>
 #include <gui/dialogs.h>
+#include <gui/fonts.h>
 #include <gui/panels/editor.h>
 #include <gui/panels/panels.h>
 #include <gui/theme.h>
@@ -72,11 +73,11 @@ Document *findDocument( const std::string &path ) {
 /// @param[in,out] editor Editor to mark.
 /// @param[in]     mark   Line mark; its message becomes the tooltip.
 void addLineMarker( TextEditor &editor, const LineMark &mark ) {
-    ImU32 numberColor = errorColor;
-    ImU32 lineColor = errorLineColor;
+    ImU32 numberColor = currentScheme().error;
+    ImU32 lineColor = withAlpha( currentScheme().error, 40 );
     if ( mark.kind == LineMarkKind::Warning ) {
-        numberColor = warningColor;
-        lineColor = warningLineColor;
+        numberColor = currentScheme().warning;
+        lineColor = withAlpha( currentScheme().warning, 30 );
     } else if ( mark.kind == LineMarkKind::Paused ) {
         numberColor = pausedLineColor();
         lineColor = pausedLineColor();
@@ -101,9 +102,9 @@ void drawLineDecoration( TextEditor::Decorator &decorator ) {
     ImVec2 center( topLeft.x + size * 0.5f, topLeft.y + size * 0.5f );
     float radius = size * 0.3f;
     if ( session.hasBreakpoint( document.path, line ) ) {
-        drawList->AddCircleFilled( center, radius, breakpointColor );
+        drawList->AddCircleFilled( center, radius, currentScheme().breakpoint );
     } else if ( ImGui::IsItemHovered() ) {
-        drawList->AddCircleFilled( center, radius, breakpointHoverColor );
+        drawList->AddCircleFilled( center, radius, withAlpha( currentScheme().breakpoint, 90 ) );
     }
 
     if ( line == session.pausedLine && showsProgram( document ) ) {
@@ -122,7 +123,7 @@ void drawLineDecoration( TextEditor::Decorator &decorator ) {
         for ( ImVec2 point : points ) {
             drawList->PathLineTo( point );
         }
-        drawList->PathStroke( islandColor(), ImDrawFlags_Closed, 2.0f );
+        drawList->PathStroke( currentScheme().background, ImDrawFlags_Closed, 2.0f );
         drawList->AddConcavePolyFilled( points, IM_ARRAYSIZE( points ), accentColor() );
     }
 }
@@ -256,6 +257,63 @@ void askToCloseDocument( Document *document ) {
     askToDiscardChanges( documentName( *document ), [document] { closeDocument( document ); } );
 }
 
+/// @brief Updates a tab's markers when the session's line marks changed. Only the built file
+///        shows them.
+/// @param[in,out] document Tab to update.
+/// @param[in]     session  Current session.
+void showLineMarks( Document &document, const Session &session ) {
+    bool marksVisible = showsProgram( document );
+    if ( document.shownLineMarksVersion == session.lineMarksVersion &&
+         document.shownLineMarksOfProgram == marksVisible ) {
+        return;
+    }
+    document.shownLineMarksVersion = session.lineMarksVersion;
+    document.shownLineMarksOfProgram = marksVisible;
+    document.editor.ClearMarkers();
+    if ( marksVisible ) {
+        for ( const LineMark &mark : session.lineMarks ) {
+            addLineMarker( document.editor, mark );
+        }
+    }
+}
+
+/// @brief Draws the tab row. Selecting and closing apply after the row is drawn.
+void drawDocumentTabs() {
+    Document *documentToShow = nullptr;
+    Document *documentToClose = nullptr;
+    for ( const std::unique_ptr<Document> &document : documents ) {
+        PillTab tab;
+        tab.label = documentName( *document );
+        tab.icon = Icon::AsmFile;
+        tab.hasIcon = true;
+        tab.selected = document.get() == activeDocument;
+        tab.closable = true;
+        tab.unsaved = isModified( *document );
+
+        ImGui::PushID( document.get() );
+        TabClick click = drawPillTab( "##tab", tab );
+        if ( !document->path.empty() ) {
+            ImGui::SetItemTooltip( "%s", document->path.c_str() );
+        }
+        ImGui::PopID();
+        ImGui::SameLine( 0.0f, 2.0f );
+
+        if ( click == TabClick::Select ) {
+            documentToShow = document.get();
+        } else if ( click == TabClick::Close ) {
+            documentToClose = document.get();
+        }
+    }
+    ImGui::NewLine();
+
+    if ( documentToShow ) {
+        makeActive( documentToShow );
+    }
+    if ( documentToClose ) {
+        askToCloseDocument( documentToClose );
+    }
+}
+
 } // anonymous namespace
 
 void setupEditor( Session &session ) {
@@ -336,30 +394,6 @@ void jumpToSourceLine( int sourceLine ) {
     ImGui::SetWindowFocus( "Editor" );
 }
 
-namespace {
-
-/// @brief Updates a tab's markers when the session's line marks changed. Only the built file
-///        shows them.
-/// @param[in,out] document Tab to update.
-/// @param[in]     session  Current session.
-void showLineMarks( Document &document, const Session &session ) {
-    bool marksVisible = showsProgram( document );
-    if ( document.shownLineMarksVersion == session.lineMarksVersion &&
-         document.shownLineMarksOfProgram == marksVisible ) {
-        return;
-    }
-    document.shownLineMarksVersion = session.lineMarksVersion;
-    document.shownLineMarksOfProgram = marksVisible;
-    document.editor.ClearMarkers();
-    if ( marksVisible ) {
-        for ( const LineMark &mark : session.lineMarks ) {
-            addLineMarker( document.editor, mark );
-        }
-    }
-}
-
-} // anonymous namespace
-
 void syncEditorWithSession( Session &session ) {
     for ( const std::unique_ptr<Document> &document : documents ) {
         document->editor.SetReadOnlyEnabled( session.isDebugging() );
@@ -374,47 +408,6 @@ void syncEditorWithSession( Session &session ) {
         session.lineToReveal = 0;
     }
 }
-
-namespace {
-
-/// @brief Draws the tab row. Selecting and closing apply after the row is drawn.
-void drawDocumentTabs() {
-    Document *documentToShow = nullptr;
-    Document *documentToClose = nullptr;
-    for ( const std::unique_ptr<Document> &document : documents ) {
-        PillTab tab;
-        tab.label = documentName( *document );
-        tab.icon = Icon::AsmFile;
-        tab.hasIcon = true;
-        tab.selected = document.get() == activeDocument;
-        tab.closable = true;
-        tab.unsaved = isModified( *document );
-
-        ImGui::PushID( document.get() );
-        TabClick click = drawPillTab( "##tab", tab );
-        if ( !document->path.empty() ) {
-            ImGui::SetItemTooltip( "%s", document->path.c_str() );
-        }
-        ImGui::PopID();
-        ImGui::SameLine( 0.0f, 2.0f );
-
-        if ( click == TabClick::Select ) {
-            documentToShow = document.get();
-        } else if ( click == TabClick::Close ) {
-            documentToClose = document.get();
-        }
-    }
-    ImGui::NewLine();
-
-    if ( documentToShow ) {
-        makeActive( documentToShow );
-    }
-    if ( documentToClose ) {
-        askToCloseDocument( documentToClose );
-    }
-}
-
-} // anonymous namespace
 
 void drawEditorPanel() {
     beginPanel( "Editor" );

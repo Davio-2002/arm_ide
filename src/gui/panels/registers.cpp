@@ -3,6 +3,7 @@
 #include <string>
 
 #include <app/session.h>
+#include <gui/fonts.h>
 #include <gui/panels/panels.h>
 #include <gui/panels/registers.h>
 #include <gui/theme.h>
@@ -13,7 +14,8 @@ namespace {
 /// @param[in] changed True if the value changed since the previous pause.
 /// @return Text colour of the value.
 ImVec4 changeColor( bool changed ) {
-    return ImGui::ColorConvertU32ToFloat4( changed ? changedValueColor : codeTextColor );
+    return ImGui::ColorConvertU32ToFloat4( changed ? currentScheme().changedValue
+                                                   : currentScheme().codeText );
 }
 
 /// @brief Shows a tooltip on the last item with the value as unsigned and signed, and its low
@@ -48,7 +50,8 @@ void drawRegisterRow( const std::string &name, const char *lowName, uint64_t val
     ImVec4 color = changeColor( changed );
     ImGui::TableNextRow();
     if ( changed ) {
-        ImGui::TableSetBgColor( ImGuiTableBgTarget_RowBg1, changedRowColor );
+        ImGui::TableSetBgColor( ImGuiTableBgTarget_RowBg1,
+                                withAlpha( currentScheme().changedValue, 32 ) );
     }
     ImGui::TableNextColumn();
     ImGui::TextDisabled( "%s", name.c_str() );
@@ -124,7 +127,8 @@ void drawFlags( const Registers &registers, const Registers &previous ) {
         bool value = ( registers.nzcv >> flag.bit ) & 1;
         bool previousValue = ( previous.nzcv >> flag.bit ) & 1;
         std::string text = std::string( flag.label ) + "=" + ( value ? "1" : "0" );
-        ImU32 color = value != previousValue ? changedValueColor : codeTextColor;
+        ImU32 color =
+            value != previousValue ? currentScheme().changedValue : currentScheme().codeText;
         drawPill( text.c_str(), value, color, flag.meaning, rowRight, first );
         first = false;
     }
@@ -159,7 +163,7 @@ void drawConditions( uint64_t nzcv ) {
     float rowRight = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
     bool first = true;
     for ( const Condition &condition : conditions ) {
-        ImU32 color = condition.holds ? codeTextColor : mutedTextColor;
+        ImU32 color = condition.holds ? currentScheme().codeText : currentScheme().mutedText;
         drawPill( condition.name, condition.holds, color, condition.meaning, rowRight, first );
         first = false;
     }

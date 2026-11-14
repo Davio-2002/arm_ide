@@ -4,6 +4,7 @@
 #include <string>
 
 #include <app/session.h>
+#include <gui/appearance.h>
 #include <gui/dialogs.h>
 #include <gui/icons.h>
 #include <gui/menu.h>
@@ -57,7 +58,6 @@ int main( int argc, char **argv ) {
         return 1;
     }
     setupImGui( window, session );
-    loadIcons();
     setupEditor( session );
     openStartupFile( argc, argv );
 
@@ -70,12 +70,14 @@ int main( int argc, char **argv ) {
             openDocument( session, droppedFile );
         }
 
+        updateIcons();
         beginFrame();
         MenuActions actions = drawMenuBar( session );
         drawStatusBar( session );
         drawPanels( session, actions );
         runMenuActions( session, actions );
         drawDialogs();
+        drawAppearance();
         endFrame( window );
         setWindowTitle( window, windowTitle() );
         handleCloseRequest( window );
