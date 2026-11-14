@@ -2,19 +2,27 @@
 
 #include <gui/theme.h>
 
-static ImU32 accent = defaultAccentColor;
-static ImU32 island = defaultIslandColor;
+namespace {
+
+ImU32 accent = defaultAccentColor;
+ImU32 island = defaultIslandColor;
+
+} // anonymous namespace
 
 ImU32 accentColor() {
     return accent;
 }
 
+namespace {
+
 /// @param[in] color Colour.
 /// @param[in] alpha New alpha, 0 to 255.
 /// @return The colour with its alpha replaced.
-static ImU32 withAlpha( ImU32 color, int alpha ) {
+ImU32 withAlpha( ImU32 color, int alpha ) {
     return ( color & ~IM_COL32_A_MASK ) | ( static_cast<ImU32>( alpha ) << IM_COL32_A_SHIFT );
 }
+
+} // anonymous namespace
 
 ImU32 pausedLineColor() {
     return withAlpha( accent, 40 );
@@ -24,15 +32,17 @@ ImU32 accentFillColor() {
     return ImAlphaBlendColors( island, withAlpha( accent, 46 ) );
 }
 
+namespace {
+
 /// @param[in] color Packed colour.
 /// @return The colour as floats, as ImGuiStyle stores it.
-static ImVec4 toVec4( ImU32 color ) {
+ImVec4 toVec4( ImU32 color ) {
     return ImGui::ColorConvertU32ToFloat4( color );
 }
 
 /// @brief Sets paddings, roundings and borders of the theme.
 /// @param[in,out] style Style to change.
-static void applySizes( ImGuiStyle &style ) {
+void applySizes( ImGuiStyle &style ) {
     style.WindowPadding = ImVec2( 12.0f, 10.0f );
     style.FramePadding = ImVec2( 8.0f, 5.0f );
     style.ItemSpacing = ImVec2( 8.0f, 6.0f );
@@ -55,7 +65,7 @@ static void applySizes( ImGuiStyle &style ) {
 
 /// @brief Sets the theme colours from the current accent and island colours.
 /// @param[in,out] style Style to change.
-static void applyColors( ImGuiStyle &style ) {
+void applyColors( ImGuiStyle &style ) {
     ImU32 scrollbarColor = borderColor;
     ImU32 pressedColor = withAlpha( accent, 80 );
 
@@ -106,6 +116,8 @@ static void applyColors( ImGuiStyle &style ) {
     colors[ImGuiCol_TextSelectedBg] = toVec4( textSelectionColor );
     colors[ImGuiCol_NavCursor] = toVec4( accent );
 }
+
+} // anonymous namespace
 
 void applyIslandsTheme() {
     ImGuiStyle &style = ImGui::GetStyle();

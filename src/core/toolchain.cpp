@@ -28,10 +28,12 @@ std::string qemuProgram() {
     return "";
 }
 
+namespace {
+
 /// @brief Formats a command as it is shown in the build log.
 /// @param[in] args Program and its arguments.
 /// @return "$ program arg1 arg2 ...".
-static std::string commandLine( const std::vector<std::string> &args ) {
+std::string commandLine( const std::vector<std::string> &args ) {
     std::string line = "$";
     for ( const std::string &arg : args ) {
         line += " " + arg;
@@ -45,7 +47,7 @@ static std::string commandLine( const std::vector<std::string> &args ) {
 /// @param[in] text       Output line.
 /// @param[in] sourceName File name of the source, without directory.
 /// @return Message with its kind and source line detected.
-static Message parseToolOutputLine( const std::string &text, const std::string &sourceName ) {
+Message parseToolOutputLine( const std::string &text, const std::string &sourceName ) {
     static const std::regex sourceLocation( "^([^:]+):([0-9]+):" );
 
     Message message;
@@ -66,6 +68,8 @@ static Message parseToolOutputLine( const std::string &text, const std::string &
     }
     return message;
 }
+
+} // anonymous namespace
 
 BuildResult buildProgram( const std::string &sourcePath ) {
     BuildResult build;

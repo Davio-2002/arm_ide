@@ -8,9 +8,11 @@
 #include <gui/theme.h>
 #include <gui/window.h>
 
+namespace {
+
 /// @param[in] changed True if the value changed since the previous pause.
 /// @return Text colour of the value.
-static ImVec4 changeColor( bool changed ) {
+ImVec4 changeColor( bool changed ) {
     return ImGui::ColorConvertU32ToFloat4( changed ? changedValueColor : codeTextColor );
 }
 
@@ -19,7 +21,7 @@ static ImVec4 changeColor( bool changed ) {
 /// @param[in] name    Register name.
 /// @param[in] lowName Name of the 32-bit view, or nullptr for none (pc).
 /// @param[in] value   Register value.
-static void drawValueTooltip( const std::string &name, const char *lowName, uint64_t value ) {
+void drawValueTooltip( const std::string &name, const char *lowName, uint64_t value ) {
     if ( !ImGui::BeginItemTooltip() ) {
         return;
     }
@@ -40,8 +42,8 @@ static void drawValueTooltip( const std::string &name, const char *lowName, uint
 /// @param[in] lowName       Name of the 32-bit view, or nullptr for none.
 /// @param[in] value         Current value.
 /// @param[in] previousValue Value at the previous pause; the row is highlighted if different.
-static void drawRegisterRow( const std::string &name, const char *lowName, uint64_t value,
-                             uint64_t previousValue ) {
+void drawRegisterRow( const std::string &name, const char *lowName, uint64_t value,
+                      uint64_t previousValue ) {
     bool changed = value != previousValue;
     ImVec4 color = changeColor( changed );
     ImGui::TableNextRow();
@@ -65,7 +67,7 @@ struct Flags {
 
 /// @param[in] nzcv Flags in bits 28 to 31.
 /// @return The flags as booleans.
-static Flags readFlags( uint64_t nzcv ) {
+Flags readFlags( uint64_t nzcv ) {
     return { ( ( nzcv >> 31 ) & 1 ) != 0, ( ( nzcv >> 30 ) & 1 ) != 0, ( ( nzcv >> 29 ) & 1 ) != 0,
              ( ( nzcv >> 28 ) & 1 ) != 0 };
 }
@@ -77,8 +79,8 @@ static Flags readFlags( uint64_t nzcv ) {
 /// @param[in] tooltip   Text shown on hover.
 /// @param[in] rowRight  Right edge of the row in screen coordinates.
 /// @param[in] first     True for the first label of the row.
-static void drawPill( const char *text, bool on, ImU32 textColor, const char *tooltip,
-                      float rowRight, bool first ) {
+void drawPill( const char *text, bool on, ImU32 textColor, const char *tooltip, float rowRight,
+               bool first ) {
     ImVec2 padding( 6.0f, 2.0f );
     ImVec2 textSize = ImGui::CalcTextSize( text );
     ImVec2 size( textSize.x + padding.x * 2, textSize.y + padding.y * 2 );
@@ -102,7 +104,7 @@ static void drawPill( const char *text, bool on, ImU32 textColor, const char *to
 /// @brief Draws the N, Z, C and V flags with their meaning as tooltip.
 /// @param[in] registers Current registers.
 /// @param[in] previous  Registers at the previous pause, to highlight changed flags.
-static void drawFlags( const Registers &registers, const Registers &previous ) {
+void drawFlags( const Registers &registers, const Registers &previous ) {
     struct Flag {
         const char *label;
         int bit;
@@ -131,7 +133,7 @@ static void drawFlags( const Registers &registers, const Registers &previous ) {
 /// @brief Draws the condition codes of b.cond, csel and similar instructions, highlighting
 ///        those that hold for the current flags.
 /// @param[in] nzcv Flags in bits 28 to 31.
-static void drawConditions( uint64_t nzcv ) {
+void drawConditions( uint64_t nzcv ) {
     Flags f = readFlags( nzcv );
     struct Condition {
         const char *name;
@@ -162,6 +164,8 @@ static void drawConditions( uint64_t nzcv ) {
         first = false;
     }
 }
+
+} // anonymous namespace
 
 void drawRegistersPanel( const Session &session ) {
     beginPanel( "Registers" );

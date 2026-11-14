@@ -11,10 +11,12 @@
 #include <gui/theme.h>
 #include <gui/window.h>
 
-static const int wheelLines = 3;
+namespace {
 
-static bool focused = false;
-static int scrollOffset = 0;
+const int wheelLines = 3;
+
+bool focused = false;
+int scrollOffset = 0;
 
 /// @brief A place between cells.
 struct CellPosition {
@@ -23,11 +25,11 @@ struct CellPosition {
     auto operator<=>( const CellPosition & ) const = default;
 };
 
-static bool selecting = false;
-static bool hasSelection = false;
-static CellPosition selectionAnchor;
-static CellPosition selectionEnd;
-static size_t selectionScrollbackSize = 0;
+bool selecting = false;
+bool hasSelection = false;
+CellPosition selectionAnchor;
+CellPosition selectionEnd;
+size_t selectionScrollbackSize = 0;
 
 /// @brief An ImGui key and the terminal key it sends.
 struct KeyMapping {
@@ -35,7 +37,7 @@ struct KeyMapping {
     TerminalKey terminalKey;
 };
 
-static const KeyMapping specialKeys[] = {
+const KeyMapping specialKeys[] = {
     { ImGuiKey_Enter, TerminalKey::Enter },
     { ImGuiKey_KeypadEnter, TerminalKey::Enter },
     { ImGuiKey_Tab, TerminalKey::Tab },
@@ -67,20 +69,24 @@ static const KeyMapping specialKeys[] = {
 
 /// @brief Queues the clipboard text for pasting into the shell.
 /// @param[in,out] actions Receives the text in terminalPaste.
-static void pasteClipboard( MenuActions &actions ) {
+void pasteClipboard( MenuActions &actions ) {
     const char *clipboard = ImGui::GetClipboardText();
     actions.terminalPaste += clipboard ? clipboard : "";
 }
+
+} // anonymous namespace
 
 void focusTerminalView() {
     focused = true;
 }
 
+namespace {
+
 /// @brief Makes a terminal input with the modifiers held now.
 /// @param[in] key       Special key, or TerminalKey::None for a character.
 /// @param[in] character Typed character when key is None.
 /// @return The input.
-static TerminalInput makeInput( TerminalKey key, char32_t character ) {
+TerminalInput makeInput( TerminalKey key, char32_t character ) {
     const ImGuiIO &io = ImGui::GetIO();
     TerminalInput input;
     input.key = key;
@@ -97,7 +103,7 @@ static TerminalInput makeInput( TerminalKey key, char32_t character ) {
 /// comes as a key, other text as typed characters. Ctrl+Shift+V pastes, as in VS Code.
 /// @param[in]     owner   ImGui ID of the terminal view, made owner of the special keys.
 /// @param[in,out] actions Receives the inputs and pasted text.
-static void readKeyboard( ImGuiID owner, MenuActions &actions ) {
+void readKeyboard( ImGuiID owner, MenuActions &actions ) {
     const ImGuiIO &io = ImGui::GetIO();
     for ( const KeyMapping &mapping : specialKeys ) {
         ImGui::SetKeyOwner( mapping.key, owner );
@@ -131,7 +137,7 @@ static void readKeyboard( ImGuiID owner, MenuActions &actions ) {
 
 /// @param[in] rgb Colour as 0xRRGGBB.
 /// @return The same colour, opaque, as an ImGui colour.
-static ImU32 cellColor( uint32_t rgb ) {
+ImU32 cellColor( uint32_t rgb ) {
     return IM_COL32( ( rgb >> 16 ) & 0xff, ( rgb >> 8 ) & 0xff, rgb & 0xff, 255 );
 }
 
@@ -141,8 +147,8 @@ static ImU32 cellColor( uint32_t rgb ) {
 /// @param[in] topLeft  Top-left corner in screen coordinates.
 /// @param[in] cellSize Size of one cell.
 /// @param[in] selected True to draw the selection background.
-static void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 topLeft,
-                      ImVec2 cellSize, bool selected ) {
+void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 topLeft, ImVec2 cellSize,
+               bool selected ) {
     ImU32 foreground = cell.defaultForeground ? codeTextColor : cellColor( cell.foreground );
     ImU32 background = cell.defaultBackground ? transparentColor : cellColor( cell.background );
     if ( cell.reverse ) {
@@ -175,8 +181,7 @@ static void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 top
 /// @param[in] terminal Terminal whose cursor is drawn.
 /// @param[in] origin   Top-left corner of the screen.
 /// @param[in] cellSize Size of one cell.
-static void drawCursor( ImDrawList *drawList, const Terminal &terminal, ImVec2 origin,
-                        ImVec2 cellSize ) {
+void drawCursor( ImDrawList *drawList, const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
     int row, column;
     terminalCursor( terminal, row, column );
     ImVec2 topLeft( origin.x + column * cellSize.x, origin.y + row * cellSize.y );
@@ -197,7 +202,7 @@ static void drawCursor( ImDrawList *drawList, const Terminal &terminal, ImVec2 o
 /// @brief Orders the selection ends.
 /// @param[out] start Earlier end of the selection.
 /// @param[out] end   Later end of the selection.
-static void selectionRange( CellPosition &start, CellPosition &end ) {
+void selectionRange( CellPosition &start, CellPosition &end ) {
     start = std::min( selectionAnchor, selectionEnd );
     end = std::max( selectionAnchor, selectionEnd );
 }
@@ -205,7 +210,7 @@ static void selectionRange( CellPosition &start, CellPosition &end ) {
 /// @param[in] line   Screen row; negative for scrollback lines.
 /// @param[in] column Column.
 /// @return True if the cell is inside the selection.
-static bool isSelected( int line, int column ) {
+bool isSelected( int line, int column ) {
     if ( !hasSelection ) {
         return false;
     }
@@ -220,7 +225,7 @@ static bool isSelected( int line, int column ) {
 /// @param[in] origin   Top-left corner of the screen.
 /// @param[in] cellSize Size of one cell.
 /// @return Position under the mouse, with the scroll offset applied.
-static CellPosition positionAt( const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
+CellPosition positionAt( const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
     ImVec2 mouse = ImGui::GetMousePos();
     int row = static_cast<int>( std::floor( ( mouse.y - origin.y ) / cellSize.y ) );
     int column = static_cast<int>( std::round( ( mouse.x - origin.x ) / cellSize.x ) );
@@ -233,7 +238,7 @@ static CellPosition positionAt( const Terminal &terminal, ImVec2 origin, ImVec2 
 /// @param[in] line     Screen row; negative for scrollback lines.
 /// @param[in] column   Column.
 /// @return True if the cell holds a visible character.
-static bool isWordCell( const Terminal &terminal, int line, int column ) {
+bool isWordCell( const Terminal &terminal, int line, int column ) {
     char32_t character = terminalCell( terminal, line, column ).character;
     return character > U' ';
 }
@@ -241,7 +246,7 @@ static bool isWordCell( const Terminal &terminal, int line, int column ) {
 /// @brief Selects the word at a position, or clears the selection on a blank.
 /// @param[in] terminal Terminal shown.
 /// @param[in] position Position inside the word.
-static void selectWord( const Terminal &terminal, CellPosition position ) {
+void selectWord( const Terminal &terminal, CellPosition position ) {
     int column = std::min( position.column, terminal.columns - 1 );
     if ( !isWordCell( terminal, position.line, column ) ) {
         hasSelection = false;
@@ -267,7 +272,7 @@ static void selectWord( const Terminal &terminal, CellPosition position ) {
 /// @param[in] terminal Terminal shown.
 /// @param[in] origin   Top-left corner of the screen.
 /// @param[in] cellSize Size of one cell.
-static void updateSelection( const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
+void updateSelection( const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
     if ( terminal.scrollback.size() < selectionScrollbackSize ) {
         hasSelection = false;
     } else if ( hasSelection ) {
@@ -296,7 +301,7 @@ static void updateSelection( const Terminal &terminal, ImVec2 origin, ImVec2 cel
 
 /// @param[in] terminal Terminal shown.
 /// @return Selected text as UTF-8, each line without trailing spaces.
-static std::string selectedText( const Terminal &terminal ) {
+std::string selectedText( const Terminal &terminal ) {
     CellPosition start, end;
     selectionRange( start, end );
     std::string text;
@@ -325,7 +330,7 @@ static std::string selectedText( const Terminal &terminal ) {
 
 /// @brief Copies the selected text to the clipboard, if any.
 /// @param[in] terminal Terminal shown.
-static void copySelection( const Terminal &terminal ) {
+void copySelection( const Terminal &terminal ) {
     if ( hasSelection ) {
         ImGui::SetClipboardText( selectedText( terminal ).c_str() );
     }
@@ -334,7 +339,7 @@ static void copySelection( const Terminal &terminal ) {
 /// @brief Draws the right-click menu with Copy and Paste.
 /// @param[in]     terminal Terminal shown.
 /// @param[in,out] actions  Receives the pasted text.
-static void drawContextMenu( const Terminal &terminal, MenuActions &actions ) {
+void drawContextMenu( const Terminal &terminal, MenuActions &actions ) {
     if ( !ImGui::BeginPopupContextItem( "##terminalMenu" ) ) {
         return;
     }
@@ -346,6 +351,8 @@ static void drawContextMenu( const Terminal &terminal, MenuActions &actions ) {
     }
     ImGui::EndPopup();
 }
+
+} // anonymous namespace
 
 void drawTerminalView( const Session &session, MenuActions &actions ) {
     const Terminal &terminal = session.terminal;

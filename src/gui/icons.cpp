@@ -12,48 +12,50 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include <nanosvgrast.h>
 
-static const unsigned char buildSvg[] = {
+namespace {
+
+const unsigned char buildSvg[] = {
 #include "build_svg.inc"
     0 };
-static const unsigned char runSvg[] = {
+const unsigned char runSvg[] = {
 #include "run_svg.inc"
     0 };
-static const unsigned char debugSvg[] = {
+const unsigned char debugSvg[] = {
 #include "debug_svg.inc"
     0 };
-static const unsigned char stopSvg[] = {
+const unsigned char stopSvg[] = {
 #include "stop_svg.inc"
     0 };
-static const unsigned char resumeSvg[] = {
+const unsigned char resumeSvg[] = {
 #include "resume_svg.inc"
     0 };
-static const unsigned char stepOverSvg[] = {
+const unsigned char stepOverSvg[] = {
 #include "stepOver_svg.inc"
     0 };
-static const unsigned char asmFileSvg[] = {
+const unsigned char asmFileSvg[] = {
 #include "asmFile_svg.inc"
     0 };
-static const unsigned char consoleSvg[] = {
+const unsigned char consoleSvg[] = {
 #include "console_svg.inc"
     0 };
-static const unsigned char clearSvg[] = {
+const unsigned char clearSvg[] = {
 #include "clear_svg.inc"
     0 };
-static const unsigned char registersSvg[] = {
+const unsigned char registersSvg[] = {
 #include "registers_svg.inc"
     0 };
-static const unsigned char memorySvg[] = {
+const unsigned char memorySvg[] = {
 #include "memory_svg.inc"
     0 };
 
-static const Icon allIcons[] = { Icon::Build,  Icon::Run,       Icon::Debug,   Icon::Stop,
-                                 Icon::Resume, Icon::StepOver,  Icon::AsmFile, Icon::Console,
-                                 Icon::Clear,  Icon::Registers, Icon::Memory };
-static std::array<GLuint, std::size( allIcons )> textures = {};
+const Icon allIcons[] = { Icon::Build,  Icon::Run,       Icon::Debug,   Icon::Stop,
+                          Icon::Resume, Icon::StepOver,  Icon::AsmFile, Icon::Console,
+                          Icon::Clear,  Icon::Registers, Icon::Memory };
+std::array<GLuint, std::size( allIcons )> textures = {};
 
 /// @param[in] icon Icon.
 /// @return Null-terminated SVG source of the icon.
-static const unsigned char *iconSvg( Icon icon ) {
+const unsigned char *iconSvg( Icon icon ) {
     switch ( icon ) {
     case Icon::Build:
         return buildSvg;
@@ -85,7 +87,7 @@ static const unsigned char *iconSvg( Icon icon ) {
 /// @param[in] svg  Null-terminated SVG source.
 /// @param[in] size Image width and height in pixels.
 /// @return RGBA pixels, row by row.
-static std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int size ) {
+std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int size ) {
     std::string text = reinterpret_cast<const char *>( svg );
     NSVGimage *image = nsvgParse( text.data(), "px", 96.0f );
     NSVGrasterizer *rasterizer = nsvgCreateRasterizer();
@@ -101,7 +103,7 @@ static std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int si
 /// @param[in] pixels RGBA pixels, row by row.
 /// @param[in] size   Image width and height in pixels.
 /// @return Texture name.
-static GLuint createTexture( const std::vector<unsigned char> &pixels, int size ) {
+GLuint createTexture( const std::vector<unsigned char> &pixels, int size ) {
     GLuint texture = 0;
     glGenTextures( 1, &texture );
     glBindTexture( GL_TEXTURE_2D, texture );
@@ -112,6 +114,8 @@ static GLuint createTexture( const std::vector<unsigned char> &pixels, int size 
                   pixels.data() );
     return texture;
 }
+
+} // anonymous namespace
 
 void loadIcons() {
     int size = static_cast<int>( iconSize );

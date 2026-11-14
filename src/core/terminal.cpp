@@ -8,11 +8,13 @@
 
 #include <core/terminal.h>
 
-static const size_t maxScrollbackLines = 10000;
+namespace {
+
+const size_t maxScrollbackLines = 10000;
 
 /// @param[in] color libvterm colour already converted to RGB.
 /// @return The colour as 0xRRGGBB.
-static uint32_t packColor( const VTermColor &color ) {
+uint32_t packColor( const VTermColor &color ) {
     return ( color.rgb.red << 16 ) | ( color.rgb.green << 8 ) | color.rgb.blue;
 }
 
@@ -20,7 +22,7 @@ static uint32_t packColor( const VTermColor &color ) {
 /// @param[in] screen Screen that owns the palette.
 /// @param[in] cell   Cell as libvterm returns it.
 /// @return Converted cell.
-static TerminalCell convertCell( const VTermScreen *screen, VTermScreenCell cell ) {
+TerminalCell convertCell( const VTermScreen *screen, VTermScreenCell cell ) {
     TerminalCell result;
     result.character = cell.chars[0] == 0xffffffff ? 0 : cell.chars[0];
     result.width = cell.width;
@@ -40,7 +42,7 @@ static TerminalCell convertCell( const VTermScreen *screen, VTermScreenCell cell
 /// @param[in] bytes  Bytes to write.
 /// @param[in] length Number of bytes.
 /// @param[in] user   The Terminal.
-static void writeToShell( const char *bytes, size_t length, void *user ) {
+void writeToShell( const char *bytes, size_t length, void *user ) {
     Terminal &terminal = *static_cast<Terminal *>( user );
     while ( length > 0 && terminal.masterFd >= 0 ) {
         ssize_t written = write( terminal.masterFd, bytes, length );
@@ -57,7 +59,7 @@ static void writeToShell( const char *bytes, size_t length, void *user ) {
 /// @param[in] value    New value.
 /// @param[in] user     The Terminal.
 /// @return 1, as the property is accepted.
-static int setProperty( VTermProp property, VTermValue *value, void *user ) {
+int setProperty( VTermProp property, VTermValue *value, void *user ) {
     if ( property == VTERM_PROP_CURSORVISIBLE ) {
         static_cast<Terminal *>( user )->cursorVisible = value->boolean;
     }
@@ -71,7 +73,7 @@ static int setProperty( VTermProp property, VTermValue *value, void *user ) {
 /// @param[in] cells   Cells of the line.
 /// @param[in] user    The Terminal.
 /// @return 1, as the line is kept.
-static int pushScrollbackLine( int columns, const VTermScreenCell *cells, void *user ) {
+int pushScrollbackLine( int columns, const VTermScreenCell *cells, void *user ) {
     Terminal &terminal = *static_cast<Terminal *>( user );
     TerminalLine line;
     for ( int i = 0; i < columns; i++ ) {
@@ -87,12 +89,12 @@ static int pushScrollbackLine( int columns, const VTermScreenCell *cells, void *
 /// @brief libvterm callback: clears the scrollback when the shell asks, as `clear` does.
 /// @param[in] user The Terminal.
 /// @return 1, as the request is handled.
-static int clearScrollback( void *user ) {
+int clearScrollback( void *user ) {
     static_cast<Terminal *>( user )->scrollback.clear();
     return 1;
 }
 
-static VTermScreenCallbacks screenCallbacks = {
+VTermScreenCallbacks screenCallbacks = {
     .settermprop = setProperty,
     .sb_pushline = pushScrollbackLine,
     .sb_clear = clearScrollback,
@@ -100,7 +102,7 @@ static VTermScreenCallbacks screenCallbacks = {
 
 /// @brief Frees the libvterm screen and clears the scrollback.
 /// @param[in,out] terminal Terminal whose screen is freed.
-static void freeScreen( Terminal &terminal ) {
+void freeScreen( Terminal &terminal ) {
     if ( terminal.vterm ) {
         vterm_free( terminal.vterm );
     }
@@ -111,11 +113,13 @@ static void freeScreen( Terminal &terminal ) {
 
 /// @brief Closes the pty and forgets the shell process. The screen stays.
 /// @param[in,out] terminal Terminal whose shell is closed.
-static void closeShell( Terminal &terminal ) {
+void closeShell( Terminal &terminal ) {
     close( terminal.masterFd );
     terminal.masterFd = -1;
     terminal.pid = -1;
 }
+
+} // anonymous namespace
 
 bool startTerminal( Terminal &terminal, const std::string &directory, int rows, int columns ) {
     freeScreen( terminal );
@@ -199,9 +203,11 @@ void resizeTerminal( Terminal &terminal, int rows, int columns ) {
     }
 }
 
+namespace {
+
 /// @param[in] key IDE key.
 /// @return The matching libvterm key; VTERM_KEY_NONE for TerminalKey::None.
-static VTermKey vtermKey( TerminalKey key ) {
+VTermKey vtermKey( TerminalKey key ) {
     switch ( key ) {
     case TerminalKey::None:
         break;
@@ -239,6 +245,8 @@ static VTermKey vtermKey( TerminalKey key ) {
     }
     return VTERM_KEY_NONE;
 }
+
+} // anonymous namespace
 
 void sendTerminalInput( Terminal &terminal, const TerminalInput &input ) {
     if ( !isRunning( terminal ) ) {

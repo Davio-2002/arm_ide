@@ -18,21 +18,23 @@
 #include <gui/theme.h>
 #include <gui/window.h>
 
-static const float uiFontSize = 22.0f;
-static const float defaultCodeFontSize = 18.0f;
-static const float minCodeFontSize = 10.0f;
-static const float maxCodeFontSize = 48.0f;
+namespace {
 
-static float codeFontSize = defaultCodeFontSize;
-static std::string droppedFilePath;
-static std::string settingsPath;
-static Session *settingsSession = nullptr;
+const float uiFontSize = 22.0f;
+const float defaultCodeFontSize = 18.0f;
+const float minCodeFontSize = 10.0f;
+const float maxCodeFontSize = 48.0f;
+
+float codeFontSize = defaultCodeFontSize;
+std::string droppedFilePath;
+std::string settingsPath;
+Session *settingsSession = nullptr;
 
 /// @brief Sets the embedded window icon in 32, 64, 128 and 256 pixel sizes.
 ///
 /// Not used on Wayland: it takes the icon from the .desktop file matching the app id.
 /// @param[in] window Main window.
-static void setWindowIcon( GLFWwindow *window ) {
+void setWindowIcon( GLFWwindow *window ) {
     static unsigned char pixels[] = {
 #include "icon_rgba.inc"
     };
@@ -44,6 +46,8 @@ static void setWindowIcon( GLFWwindow *window ) {
     }
     glfwSetWindowIcon( window, static_cast<int>( images.size() ), images.data() );
 }
+
+} // anonymous namespace
 
 GLFWwindow *createWindow() {
     if ( !glfwInit() ) {
@@ -75,6 +79,8 @@ GLFWwindow *createWindow() {
     return window;
 }
 
+namespace {
+
 /// @brief A font in use, loaded from an installed family.
 struct LoadedFont {
     std::string family;
@@ -82,15 +88,15 @@ struct LoadedFont {
     ImFont *font = nullptr;
 };
 
-static LoadedFont uiFont;
-static LoadedFont codeFont;
+LoadedFont uiFont;
+LoadedFont codeFont;
 
 /// @brief Loads the first of the families that is installed and readable, in place of the
 ///        font's current one. When none is, the font is kept, or ImGui's built-in font is used
 ///        if there is none yet.
 /// @param[in,out] loaded     Font to replace; its family becomes the one loaded.
 /// @param[in]     candidates Families in order of preference; empty names are skipped.
-static void loadFont( LoadedFont &loaded, const std::vector<std::string> &candidates ) {
+void loadFont( LoadedFont &loaded, const std::vector<std::string> &candidates ) {
     ImFontAtlas *atlas = ImGui::GetIO().Fonts;
     ImFont *font = nullptr;
     std::string family;
@@ -124,8 +130,8 @@ static void loadFont( LoadedFont &loaded, const std::vector<std::string> &candid
 /// @param[in] first       Family tried first.
 /// @param[in] recommended Families tried after it.
 /// @return The families in that order.
-static std::vector<std::string> fontCandidates( const std::string &first,
-                                                std::initializer_list<const char *> recommended ) {
+std::vector<std::string> fontCandidates( const std::string &first,
+                                         std::initializer_list<const char *> recommended ) {
     std::vector<std::string> candidates = { first };
     candidates.insert( candidates.end(), recommended.begin(), recommended.end() );
     return candidates;
@@ -133,7 +139,7 @@ static std::vector<std::string> fontCandidates( const std::string &first,
 
 /// @brief Loads the interface and code fonts chosen in the settings, or else the first
 ///        recommended one installed.
-static void loadFonts() {
+void loadFonts() {
     ImGui::GetIO().Fonts->FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
     loadFont( uiFont, fontCandidates( uiFont.requestedFamily, { "Ubuntu Sans", "Inter", "Noto Sans",
                                                                 "Cantarell", "DejaVu Sans" } ) );
@@ -150,7 +156,7 @@ static void loadFonts() {
 ///
 /// Runs between frames: the old font can only be removed when no draw data uses it.
 /// @param[in,out] loaded Font whose requested family is loaded; kept if it can't be.
-static void applyRequestedFont( LoadedFont &loaded ) {
+void applyRequestedFont( LoadedFont &loaded ) {
     if ( loaded.requestedFamily.empty() ) {
         return;
     }
@@ -158,6 +164,8 @@ static void applyRequestedFont( LoadedFont &loaded ) {
     loaded.requestedFamily.clear();
     ImGui::MarkIniSettingsDirty();
 }
+
+} // anonymous namespace
 
 const std::string &uiFontFamily() {
     return uiFont.family;
@@ -175,12 +183,16 @@ void setCodeFontFamily( const std::string &family ) {
     codeFont.requestedFamily = family;
 }
 
+namespace {
+
 /// @brief Sets the code font size, clamped to its limits, and marks the settings for saving.
 /// @param[in] size New size in points.
-static void setCodeFontSize( float size ) {
+void setCodeFontSize( float size ) {
     codeFontSize = std::clamp( size, minCodeFontSize, maxCodeFontSize );
     ImGui::MarkIniSettingsDirty();
 }
+
+} // anonymous namespace
 
 void pushCodeFont() {
     ImGui::PushFont( codeFont.font, codeFontSize );
@@ -194,11 +206,13 @@ void resetZoom() {
     setCodeFontSize( defaultCodeFontSize );
 }
 
+namespace {
+
 /// @brief GLFW scroll callback: Ctrl+wheel zooms the code, other scrolling goes to ImGui.
 /// @param[in] window  Main window.
 /// @param[in] xOffset Horizontal scroll.
 /// @param[in] yOffset Vertical scroll.
-static void scrollCallback( GLFWwindow *window, double xOffset, double yOffset ) {
+void scrollCallback( GLFWwindow *window, double xOffset, double yOffset ) {
     bool ctrlDown = glfwGetKey( window, GLFW_KEY_LEFT_CONTROL ) == GLFW_PRESS ||
                     glfwGetKey( window, GLFW_KEY_RIGHT_CONTROL ) == GLFW_PRESS;
     if ( ctrlDown ) {
@@ -211,19 +225,23 @@ static void scrollCallback( GLFWwindow *window, double xOffset, double yOffset )
 /// @brief GLFW drop callback: keeps the first dropped file for takeDroppedFile().
 /// @param[in] count Number of dropped paths.
 /// @param[in] paths Dropped paths.
-static void dropCallback( GLFWwindow *, int count, const char **paths ) {
+void dropCallback( GLFWwindow *, int count, const char **paths ) {
     if ( count > 0 ) {
         droppedFilePath = paths[0];
     }
 }
 
+} // anonymous namespace
+
 std::string takeDroppedFile() {
     return std::exchange( droppedFilePath, "" );
 }
 
+namespace {
+
 /// @brief ImGui settings callback: starts reading the IDE's section of the settings file.
 /// @return The session, passed to readSettingsLine() as the entry.
-static void *openSettingsEntry( ImGuiContext *, ImGuiSettingsHandler *, const char * ) {
+void *openSettingsEntry( ImGuiContext *, ImGuiSettingsHandler *, const char * ) {
     settingsSession->recentFiles.clear();
     return settingsSession;
 }
@@ -231,7 +249,7 @@ static void *openSettingsEntry( ImGuiContext *, ImGuiSettingsHandler *, const ch
 /// @brief ImGui settings callback: applies one line of the IDE's section: zoom, fonts, colours or
 ///        a recent file that still exists.
 /// @param[in] line Line in "Key=value" form.
-static void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line ) {
+void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line ) {
     std::string text = line;
     if ( text.starts_with( "Zoom=" ) ) {
         codeFontSize =
@@ -252,8 +270,7 @@ static void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, co
 /// @brief ImGui settings callback: writes the IDE's section of the settings file.
 /// @param[in]     handler The IDE's settings handler.
 /// @param[in,out] buffer  Settings text being written.
-static void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler,
-                           ImGuiTextBuffer *buffer ) {
+void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler, ImGuiTextBuffer *buffer ) {
     buffer->appendf( "[%s][Settings]\n", handler->TypeName );
     buffer->appendf( "Zoom=%g\n", codeFontSize );
     buffer->appendf( "UiFont=%s\n", uiFont.family.c_str() );
@@ -268,7 +285,7 @@ static void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler,
 
 /// @brief Registers the IDE's settings handler and loads $XDG_CONFIG_HOME/arm_ide/imgui.ini.
 /// @param[in,out] session Session whose recent files are read and written.
-static void loadSettings( Session &session ) {
+void loadSettings( Session &session ) {
     const char *configHome = std::getenv( "XDG_CONFIG_HOME" );
     const char *home = std::getenv( "HOME" );
     std::filesystem::path configDirectory =
@@ -290,6 +307,8 @@ static void loadSettings( Session &session ) {
     ImGui::GetIO().IniFilename = settingsPath.c_str();
     ImGui::LoadIniSettingsFromDisk( settingsPath.c_str() );
 }
+
+} // anonymous namespace
 
 void setupImGui( GLFWwindow *window, Session &session ) {
     ImGui::CreateContext();

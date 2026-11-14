@@ -10,6 +10,8 @@
 #include <gui/theme.h>
 #include <gui/widgets.h>
 
+namespace {
+
 enum class DialogKind { None, Open, Save, Discard, AccentColor, PanelColor };
 
 /// @brief One row of the file list.
@@ -30,12 +32,12 @@ struct Dialog {
     std::function<void()> onDiscard;
 };
 
-static Dialog dialog;
+Dialog dialog;
 
 /// @brief Makes a path absolute and normalized, without a trailing slash.
 /// @param[in] path Any path.
 /// @return Clean absolute path.
-static std::filesystem::path cleanPath( const std::filesystem::path &path ) {
+std::filesystem::path cleanPath( const std::filesystem::path &path ) {
     std::error_code error;
     std::filesystem::path clean = std::filesystem::absolute( path, error ).lexically_normal();
     if ( clean.has_filename() || clean == clean.root_path() ) {
@@ -46,7 +48,7 @@ static std::filesystem::path cleanPath( const std::filesystem::path &path ) {
 
 /// @param[in] path File path.
 /// @return True for .s, .S and .asm files.
-static bool isAssemblyFile( const std::filesystem::path &path ) {
+bool isAssemblyFile( const std::filesystem::path &path ) {
     std::string extension = path.extension().string();
     return extension == ".s" || extension == ".S" || extension == ".asm";
 }
@@ -54,7 +56,7 @@ static bool isAssemblyFile( const std::filesystem::path &path ) {
 /// @brief Shows a directory in the file list: subdirectories first, then assembly files.
 ///        Hidden entries are skipped.
 /// @param[in] directory Directory to list.
-static void enterDirectory( const std::filesystem::path &directory ) {
+void enterDirectory( const std::filesystem::path &directory ) {
     dialog.directory = cleanPath( directory );
     dialog.entries.clear();
 
@@ -79,10 +81,12 @@ static void enterDirectory( const std::filesystem::path &directory ) {
 
 /// @brief Fills the file name field, truncating a name that does not fit.
 /// @param[in] name File name.
-static void setFileName( const std::string &name ) {
+void setFileName( const std::string &name ) {
     name.copy( dialog.fileName, sizeof( dialog.fileName ) - 1 );
     dialog.fileName[std::min( name.size(), sizeof( dialog.fileName ) - 1 )] = '\0';
 }
+
+} // anonymous namespace
 
 void askForFileToOpen( const std::string &directory,
                        std::function<void( const std::string & )> onChosen ) {
@@ -112,13 +116,17 @@ void askToDiscardChanges( const std::string &documentName, std::function<void()>
     dialog.onDiscard = std::move( onDiscard );
 }
 
+namespace {
+
 /// @brief Opens a dialog that needs no arguments.
 /// @param[in] kind Dialog to open.
-static void openDialog( DialogKind kind ) {
+void openDialog( DialogKind kind ) {
     dialog = Dialog();
     dialog.kind = kind;
     dialog.needsOpening = true;
 }
+
+} // anonymous namespace
 
 void openAccentColorDialog() {
     openDialog( DialogKind::AccentColor );
@@ -128,17 +136,23 @@ void openPanelColorDialog() {
     openDialog( DialogKind::PanelColor );
 }
 
+namespace {
+
 /// @return True if the open dialog is a colour picker.
-static bool isColorDialog() {
+bool isColorDialog() {
     return dialog.kind == DialogKind::AccentColor || dialog.kind == DialogKind::PanelColor;
 }
+
+} // anonymous namespace
 
 bool isDialogOpen() {
     return dialog.kind != DialogKind::None;
 }
 
+namespace {
+
 /// @return Window title of the open dialog, also used as its ImGui popup ID.
-static const char *dialogTitle() {
+const char *dialogTitle() {
     switch ( dialog.kind ) {
     case DialogKind::Open:
         return "Open File";
@@ -157,14 +171,14 @@ static const char *dialogTitle() {
 
 /// @brief Draws the Cancel button.
 /// @return True if Cancel was clicked or Escape pressed.
-static bool cancelPressed() {
+bool cancelPressed() {
     return ImGui::Button( "Cancel" ) || ImGui::IsKeyPressed( ImGuiKey_Escape );
 }
 
 /// @brief Draws the unsaved changes question.
 /// @param[out] finish Set to the discard callback when the user chooses Discard.
 /// @return True when the dialog should close.
-static bool drawDiscardDialog( std::function<void()> &finish ) {
+bool drawDiscardDialog( std::function<void()> &finish ) {
     ImGui::TextUnformatted( dialog.message.c_str() );
     ImGui::Spacing();
     if ( ImGui::Button( "Discard" ) ) {
@@ -180,7 +194,7 @@ static bool drawDiscardDialog( std::function<void()> &finish ) {
 /// @param[in]     defaultColor Colour Reset restores.
 /// @param[in]     presets      Colours offered as swatches.
 /// @return True if the colour changed.
-static bool drawColorPicker( ImU32 &color, ImU32 defaultColor, std::span<const ImU32> presets ) {
+bool drawColorPicker( ImU32 &color, ImU32 defaultColor, std::span<const ImU32> presets ) {
     ImVec4 value = ImGui::ColorConvertU32ToFloat4( color );
     bool changed = false;
     for ( size_t i = 0; i < presets.size(); ++i ) {
@@ -212,7 +226,7 @@ static bool drawColorPicker( ImU32 &color, ImU32 defaultColor, std::span<const I
 
 /// @brief Draws the accent colour picker and applies the colour at once.
 /// @return True when the dialog should close.
-static bool drawAccentColorDialog() {
+bool drawAccentColorDialog() {
     const ImU32 presets[] = {
         defaultAccentColor,
         IM_COL32( 53, 116, 240, 255 ),
@@ -232,7 +246,7 @@ static bool drawAccentColorDialog() {
 
 /// @brief Draws the panel background colour picker and applies the colour at once.
 /// @return True when the dialog should close.
-static bool drawPanelColorDialog() {
+bool drawPanelColorDialog() {
     const ImU32 presets[] = {
         defaultIslandColor,
         IM_COL32( 30, 31, 34, 255 ),
@@ -250,7 +264,7 @@ static bool drawPanelColorDialog() {
 /// @brief Draws the list of the current directory. A click on a file fills the name field.
 /// @param[out] nextDirectory Set to the directory the user clicked; unchanged otherwise.
 /// @return True if a file was double-clicked.
-static bool drawFileList( std::filesystem::path &nextDirectory ) {
+bool drawFileList( std::filesystem::path &nextDirectory ) {
     bool chosen = false;
     float height = ImGui::GetTextLineHeightWithSpacing() * 16;
     if ( !ImGui::BeginListBox( "##files", ImVec2( -FLT_MIN, height ) ) ) {
@@ -280,7 +294,7 @@ static bool drawFileList( std::filesystem::path &nextDirectory ) {
 /// @brief Draws the Open or Save As dialog: file list, name field and buttons.
 /// @param[out] finish Set to call the chosen-file callback when a file is accepted.
 /// @return True when the dialog should close.
-static bool drawFileDialog( std::function<void()> &finish ) {
+bool drawFileDialog( std::function<void()> &finish ) {
     bool isSave = dialog.kind == DialogKind::Save;
     ImGui::TextDisabled( "%s", dialog.directory.c_str() );
 
@@ -322,6 +336,8 @@ static bool drawFileDialog( std::function<void()> &finish ) {
     }
     return cancelled;
 }
+
+} // anonymous namespace
 
 void drawDialogs() {
     if ( !isDialogOpen() ) {

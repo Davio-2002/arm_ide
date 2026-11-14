@@ -1,6 +1,8 @@
 #include <language/aarch64_words.h>
 
-static const char *const mnemonics[] = {
+namespace {
+
+const char *const mnemonics[] = {
     "abs",       "adc",       "adcs",      "add",     "addhn",     "addhn2",    "addp",
     "adds",      "addv",      "adr",       "adrp",    "and",       "ands",      "asr",
     "asrv",      "at",        "autia1716", "autiasp", "autiaz",    "autib1716", "autibsp",
@@ -70,12 +72,12 @@ static const char *const mnemonics[] = {
     "wfi",       "xpaclri",   "xtn",       "xtn2",    "yield",     "zip1",      "zip2",
 };
 
-static const char *const conditions[] = {
+const char *const conditions[] = {
     "eq", "ne", "cs", "hs", "cc", "lo", "mi", "pl", "vs",
     "vc", "hi", "ls", "ge", "lt", "gt", "le", "al", "nv",
 };
 
-static const char *const directives[] = {
+const char *const directives[] = {
     ".abort",
     ".aeabi_attribute",
     ".aeabi_subsection",
@@ -285,7 +287,7 @@ static const char *const directives[] = {
     ".zero",
 };
 
-static const char *const operandKeywords[] = {
+const char *const operandKeywords[] = {
     "alle1",      "alle1is",   "alle2",     "alle2is",    "alle3",        "alle3is",   "aside1",
     "aside1is",   "asr",       "cigdpapa",  "cipapa",     "cisw",         "civac",     "csw",
     "cvac",       "cvau",      "iallu",     "ialluis",    "ipas2e1",      "ipas2e1is", "ipas2le1",
@@ -303,7 +305,7 @@ static const char *const operandKeywords[] = {
     "vale3is",    "vmalle1",   "vmalle1is", "vmalls12e1", "vmalls12e1is", "zva",
 };
 
-static const char *const systemRegisters[] = {
+const char *const systemRegisters[] = {
     "accdata_el1",
     "actlr_el1",
     "actlr_el12",
@@ -1933,6 +1935,8 @@ static const char *const systemRegisters[] = {
     "zcr_el2",
     "zcr_el3",
 };
+
+} // anonymous namespace
 
 const std::span<const char *const> aarch64Mnemonics = mnemonics;
 const std::span<const char *const> aarch64Conditions = conditions;

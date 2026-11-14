@@ -6,10 +6,12 @@
 #include <core/fonts.h>
 #include <core/process.h>
 
+namespace {
+
 /// @param[in] text      Text to split.
 /// @param[in] separator Field separator.
 /// @return The fields, empty ones included.
-static std::vector<std::string> split( const std::string &text, char separator ) {
+std::vector<std::string> split( const std::string &text, char separator ) {
     std::vector<std::string> fields;
     std::istringstream stream( text );
     std::string field;
@@ -20,7 +22,7 @@ static std::vector<std::string> split( const std::string &text, char separator )
 }
 
 /// @return True if the two names are equal ignoring ASCII case.
-static bool sameName( const std::string &a, const std::string &b ) {
+bool sameName( const std::string &a, const std::string &b ) {
     return std::ranges::equal( a, b, []( unsigned char x, unsigned char y ) {
         return std::tolower( x ) == std::tolower( y );
     } );
@@ -28,9 +30,11 @@ static bool sameName( const std::string &a, const std::string &b ) {
 
 /// @brief Tells whether ImGui's FreeType loader can use a font format: TrueType or CFF
 ///        (OpenType), not Type 1 or bitmap fonts.
-static bool isScalableFormat( const std::string &format ) {
+bool isScalableFormat( const std::string &format ) {
     return format == "TrueType" || format == "CFF";
 }
+
+} // anonymous namespace
 
 std::vector<std::string> fontFamilies( bool monospaceOnly ) {
     if ( !isInPath( "fc-list" ) ) {

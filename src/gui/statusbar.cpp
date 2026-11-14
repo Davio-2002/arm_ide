@@ -10,14 +10,16 @@
 #include <gui/statusbar.h>
 #include <gui/theme.h>
 
-static const int breadcrumbDepth = 3;
-static const float itemGap = 16.0f;
-static const float sidePadding = 14.0f;
+namespace {
+
+const int breadcrumbDepth = 3;
+const float itemGap = 16.0f;
+const float sidePadding = 14.0f;
 
 /// @brief Shows the last parts of a path, separated by "›".
 /// @param[in] path File path; may be empty.
 /// @return The last breadcrumbDepth parts, or "untitled" for an empty path.
-static std::string breadcrumb( const std::string &path ) {
+std::string breadcrumb( const std::string &path ) {
     if ( path.empty() ) {
         return "untitled";
     }
@@ -35,7 +37,7 @@ static std::string breadcrumb( const std::string &path ) {
 
 /// @param[in] session Current session.
 /// @return Warning colour while paused, success colour while running, transparent otherwise.
-static ImU32 programStateColor( const Session &session ) {
+ImU32 programStateColor( const Session &session ) {
     if ( session.isPaused() ) {
         return warningColor;
     }
@@ -47,13 +49,15 @@ static ImU32 programStateColor( const Session &session ) {
 
 /// @brief Draws a small dot one text line high.
 /// @param[in] color Dot colour.
-static void drawStateDot( ImU32 color ) {
+void drawStateDot( ImU32 color ) {
     float size = ImGui::GetTextLineHeight();
     ImVec2 topLeft = ImGui::GetCursorScreenPos();
     ImVec2 center( topLeft.x + size * 0.5f, topLeft.y + size * 0.5f );
     ImGui::GetWindowDrawList()->AddCircleFilled( center, size * 0.2f, color );
     ImGui::Dummy( ImVec2( size, size ) );
 }
+
+} // anonymous namespace
 
 void drawStatusBar( const Session &session ) {
     float height = ImGui::GetFrameHeight();

@@ -1,6 +1,8 @@
 #include <language/c_language.h>
 
-static const char *const libraryNames[] = {
+namespace {
+
+const char *const libraryNames[] = {
     "printf",
     "fprintf",
     "sprintf",
@@ -144,6 +146,8 @@ static const char *const libraryNames[] = {
     "getpid",
     "main",
 };
+
+} // anonymous namespace
 
 const TextEditor::Language *cLanguage() {
     static TextEditor::Language language = [] {

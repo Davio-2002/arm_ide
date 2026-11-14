@@ -2,23 +2,25 @@
 #include <language/aarch64_words.h>
 #include <string>
 
+namespace {
+
 /// @return True for 0-9.
-static bool isDigit( ImWchar c ) {
+bool isDigit( ImWchar c ) {
     return c >= '0' && c <= '9';
 }
 
 /// @return True for 0-9, a-f and A-F.
-static bool isHexDigit( ImWchar c ) {
+bool isHexDigit( ImWchar c ) {
     return isDigit( c ) || ( c >= 'a' && c <= 'f' ) || ( c >= 'A' && c <= 'F' );
 }
 
 /// @return True for a character that can start a word: a letter, '_', '.' or '$'.
-static bool isIdentifierStart( ImWchar c ) {
+bool isIdentifierStart( ImWchar c ) {
     return ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) || c == '_' || c == '.' || c == '$';
 }
 
 /// @return True for a character that can continue a word.
-static bool isIdentifierChar( ImWchar c ) {
+bool isIdentifierChar( ImWchar c ) {
     return isIdentifierStart( c ) || isDigit( c );
 }
 
@@ -26,7 +28,7 @@ static bool isIdentifierChar( ImWchar c ) {
 /// @param[in] start Start of the text to scan.
 /// @param[in] end   End of the line.
 /// @return End of the word, or @p start if no word starts there.
-static TextEditor::Iterator getIdentifier( TextEditor::Iterator start, TextEditor::Iterator end ) {
+TextEditor::Iterator getIdentifier( TextEditor::Iterator start, TextEditor::Iterator end ) {
     if ( start == end || !isIdentifierStart( *start ) ) {
         return start;
     }
@@ -42,7 +44,7 @@ static TextEditor::Iterator getIdentifier( TextEditor::Iterator start, TextEdito
 /// @param[in] start Start of the text to scan.
 /// @param[in] end   End of the line.
 /// @return End of the number, or @p start if no number starts there.
-static TextEditor::Iterator getNumber( TextEditor::Iterator start, TextEditor::Iterator end ) {
+TextEditor::Iterator getNumber( TextEditor::Iterator start, TextEditor::Iterator end ) {
     if ( start == end || !isDigit( *start ) ) {
         return start;
     }
@@ -62,6 +64,8 @@ static TextEditor::Iterator getNumber( TextEditor::Iterator start, TextEditor::I
     }
     return i;
 }
+
+} // anonymous namespace
 
 const TextEditor::Language *aarch64Language() {
     static TextEditor::Language language;

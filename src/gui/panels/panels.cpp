@@ -11,15 +11,17 @@
 #include <gui/theme.h>
 #include <gui/widgets.h>
 
-static const float toolStripWidth = 44.0f;
+namespace {
 
-static bool showRegisters = true;
-static bool showMemory = true;
+const float toolStripWidth = 44.0f;
+
+bool showRegisters = true;
+bool showMemory = true;
 
 /// @brief Docks the panels in the default layout: editor with the console below it on the
 ///        left, registers with memory below them on the right.
 /// @param[in] dockspace Dock space to build.
-static void createDefaultLayout( ImGuiID dockspace ) {
+void createDefaultLayout( ImGuiID dockspace ) {
     ImGui::DockBuilderAddNode( dockspace, ImGuiDockNodeFlags_DockSpace );
     ImGui::DockBuilderSetNodeSize( dockspace, ImGui::GetMainViewport()->WorkSize );
 
@@ -41,7 +43,7 @@ static void createDefaultLayout( ImGuiID dockspace ) {
 ///
 /// The ground window and dock title bars stay transparent, and each docked panel draws its
 /// rounded island background itself.
-static void drawDockSpace() {
+void drawDockSpace() {
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos( viewport->WorkPos );
     ImGui::SetNextWindowSize( viewport->WorkSize );
@@ -67,6 +69,8 @@ static void drawDockSpace() {
     ImGui::PopStyleColor( std::size( hiddenColors ) );
     ImGui::End();
 }
+
+} // anonymous namespace
 
 void beginPanel( const char *name, ImGuiWindowFlags flags ) {
     ImGuiWindowClass withoutDockTabBar;
@@ -105,8 +109,10 @@ float headerButtonWidth() {
     return ImGui::GetFrameHeight();
 }
 
+namespace {
+
 /// @brief Draws the bar on the right edge whose buttons show and hide the side panels.
-static void drawToolStrip() {
+void drawToolStrip() {
     float buttonPadding = 6.0f;
     float sidePadding = ( toolStripWidth - iconSize ) * 0.5f - buttonPadding;
     ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( sidePadding, islandGap ) );
@@ -123,6 +129,8 @@ static void drawToolStrip() {
     ImGui::PopStyleColor();
     ImGui::PopStyleVar( 3 );
 }
+
+} // anonymous namespace
 
 void drawPanels( Session &session, MenuActions &actions ) {
     syncEditorWithSession( session );

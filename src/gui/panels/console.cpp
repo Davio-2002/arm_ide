@@ -10,9 +10,11 @@
 #include <gui/widgets.h>
 #include <gui/window.h>
 
+namespace {
+
 /// @param[in] kind Message kind.
 /// @return Text colour of the message.
-static ImU32 messageColor( MessageKind kind ) {
+ImU32 messageColor( MessageKind kind ) {
     switch ( kind ) {
     case MessageKind::Command:
         return commandColor;
@@ -30,13 +32,13 @@ static ImU32 messageColor( MessageKind kind ) {
 
 enum class OutputTab { Console, Build, Terminal };
 
-static OutputTab shownOutputTab = OutputTab::Console;
-static int shownBuildCount = 0;
+OutputTab shownOutputTab = OutputTab::Console;
+int shownBuildCount = 0;
 
 /// @brief Switches tabs once after each build: a failed build shows its errors, a good one
 ///        shows the program.
 /// @param[in] session Current session.
-static void followLatestBuild( const Session &session ) {
+void followLatestBuild( const Session &session ) {
     if ( session.buildCount == shownBuildCount ) {
         return;
     }
@@ -49,7 +51,7 @@ static void followLatestBuild( const Session &session ) {
 /// @param[in] label   Tab text.
 /// @param[in] tab     Tab it selects.
 /// @param[in] hasIcon True to show the console icon.
-static void drawOutputTab( const char *id, const char *label, OutputTab tab, bool hasIcon ) {
+void drawOutputTab( const char *id, const char *label, OutputTab tab, bool hasIcon ) {
     PillTab pill;
     pill.label = label;
     pill.icon = Icon::Console;
@@ -66,7 +68,7 @@ static void drawOutputTab( const char *id, const char *label, OutputTab tab, boo
 /// @brief Draws the Resume, Step and Stop buttons.
 /// @param[in]     session Current session.
 /// @param[in,out] actions Receives the clicked buttons.
-static void drawDebugButtons( const Session &session, MenuActions &actions ) {
+void drawDebugButtons( const Session &session, MenuActions &actions ) {
     bool paused = session.isPaused();
     actions.debugContinue |= iconButton( "##resume", Icon::Resume, "Resume  F8", paused );
     ImGui::SameLine();
@@ -78,7 +80,7 @@ static void drawDebugButtons( const Session &session, MenuActions &actions ) {
 /// @brief Draws the header row: tabs, then debug or shell buttons, and Clear on the right.
 /// @param[in]     session Current session.
 /// @param[in,out] actions Receives the clicked buttons.
-static void drawConsoleHeader( const Session &session, MenuActions &actions ) {
+void drawConsoleHeader( const Session &session, MenuActions &actions ) {
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing,
                          ImVec2( 2.0f, ImGui::GetStyle().ItemSpacing.y ) );
     drawOutputTab( "##consoleTab", "Console", OutputTab::Console, true );
@@ -114,14 +116,14 @@ struct MessageSelection {
     size_t messageCount = 0;
 };
 
-static MessageSelection consoleSelection;
-static MessageSelection buildSelection;
+MessageSelection consoleSelection;
+MessageSelection buildSelection;
 
 /// @brief Copies messages to the clipboard, one per line.
 /// @param[in] messages  Messages of the tab.
 /// @param[in] selection Lines to copy, or nullptr to copy all.
-static void copyMessages( const std::vector<Message> &messages,
-                          const ImGuiSelectionBasicStorage *selection ) {
+void copyMessages( const std::vector<Message> &messages,
+                   const ImGuiSelectionBasicStorage *selection ) {
     std::string text;
     for ( size_t i = 0; i < messages.size(); i++ ) {
         if ( !selection || selection->Contains( static_cast<ImGuiID>( i ) ) ) {
@@ -134,8 +136,8 @@ static void copyMessages( const std::vector<Message> &messages,
 /// @brief Handles Ctrl+C and the right-click menu with Copy and Copy All.
 /// @param[in] messages  Messages of the tab.
 /// @param[in] selection Selected lines.
-static void drawCopyMenu( const std::vector<Message> &messages,
-                          const ImGuiSelectionBasicStorage &selection ) {
+void drawCopyMenu( const std::vector<Message> &messages,
+                   const ImGuiSelectionBasicStorage &selection ) {
     if ( ImGui::IsWindowFocused() && ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_C ) ) {
         copyMessages( messages, &selection );
     }
@@ -158,8 +160,8 @@ static void drawCopyMenu( const std::vector<Message> &messages,
 /// @param[in]     messages  Messages to draw.
 /// @param[in,out] selection Selection of this list.
 /// @param[in]     height    Height of the list; 0 to fill the panel, negative to leave room.
-static void drawMessages( const std::vector<Message> &messages, MessageSelection &selection,
-                          float height = 0.0f ) {
+void drawMessages( const std::vector<Message> &messages, MessageSelection &selection,
+                   float height = 0.0f ) {
     if ( messages.size() < selection.messageCount ) {
         selection.lines.Clear();
     }
@@ -209,13 +211,13 @@ static void drawMessages( const std::vector<Message> &messages, MessageSelection
     ImGui::EndChild();
 }
 
-static char programInput[1024];
+char programInput[1024];
 
 /// @brief Draws the input line for the running program's stdin. Enter sends the line,
 ///        Ctrl+D ends the input.
 /// @param[in]     session Current session.
 /// @param[in,out] actions Receives the sent line or end of input.
-static void drawProgramInput( const Session &session, MenuActions &actions ) {
+void drawProgramInput( const Session &session, MenuActions &actions ) {
     bool enabled = session.acceptsInput();
     const char *hint = enabled ? "Input for the program: Enter sends a line, Ctrl+D ends input"
                                : "Input for the program, while it runs";
@@ -239,13 +241,15 @@ static void drawProgramInput( const Session &session, MenuActions &actions ) {
 /// @brief Draws the program output with the input line below it.
 /// @param[in]     session Current session.
 /// @param[in,out] actions Receives the program input.
-static void drawConsoleTab( const Session &session, MenuActions &actions ) {
+void drawConsoleTab( const Session &session, MenuActions &actions ) {
     pushCodeFont();
     float inputHeight = ImGui::GetFrameHeightWithSpacing();
     drawMessages( session.console, consoleSelection, -inputHeight );
     drawProgramInput( session, actions );
     ImGui::PopFont();
 }
+
+} // anonymous namespace
 
 void drawConsolePanel( const Session &session, MenuActions &actions ) {
     followLatestBuild( session );

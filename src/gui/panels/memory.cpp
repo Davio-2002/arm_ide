@@ -10,17 +10,19 @@
 #include <gui/widgets.h>
 #include <gui/window.h>
 
-static const uint64_t memoryRowSize = 8;
-static const uint64_t memoryRowCount = 64;
+namespace {
 
-static char memoryAddressInput[64] = "sp";
+const uint64_t memoryRowSize = 8;
+const uint64_t memoryRowCount = 64;
+
+char memoryAddressInput[64] = "sp";
 
 /// @brief Parses the address field.
 /// @param[in]  text      "sp", "pc", a register x0 to x30, or a number in C notation.
 /// @param[in]  registers Current register values.
 /// @param[out] address   Parsed address.
 /// @return True if the text is valid.
-static bool parseAddress( const std::string &text, const Registers &registers, uint64_t &address ) {
+bool parseAddress( const std::string &text, const Registers &registers, uint64_t &address ) {
     if ( text == "sp" ) {
         address = registers.sp;
         return true;
@@ -55,7 +57,7 @@ static bool parseAddress( const std::string &text, const Registers &registers, u
 /// @brief Draws one row: address, bytes in hex and as ASCII. Unreadable bytes show "??".
 /// @param[in,out] session    Session that reads the memory.
 /// @param[in]     rowAddress Address of the first byte.
-static void drawMemoryRow( Session &session, uint64_t rowAddress ) {
+void drawMemoryRow( Session &session, uint64_t rowAddress ) {
     std::string hex;
     std::string text;
     char byteText[4];
@@ -74,6 +76,8 @@ static void drawMemoryRow( Session &session, uint64_t rowAddress ) {
     ImGui::SameLine();
     ImGui::Text( "%s %s", hex.c_str(), text.c_str() );
 }
+
+} // anonymous namespace
 
 void drawMemoryPanel( Session &session ) {
     beginPanel( "Memory", ImGuiWindowFlags_HorizontalScrollbar );

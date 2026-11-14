@@ -6,16 +6,20 @@
 
 #include <app/session.h>
 
-static const size_t maxRecentFiles = 10;
-static const int debuggerPollMilliseconds = 1;
-static const uint64_t memoryBlockSize = 256;
+namespace {
+
+const size_t maxRecentFiles = 10;
+const int debuggerPollMilliseconds = 1;
+const uint64_t memoryBlockSize = 256;
 
 /// @brief Makes a path absolute and removes "." and ".." parts.
 /// @param[in] path Relative or absolute path.
 /// @return Normalized absolute path.
-static std::string absolutePath( const std::string &path ) {
+std::string absolutePath( const std::string &path ) {
     return std::filesystem::absolute( path ).lexically_normal();
 }
+
+} // anonymous namespace
 
 bool Session::openFile( const std::string &path, std::string &text ) {
     if ( !std::filesystem::exists( path ) ) {
@@ -190,14 +194,18 @@ void Session::clearOutput() {
     programLineOpen = false;
 }
 
+namespace {
+
 /// @brief Picks the directory a new shell starts in.
 /// @param[in] filePath Current file; may be empty.
 /// @return Directory of the file, or $HOME when no file is open.
-static std::string terminalStartDirectory( const std::string &filePath ) {
+std::string terminalStartDirectory( const std::string &filePath ) {
     std::string directory = std::filesystem::path( filePath ).parent_path();
     const char *home = std::getenv( "HOME" );
     return directory.empty() && home ? home : directory;
 }
+
+} // anonymous namespace
 
 void Session::openTerminal( int rows, int columns ) {
     if ( !isRunning( terminal ) && !terminal.exited ) {

@@ -9,6 +9,8 @@
 
 #include <core/process.h>
 
+namespace {
+
 /// @brief Opens the channel a child process talks through.
 ///
 /// A program gets a pseudo-terminal, so glibc flushes printf at each line and before reading
@@ -17,7 +19,7 @@
 /// @param[in]  isProgram True for a user program, false for a build tool.
 /// @param[out] fds       Parent end in fds[0], child end in fds[1]; both close-on-exec.
 /// @return True if the channel was opened.
-static bool openOutput( bool isProgram, int ( &fds )[2] ) {
+bool openOutput( bool isProgram, int ( &fds )[2] ) {
     if ( !isProgram ) {
         return pipe2( fds, O_CLOEXEC ) == 0;
     }
@@ -42,8 +44,8 @@ static bool openOutput( bool isProgram, int ( &fds )[2] ) {
 /// @param[out] outputFd  Parent end of the output channel.
 /// @param[in]  isProgram True for a user program on a pty, false for a tool on a pipe.
 /// @return Child process ID, or -1 on failure.
-static pid_t spawnProcess( const std::vector<std::string> &args, const std::string &directory,
-                           int &outputFd, bool isProgram ) {
+pid_t spawnProcess( const std::vector<std::string> &args, const std::string &directory,
+                    int &outputFd, bool isProgram ) {
     int output[2];
     if ( !openOutput( isProgram, output ) ) {
         return -1;
@@ -80,6 +82,8 @@ static pid_t spawnProcess( const std::vector<std::string> &args, const std::stri
     outputFd = output[0];
     return pid;
 }
+
+} // anonymous namespace
 
 Process startProcess( const std::vector<std::string> &args ) {
     Process process;

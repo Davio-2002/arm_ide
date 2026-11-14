@@ -33,15 +33,19 @@ void whenChangesDiscarded( std::function<void()> action ) {
     askToDiscardChanges( what, std::move( action ) );
 }
 
+namespace {
+
 /// @brief Saves the active editor tab and marks it saved.
 /// @param[in,out] session Session that writes the file.
 /// @param[in]     path    File to write.
-static void saveDocument( Session &session, const std::string &path ) {
+void saveDocument( Session &session, const std::string &path ) {
     if ( session.saveFile( path, editorText() ) ) {
         markEditorSaved( session.filePath );
     }
     ImGui::MarkIniSettingsDirty();
 }
+
+} // anonymous namespace
 
 std::string displayPath( const std::string &path ) {
     const char *home = std::getenv( "HOME" );
@@ -51,9 +55,11 @@ std::string displayPath( const std::string &path ) {
     return path;
 }
 
+namespace {
+
 /// @brief Reads the global keyboard shortcuts.
 /// @return Actions whose shortcut was pressed this frame.
-static MenuActions readShortcuts() {
+MenuActions readShortcuts() {
     ImGuiInputFlags global = ImGuiInputFlags_RouteGlobal;
     MenuActions actions;
     actions.newFile = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_N, global );
@@ -78,7 +84,7 @@ static MenuActions readShortcuts() {
 
 /// @brief Pushes the menu bar style: items light up in the accent, rounded like the tabs.
 ///        Undo with popMenuStyle().
-static void pushMenuStyle() {
+void pushMenuStyle() {
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding,
                          ImVec2( ImGui::GetStyle().FramePadding.x, toolbarFramePaddingY ) );
     ImGui::PushStyleVar( ImGuiStyleVar_SelectableRounding, ImGui::GetStyle().FrameRounding );
@@ -88,7 +94,7 @@ static void pushMenuStyle() {
 }
 
 /// @brief Pops the style pushed by pushMenuStyle().
-static void popMenuStyle() {
+void popMenuStyle() {
     ImGui::PopStyleColor( 3 );
     ImGui::PopStyleVar( 2 );
 }
@@ -97,7 +103,7 @@ static void popMenuStyle() {
 ///        and toolbar end.
 /// @param[in]     session Current session.
 /// @param[in,out] actions Receives the chosen actions.
-static void drawMenus( const Session &session, MenuActions &actions ) {
+void drawMenus( const Session &session, MenuActions &actions ) {
     pushMenuStyle();
     if ( !ImGui::BeginMainMenuBar() ) {
         popMenuStyle();
@@ -165,7 +171,7 @@ static void drawMenus( const Session &session, MenuActions &actions ) {
 /// @brief Runs the one build, run or debug action chosen, in that priority.
 /// @param[in,out] session Session to act on.
 /// @param[in]     actions Collected actions.
-static void runProgramActions( Session &session, const MenuActions &actions ) {
+void runProgramActions( Session &session, const MenuActions &actions ) {
     if ( actions.run ) {
         session.run();
     } else if ( actions.debugContinue ) {
@@ -181,7 +187,7 @@ static void runProgramActions( Session &session, const MenuActions &actions ) {
 ///        first if it has none.
 /// @param[in,out] session Session to act on.
 /// @param[in]     actions Collected actions.
-static void runActions( Session &session, const MenuActions &actions ) {
+void runActions( Session &session, const MenuActions &actions ) {
     if ( actions.zoomIn ) {
         zoomCode( 2.0f );
     }
@@ -251,6 +257,8 @@ static void runActions( Session &session, const MenuActions &actions ) {
     }
     runProgramActions( session, actions );
 }
+
+} // anonymous namespace
 
 MenuActions drawMenuBar( const Session &session ) {
     MenuActions actions = readShortcuts();
