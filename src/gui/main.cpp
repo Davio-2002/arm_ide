@@ -62,8 +62,7 @@ int main( int argc, char **argv ) {
     openStartupFile( argc, argv );
 
     while ( !quitRequested ) {
-        bool busy = session.isProgramBusy() || isTerminalBusy();
-        glfwWaitEventsTimeout( busy ? 0.001 : 0.1 );
+        waitForNextFrame( session.isProgramBusy() || isTerminalBusy() );
         session.update();
         updateTerminalView();
         std::string droppedFile = takeDroppedFile();

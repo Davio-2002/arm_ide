@@ -14,6 +14,12 @@ void setupImGui( GLFWwindow *window );
 /// @brief Destroys ImGui, the window and GLFW.
 void shutdownWindow( GLFWwindow *window );
 
+/// @brief Waits for input, or until the next frame is due: at once while busy or just after
+///        input, otherwise after the idle wait.
+/// @param[in] busy True while something outside the window changes (program, debugger,
+///                 terminal output).
+void waitForNextFrame( bool busy );
+
 /// @brief Starts a new ImGui frame.
 void beginFrame();
 

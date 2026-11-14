@@ -54,6 +54,7 @@ To decide where code goes, ask: *would another frontend need this?* If yes, it i
 ## One frame
 
 ```
+waitForNextFrame( busy )    input, a window event, or the next frame is due
 session.update()            program output, debugger stop replies
 updateTerminalView()        shell output
 drawMenuBar / drawStatusBar / drawPanels
@@ -66,6 +67,12 @@ drawDialogs()               a dialog's answer runs its callback
 Drawing gets a `const Session &`. Everything that changes the session goes through
 `requestCommand` or `requestAction` (`gui/commands.h`), so no panel sees a half-changed session
 and every change happens in one place. Requests are dropped while a dialog is open.
+
+`waitForNextFrame` (`gui/window.cpp`) keeps an idle IDE asleep. While a program, the debugger
+or the terminal is busy, and for 0.5 s after input, frames run at the display rate. Otherwise it
+waits up to 0.4 s (the caret blink, shell output). Under Wayland the window's own protocol
+traffic ends a GLFW wait at once, so the wait loops until the deadline unless ImGui got input or
+a resize, redraw, close or drop arrived.
 
 ## Documents and text
 

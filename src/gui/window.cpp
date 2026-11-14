@@ -2,7 +2,9 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <imgui_internal.h>
 
+#include <chrono>
 #include <initializer_list>
 #include <utility>
 #include <vector>
@@ -15,6 +17,18 @@
 namespace {
 
 std::string droppedFilePath;
+
+/// After input every frame is drawn for a while: ImGui answers some input a frame late, and
+/// the autocomplete popup and tooltips appear after a delay.
+const auto inputSettleTime = std::chrono::milliseconds( 500 );
+
+/// Time between idle frames: the caret blink (0.8 s on, 0.4 s off) and shell output.
+const auto idleWait = std::chrono::milliseconds( 400 );
+
+std::chrono::steady_clock::time_point lastInput;
+
+/// Set by window events that need a frame but are not ImGui input: resize, redraw, close, drop.
+bool windowEventPending = false;
 
 /// @brief Sets the embedded window icon in 32, 64, 128 and 256 pixel sizes.
 ///
@@ -61,7 +75,16 @@ void focusCallback( GLFWwindow *window, int focused ) {
 void dropCallback( GLFWwindow *, int count, const char **paths ) {
     if ( count > 0 ) {
         droppedFilePath = paths[0];
+        windowEventPending = true;
     }
+}
+
+void windowEventCallback( GLFWwindow * ) {
+    windowEventPending = true;
+}
+
+void framebufferSizeCallback( GLFWwindow *, int, int ) {
+    windowEventPending = true;
 }
 
 } // anonymous namespace
@@ -115,6 +138,9 @@ void setupImGui( GLFWwindow *window ) {
     glfwSetScrollCallback( window, scrollCallback );
     glfwSetWindowFocusCallback( window, focusCallback );
     glfwSetDropCallback( window, dropCallback );
+    glfwSetWindowRefreshCallback( window, windowEventCallback );
+    glfwSetWindowCloseCallback( window, windowEventCallback );
+    glfwSetFramebufferSizeCallback( window, framebufferSizeCallback );
 }
 
 void shutdownWindow( GLFWwindow *window ) {
@@ -123,6 +149,28 @@ void shutdownWindow( GLFWwindow *window ) {
     ImGui::DestroyContext();
     glfwDestroyWindow( window );
     glfwTerminate();
+}
+
+/// Under Wayland the window's own protocol traffic (frame callbacks, buffer releases) ends a
+/// GLFW wait at once, so an idle wait goes on until the deadline unless input or a window
+/// event arrived.
+void waitForNextFrame( bool busy ) {
+    using Clock = std::chrono::steady_clock;
+    const ImGuiContext &context = *ImGui::GetCurrentContext();
+    Clock::time_point now = Clock::now();
+    if ( busy || now - lastInput < inputSettleTime ) {
+        glfwWaitEventsTimeout( 0.001 );
+    } else {
+        Clock::time_point deadline = now + idleWait;
+        while ( now < deadline && context.InputEventsQueue.empty() && !windowEventPending ) {
+            glfwWaitEventsTimeout( std::chrono::duration<double>( deadline - now ).count() );
+            now = Clock::now();
+        }
+    }
+    if ( !context.InputEventsQueue.empty() ) {
+        lastInput = Clock::now();
+    }
+    windowEventPending = false;
 }
 
 void beginFrame() {
