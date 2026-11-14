@@ -2,8 +2,10 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <memory>
-#include <set>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include <app/completion.h>
@@ -27,6 +29,11 @@ struct EditorBuffer {
     TextEditor editor;
     int shownLineMarksVersion = -1;
     bool shownLineMarksOfProgram = false;
+    /// Edit versions last looked at for the header names popup and the header declarations.
+    size_t headerNamesCheckedVersion = 0;
+    size_t declarationsCheckedVersion = 0;
+    /// Frame after which the header names popup opens; 0 when none is waiting.
+    int headerNamesFrame = 0;
 };
 
 std::vector<std::unique_ptr<EditorBuffer>> buffers;
@@ -121,32 +128,53 @@ void drawLineDecoration( TextEditor::Decorator &decorator ) {
     }
 }
 
-/// @brief Autocomplete callback: suggests the language's words and the document's identifiers
-///        that start with the typed term.
+/// @brief Autocomplete callback: suggests the words of the document's language and its
+///        identifiers that start with the typed term.
 /// @param[in,out] state Typed term in, suggestions out.
 void suggestCompletions( TextEditor::AutoCompleteState &state ) {
-    const TextEditor::Language &language = *drawingBuffer->editor.GetLanguage();
-    std::set<std::string> languageWords;
-    languageWords.insert( language.keywords.begin(), language.keywords.end() );
-    languageWords.insert( language.declarations.begin(), language.declarations.end() );
-    languageWords.insert( language.identifiers.begin(), language.identifiers.end() );
     std::vector<std::string> documentWords;
     drawingBuffer->editor.IterateIdentifiers(
         [&documentWords]( const std::string &word ) { documentWords.push_back( word ); } );
-    state.suggestions =
-        completeWord( state.searchTerm, languageWords, documentWords, language.caseSensitive );
+    if ( sourceLanguage( drawingBuffer->path ) != SourceLanguage::C ) {
+        state.suggestions = completeAssembly( state.searchTerm, documentWords );
+        return;
+    }
+    std::string line = drawingBuffer->editor.GetLineText( state.searchTermEnd.line );
+    std::string folder = std::filesystem::path( drawingBuffer->path ).parent_path();
+    if ( std::optional<IncludeCompletion> include =
+             completeInclude( line, state.searchTermEnd.index, folder ) ) {
+        state.suggestions = include->names;
+        state.replacementStart.index = include->start;
+        state.replacementEnd.index = include->end;
+        return;
+    }
+    if ( std::optional<std::vector<std::string>> directives =
+             completeDirective( line, state.searchTermEnd.index ) ) {
+        state.suggestions = *directives;
+        return;
+    }
+    if ( state.searchTerm.empty() ) {
+        state.suggestions.clear();
+        return;
+    }
+    for ( const Document &document : drawingSession->documents() ) {
+        if ( document.id == drawingBuffer->documentId ) {
+            state.suggestions = completeC( state.searchTerm, document.declarations, documentWords );
+        }
+    }
 }
 
 /// @brief Picks the language from the path, as the build does.
 ///
-/// In assembly a '.' is part of a word (directives, b.cond) and starts autocomplete.
+/// In assembly a '.' is part of a word (directives, b.cond) and starts autocomplete; in C a
+/// '#' starts it, for the directive.
 /// @param[in,out] buffer Buffer to configure.
 void setLanguage( EditorBuffer &buffer ) {
     bool isC = sourceLanguage( buffer.path ) == SourceLanguage::C;
     buffer.editor.SetLanguage( isC ? cLanguage() : aarch64Language() );
 
     TextEditor::AutoCompleteConfig autoComplete;
-    autoComplete.triggerCharacters = isC ? "" : ".";
+    autoComplete.triggerCharacters = isC ? "#" : ".";
     autoComplete.wordCharacters = isC ? "" : ".";
     autoComplete.callback = suggestCompletions;
     buffer.editor.SetAutoCompleteConfig( &autoComplete );
@@ -165,6 +193,8 @@ EditorBuffer *addBuffer( const Document &document ) {
     buffer->editor.SetLineDecorator( 2, drawLineDecoration );
     setLanguage( *buffer );
     buffer->editor.SetText( document.diskText );
+    buffer->headerNamesCheckedVersion = buffer->editor.GetUndoIndex();
+    buffer->declarationsCheckedVersion = buffer->editor.GetUndoIndex();
     buffers.push_back( std::move( buffer ) );
     return buffers.back().get();
 }
@@ -230,6 +260,57 @@ void drawDocumentTabs( const Session &session ) {
     ImGui::NewLine();
 }
 
+/// @return True if the cursor's line is a preprocessor line, starting with '#'.
+bool onPreprocessorLine( const EditorBuffer &buffer ) {
+    std::string line = buffer.editor.GetLineText( buffer.editor.GetMainCursorPosition().line );
+    size_t start = line.find_first_not_of( " \t" );
+    return start != std::string::npos && line[start] == '#';
+}
+
+/// @brief Gives the session the text of an edited C buffer, to read its header declarations
+///        again if its preprocessor lines changed. Waits while the cursor is on a preprocessor
+///        line, so an #include is not compiled at every typed character.
+void updateDeclarations( Session &session, EditorBuffer &buffer ) {
+    size_t version = buffer.editor.GetUndoIndex();
+    if ( version == buffer.declarationsCheckedVersion ||
+         sourceLanguage( buffer.path ) != SourceLanguage::C || onPreprocessorLine( buffer ) ) {
+        return;
+    }
+    buffer.declarationsCheckedVersion = version;
+    session.updateDeclarations( buffer.documentId, buffer.editor.GetText() );
+}
+
+/// @brief Opens autocomplete when an edit leaves the cursor just after the '<' or '"' of a C
+///        #include line, so the header names show as soon as one is typed.
+///
+/// The editor has no call to open it, so its trigger shortcut (Ctrl+Space) is queued as input.
+/// That waits one frame: a popup still open closes only in the next one, and the editor
+/// ignores the shortcut while it is open.
+void openHeaderNames( EditorBuffer &buffer ) {
+    if ( buffer.headerNamesFrame != 0 && ImGui::GetFrameCount() > buffer.headerNamesFrame ) {
+        buffer.headerNamesFrame = 0;
+        ImGuiIO &io = ImGui::GetIO();
+        io.AddKeyEvent( ImGuiMod_Ctrl, true );
+        io.AddKeyEvent( ImGuiKey_Space, true );
+        io.AddKeyEvent( ImGuiKey_Space, false );
+        io.AddKeyEvent( ImGuiMod_Ctrl, false );
+    }
+
+    size_t version = buffer.editor.GetUndoIndex();
+    if ( version == buffer.headerNamesCheckedVersion ||
+         sourceLanguage( buffer.path ) != SourceLanguage::C ) {
+        return;
+    }
+    buffer.headerNamesCheckedVersion = version;
+    TextEditor::DocPos cursor = buffer.editor.GetMainCursorPosition();
+    std::string line = buffer.editor.GetLineText( cursor.line );
+    std::string folder = std::filesystem::path( buffer.path ).parent_path();
+    std::optional<IncludeCompletion> include = completeInclude( line, cursor.index, folder );
+    if ( include && include->start == cursor.index ) {
+        buffer.headerNamesFrame = ImGui::GetFrameCount();
+    }
+}
+
 } // anonymous namespace
 
 void syncEditorWithSession( Session &session ) {
@@ -248,6 +329,7 @@ void syncEditorWithSession( Session &session ) {
             setLanguage( *buffer );
         }
         session.setDocumentVersion( document.id, buffer->editor.GetUndoIndex() );
+        updateDeclarations( session, *buffer );
         buffer->editor.SetReadOnlyEnabled( session.isDebugging() );
         showLineMarks( *buffer, session );
     }
@@ -271,6 +353,7 @@ void drawEditorPanel( const Session &session ) {
         ImGui::PushID( drawingBuffer );
         drawingBuffer->editor.SetPalette( editorPalette() );
         drawingBuffer->editor.Render( "##code" );
+        openHeaderNames( *drawingBuffer );
         ImGui::PopID();
         ImGui::PopFont();
     }

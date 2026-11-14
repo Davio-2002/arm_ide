@@ -224,6 +224,7 @@ TextEditor::Palette editorPalette() {
     set( TextEditor::Color::identifier, colorScheme.identifier );
     set( TextEditor::Color::knownIdentifier, colorScheme.knownIdentifier );
     set( TextEditor::Color::comment, colorScheme.comment );
+    set( TextEditor::Color::customColor1, colorScheme.headerName );
     set( TextEditor::Color::background, colorScheme.background );
     set( TextEditor::Color::cursor, colorScheme.text );
     set( TextEditor::Color::selection, colorScheme.textSelection );

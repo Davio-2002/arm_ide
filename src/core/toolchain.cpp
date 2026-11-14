@@ -59,7 +59,7 @@ std::string crossTool( const std::string &name ) {
         "aarch64-linux-gnu-",      "aarch64-unknown-linux-gnu-", "aarch64-suse-linux-",
         "aarch64-none-linux-gnu-", "aarch64-linux-musl-",        "aarch64-alpine-linux-musl-",
     };
-    for ( const char *prefix : prefixes ) {
+    for ( const auto* prefix : prefixes ) {
         if ( isInPath( std::string( prefix ) + "as" ) ) {
             return prefix + name;
         }

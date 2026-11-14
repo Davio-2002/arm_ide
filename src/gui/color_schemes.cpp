@@ -35,6 +35,7 @@ const ColorScheme colorSchemeTable[] = {
         .identifier = IM_COL32( 86, 168, 245, 255 ),
         .knownIdentifier = IM_COL32( 199, 125, 187, 255 ),
         .comment = IM_COL32( 122, 126, 133, 255 ),
+        .headerName = IM_COL32( 230, 98, 146, 255 ),
     },
     {
         .name = "Islands Light",
@@ -66,6 +67,7 @@ const ColorScheme colorSchemeTable[] = {
         .identifier = IM_COL32( 0, 98, 122, 255 ),
         .knownIdentifier = IM_COL32( 135, 16, 148, 255 ),
         .comment = IM_COL32( 140, 140, 140, 255 ),
+        .headerName = IM_COL32( 194, 24, 91, 255 ),
     },
     // Catppuccin, https://github.com/catppuccin/catppuccin, MIT licence.
     {
@@ -98,6 +100,7 @@ const ColorScheme colorSchemeTable[] = {
         .identifier = IM_COL32( 137, 180, 250, 255 ),
         .knownIdentifier = IM_COL32( 148, 226, 213, 255 ),
         .comment = IM_COL32( 147, 153, 178, 255 ),
+        .headerName = IM_COL32( 243, 139, 168, 255 ),
     },
     {
         .name = "Catppuccin Latte",
@@ -129,6 +132,7 @@ const ColorScheme colorSchemeTable[] = {
         .identifier = IM_COL32( 30, 102, 245, 255 ),
         .knownIdentifier = IM_COL32( 23, 146, 153, 255 ),
         .comment = IM_COL32( 124, 127, 147, 255 ),
+        .headerName = IM_COL32( 210, 15, 57, 255 ),
     },
     // Gruvbox, https://github.com/morhetz/gruvbox, MIT licence.
     {
@@ -161,6 +165,7 @@ const ColorScheme colorSchemeTable[] = {
         .identifier = IM_COL32( 131, 165, 152, 255 ),
         .knownIdentifier = IM_COL32( 250, 189, 47, 255 ),
         .comment = IM_COL32( 146, 131, 116, 255 ),
+        .headerName = IM_COL32( 234, 105, 145, 255 ),
     },
     {
         .name = "Gruvbox Light",
@@ -192,6 +197,7 @@ const ColorScheme colorSchemeTable[] = {
         .identifier = IM_COL32( 7, 102, 120, 255 ),
         .knownIdentifier = IM_COL32( 181, 118, 20, 255 ),
         .comment = IM_COL32( 146, 131, 116, 255 ),
+        .headerName = IM_COL32( 177, 28, 86, 255 ),
     },
 };
 

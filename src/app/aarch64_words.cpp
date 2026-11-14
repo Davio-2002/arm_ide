@@ -1943,3 +1943,21 @@ const std::span<const char *const> aarch64Conditions = conditions;
 const std::span<const char *const> aarch64Directives = directives;
 const std::span<const char *const> aarch64OperandKeywords = operandKeywords;
 const std::span<const char *const> aarch64SystemRegisters = systemRegisters;
+
+const std::vector<std::string> &aarch64Registers() {
+    static const std::vector<std::string> registers = [] {
+        std::vector<std::string> names = { "sp", "wsp", "xzr", "wzr", "lr", "fp" };
+        for ( int i = 0; i <= 31; i++ ) {
+            std::string number = std::to_string( i );
+            for ( const char *prefix : { "v", "q", "d", "s", "h", "b" } ) {
+                names.push_back( prefix + number );
+            }
+            if ( i <= 30 ) {
+                names.push_back( "x" + number );
+                names.push_back( "w" + number );
+            }
+        }
+        return names;
+    }();
+    return registers;
+}

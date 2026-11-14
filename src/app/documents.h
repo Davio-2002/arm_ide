@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include <core/header_declarations.h>
+
 /// @brief One open file, or an untitled one.
 ///
 /// The frontend keeps the text being edited, one buffer per document id, and reports an edit
@@ -22,6 +24,11 @@ struct Document {
     /// Version at the last open or save. Unset until the frontend reports the first version,
     /// which then becomes the saved one.
     std::optional<size_t> savedVersion;
+    /// Functions and macros of the headers a C document includes, as of the last open or save.
+    std::vector<Declaration> declarations;
+    /// Path and preprocessor lines the declarations were read from, to read them only again
+    /// when these change.
+    std::string declarationsSource;
 };
 
 /// @param[in] document Document to check.

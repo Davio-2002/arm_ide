@@ -66,6 +66,7 @@ pkg_check_modules(VTERM REQUIRED IMPORTED_TARGET vterm)
 add_library(arm_ide_core STATIC
     src/core/process.cpp
     src/core/toolchain.cpp
+    src/core/header_declarations.cpp
     src/core/gdb_remote.cpp
     src/core/debugger.cpp
     src/core/terminal.cpp)

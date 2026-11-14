@@ -7,6 +7,7 @@
 
 #include <app/documents.h>
 #include <app/session.h>
+#include <core/toolchain.h>
 
 namespace {
 
@@ -15,6 +16,25 @@ const size_t maxRecentFiles = 10;
 /// @return Path of the file holding the recent files, one per line.
 std::filesystem::path recentFilesPath() {
     return configDirectory() / "recent_files";
+}
+
+/// @brief Reads the declarations of the headers a C document includes, unless its path and
+///        preprocessor lines are those they were read from; other documents have none.
+/// @param[in,out] document Document to update.
+/// @param[in]     text     Its text, saved or being edited.
+void readDeclarations( Document &document, const std::string &text ) {
+    bool isC = !document.path.empty() && sourceLanguage( document.path ) == SourceLanguage::C;
+    std::string directives = isC ? preprocessorLines( text ) : "";
+    std::string source = isC ? document.path + '\n' + directives : "";
+    if ( source == document.declarationsSource ) {
+        return;
+    }
+    document.declarationsSource = source;
+    document.declarations.clear();
+    if ( isC ) {
+        document.declarations =
+            headerDeclarations( directives, std::filesystem::path( document.path ).parent_path() );
+    }
 }
 
 } // anonymous namespace
@@ -148,6 +168,12 @@ void Session::setDocumentVersion( int id, size_t version ) {
     }
 }
 
+void Session::updateDeclarations( int id, const std::string &text ) {
+    if ( Document *document = findDocument( id ) ) {
+        readDeclarations( *document, text );
+    }
+}
+
 std::vector<std::string> Session::unsavedDocumentNames() const {
     std::vector<std::string> names;
     for ( const Document &document : openDocuments ) {
@@ -185,6 +211,7 @@ int Session::addDocument( const std::string &path, const std::string &text ) {
     document.id = nextDocumentId++;
     document.path = path;
     document.diskText = text;
+    readDeclarations( document, text );
     openDocuments.push_back( document );
     if ( activeDocumentId == 0 ) {
         activeDocumentId = document.id;
@@ -209,6 +236,7 @@ bool Session::saveActiveDocument( const std::string &path, const CommandInput &i
     }
     document.path = savedPath;
     document.diskText = input.text;
+    readDeclarations( document, input.text );
     document.version = input.version;
     document.savedVersion = input.version;
     status = "Saved " + path;

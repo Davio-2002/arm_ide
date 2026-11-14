@@ -1,20 +1,55 @@
 #pragma once
 
-#include <set>
+#include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
-/// @brief Finds the words that complete a typed term, shortest first.
+#include <core/header_declarations.h>
+
+/// @brief Completes a word of AArch64 assembly: mnemonics, conditional branches, directives,
+///        registers, operand keywords and the document's labels.
 ///
-/// In a case-insensitive language (assembly) the term matches ignoring case, and a term typed
-/// in upper case gets the language words in upper case.
+/// Case is ignored, and a term typed in upper case gets the assembly words in upper case.
 /// @param[in] term          Typed start of a word.
-/// @param[in] languageWords Mnemonics, directives, registers or keywords of the language;
-///                          lower case when the language ignores case.
 /// @param[in] documentWords Identifiers found in the document.
-/// @param[in] caseSensitive True if the language tells upper and lower case apart (C).
-/// @return Words longer than the term that start with it.
-std::vector<std::string> completeWord( const std::string &term,
-                                       const std::set<std::string> &languageWords,
-                                       const std::vector<std::string> &documentWords,
-                                       bool caseSensitive );
+/// @return Words longer than the term that start with it, shortest first.
+std::vector<std::string> completeAssembly( const std::string &term,
+                                           const std::vector<std::string> &documentWords );
+
+/// @brief Completes a word of C: keywords, the functions and macros of the included headers
+///        and the document's identifiers.
+/// @param[in] term          Typed start of a word; matched ignoring case.
+/// @param[in] declarations  Declarations of the headers the document includes.
+/// @param[in] documentWords Identifiers found in the document.
+/// @return Words longer than the term that start with it, shortest first.
+std::vector<std::string> completeC( const std::string &term,
+                                    const std::vector<Declaration> &declarations,
+                                    const std::vector<std::string> &documentWords );
+
+/// @brief Completes the directive word after the '#' that starts a C line, most used first.
+///
+/// The text to insert ends with the space before the argument: "include ", "define ", "endif".
+/// @param[in] line   Text of the line.
+/// @param[in] column Cursor column in @p line.
+/// @return Nothing if the cursor is not in the directive word of a line starting with '#'.
+std::optional<std::vector<std::string>> completeDirective( const std::string &line, size_t column );
+
+/// @brief Header names that complete the one typed in an #include line.
+struct IncludeCompletion {
+    /// Columns of the header name, after '<' or '"' up to the closing one or the line end: the
+    /// part a picked name replaces.
+    size_t start = 0;
+    size_t end = 0;
+    /// Header paths, a folder with a trailing '/', shortest first.
+    std::vector<std::string> names;
+};
+
+/// @brief Completes the header name of a C #include line: the .h files and folders in the
+///        compiler's include folders for <...>, in the source's folder for "...".
+/// @param[in] line      Text of the line.
+/// @param[in] column    Cursor column in @p line.
+/// @param[in] directory Folder of the source file.
+/// @return Nothing if the cursor is not in the header name of an #include line.
+std::optional<IncludeCompletion> completeInclude( const std::string &line, size_t column,
+                                                  const std::string &directory );

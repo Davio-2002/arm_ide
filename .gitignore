@@ -6,3 +6,5 @@ examples/squares
 CLAUDE.md
 .vscode/
 AGENTS.md
+.zed/
+build-debug/

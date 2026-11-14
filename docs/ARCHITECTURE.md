@@ -24,6 +24,7 @@ To decide where code goes, ask: *would another frontend need this?* If yes, it i
 |---|---|
 | `process` | Start, poll, write to and kill child processes; run a command to the end. |
 | `toolchain` | Find the cross tools, build a source (`.s`: `as` + `ld`, `.c`: `gcc -static`), parse their messages, read the DWARF line table and symbols. |
+| `header_declarations` | The functions and macros a C file's headers declare, from `gcc -aux-info` and `gcc -E -dM` over its preprocessor lines, and the compiler's `#include <...>` folders (for autocomplete). |
 | `gdb_remote` | The GDB Remote Serial Protocol transport: packets, checksums, hex. No debugging logic. |
 | `debugger` | A program under `qemu-aarch64 -g`: breakpoints, continue, line step, registers, memory. `PendingStop` says what happens at the next trap. |
 | `terminal` | The user's shell on a pty, its screen kept by libvterm. |
@@ -35,7 +36,7 @@ To decide where code goes, ask: *would another frontend need this?* If yes, it i
 | `commands.h` | `Command` (every user command), `CommandInput` (what the frontend gives a command), `PathRequest`. |
 | `session` | The one `Session` class: documents, commands, build, run, debug, console output, line marks, `PausedState`. |
 | `documents` | The `Document` struct, names and display of paths, the config directory, recent files. |
-| `completion` | Which words complete a typed term. |
+| `completion` | Which words complete a typed term, per language: `completeAssembly`, `completeC` (C also gets the document's header declarations, read at open, save and when an edit changed the preprocessor lines), `completeDirective` for the word after a line's leading `#` (typing `#` starts autocomplete in C), and `completeInclude` for the header name of an `#include` line. |
 | `aarch64_words` | Generated lists of every mnemonic, directive and register the assembler accepts. |
 
 ### gui/
@@ -47,7 +48,7 @@ To decide where code goes, ask: *would another frontend need this?* If yes, it i
 | `commands` | Shortcuts table, menu items and buttons for commands, the request queue. |
 | `menu`, `toolbar`, `statusbar` | The top bar and the bottom bar. |
 | `dialogs`, `appearance` | Modal popups: file browser, discard changes, Appearance. |
-| `syntax` | The editor's AArch64 and C language definitions. |
+| `syntax` | The editor's AArch64 and C language definitions. C colours `#include`/`#define` words, the header name after `#include` (scheme colour `headerName`, palette slot `customColor1`) and strings itself (`tokenizeC`), instead of one colour for the whole preprocessor line. |
 | `widgets` | Shared buttons and pill tabs. |
 | `panels/` | One file per panel; `panels.cpp` lists them in one table. |
 

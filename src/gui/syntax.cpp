@@ -1,5 +1,6 @@
 #include <iterator>
 #include <string>
+#include <utility>
 
 #include <app/aarch64_words.h>
 #include <gui/syntax.h>
@@ -212,6 +213,57 @@ const char *const libraryNames[] = {
     "main",
 };
 
+/// True after an #include directive was coloured: the next token on its line is the header name.
+bool headerNameExpected = false;
+
+/// @brief Colours what the C language of the editor colours differently: a preprocessor
+///        directive word ("#include", "#define"), the header name after #include ("<stdio.h>",
+///        "mine.h") and double-quoted strings.
+///
+/// The editor would colour a whole preprocessor line alike, and a quoted header name as a
+/// string, so C leaves both to this tokenizer, which the editor calls token by token from the
+/// left of each line.
+/// @param[in]  start First character of the token.
+/// @param[in]  end   End of the line.
+/// @param[out] color Colour of the token found.
+/// @return End of the token, or @p start if it is none of these.
+TextEditor::Iterator tokenizeC( TextEditor::Iterator start, TextEditor::Iterator end,
+                                TextEditor::Color &color ) {
+    bool isHeaderName = std::exchange( headerNameExpected, false ) && start.hasPrevious();
+    TextEditor::Iterator token = start;
+    if ( *start == '#' ) {
+        token++;
+        while ( token < end && ( *token == ' ' || *token == '\t' ) ) {
+            token++;
+        }
+        std::string directive;
+        while ( token < end && ( ( *token >= 'a' && *token <= 'z' ) || *token == '_' ) ) {
+            directive += static_cast<char>( *token++ );
+        }
+        headerNameExpected = directive == "include" || directive == "include_next";
+        color = TextEditor::Color::preprocessor;
+        return token;
+    }
+    if ( *start == '"' || ( isHeaderName && *start == '<' ) ) {
+        ImWchar close = *start == '<' ? '>' : '"';
+        token++;
+        while ( token < end && *token != close ) {
+            if ( *token == '\\' && close == '"' ) {
+                token++;
+            }
+            if ( token < end ) {
+                token++;
+            }
+        }
+        if ( token < end ) {
+            token++;
+        }
+        color = isHeaderName ? TextEditor::Color::customColor1 : TextEditor::Color::string;
+        return token;
+    }
+    return start;
+}
+
 } // anonymous namespace
 
 const TextEditor::Language *aarch64Language() {
@@ -244,17 +296,7 @@ const TextEditor::Language *aarch64Language() {
     language.identifiers.insert( aarch64Conditions.begin(), aarch64Conditions.end() );
     language.identifiers.insert( aarch64OperandKeywords.begin(), aarch64OperandKeywords.end() );
     language.identifiers.insert( aarch64SystemRegisters.begin(), aarch64SystemRegisters.end() );
-    for ( int i = 0; i <= 31; i++ ) {
-        std::string number = std::to_string( i );
-        for ( const char *prefix : { "v", "q", "d", "s", "h", "b" } ) {
-            language.identifiers.insert( prefix + number );
-        }
-        if ( i <= 30 ) {
-            language.identifiers.insert( "x" + number );
-            language.identifiers.insert( "w" + number );
-        }
-    }
-    language.identifiers.insert( { "sp", "wsp", "xzr", "wzr", "lr", "fp" } );
+    language.identifiers.insert( aarch64Registers().begin(), aarch64Registers().end() );
 
     return &language;
 }
@@ -262,6 +304,9 @@ const TextEditor::Language *aarch64Language() {
 const TextEditor::Language *cLanguage() {
     static TextEditor::Language language = [] {
         TextEditor::Language c = *TextEditor::LookupLanguageByExtension( ".c" );
+        c.preprocess = 0;
+        c.hasDoubleQuotedStrings = false;
+        c.customTokenizer = tokenizeC;
         c.identifiers.insert( std::begin( libraryNames ), std::end( libraryNames ) );
         return c;
     }();

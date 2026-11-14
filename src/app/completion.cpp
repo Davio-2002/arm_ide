@@ -1,7 +1,13 @@
 #include <algorithm>
 #include <cctype>
+#include <cstring>
+#include <filesystem>
+#include <iterator>
+#include <set>
 
+#include <app/aarch64_words.h>
 #include <app/completion.h>
+#include <core/header_declarations.h>
 
 namespace {
 
@@ -24,8 +30,16 @@ std::string withCase( std::string word, int ( *convert )( int ) ) {
     return word;
 }
 
-} // anonymous namespace
-
+/// @brief Finds the words that complete a typed term, shortest first.
+///
+/// In a case-insensitive language (assembly) a term typed in upper case gets the language
+/// words in upper case, and a document word that only differs in case from a language word
+/// is left out.
+/// @param[in] term          Typed start of a word.
+/// @param[in] languageWords Words of the language; lower case when it ignores case.
+/// @param[in] documentWords Identifiers found in the document.
+/// @param[in] caseSensitive True if the language tells upper and lower case apart (C).
+/// @return Words longer than the term that start with it, ignoring case.
 std::vector<std::string> completeWord( const std::string &term,
                                        const std::set<std::string> &languageWords,
                                        const std::vector<std::string> &documentWords,
@@ -52,4 +66,160 @@ std::vector<std::string> completeWord( const std::string &term,
         return a.size() < b.size();
     } );
     return suggestions;
+}
+
+/// @return The words of AArch64 assembly, in lower case.
+const std::set<std::string> &assemblyWords() {
+    static const std::set<std::string> words = [] {
+        std::set<std::string> words( aarch64Mnemonics.begin(), aarch64Mnemonics.end() );
+        for ( const char *condition : aarch64Conditions ) {
+            words.insert( std::string( "b." ) + condition );
+        }
+        words.insert( aarch64Conditions.begin(), aarch64Conditions.end() );
+        words.insert( aarch64Directives.begin(), aarch64Directives.end() );
+        words.insert( aarch64OperandKeywords.begin(), aarch64OperandKeywords.end() );
+        words.insert( aarch64SystemRegisters.begin(), aarch64SystemRegisters.end() );
+        words.insert( aarch64Registers().begin(), aarch64Registers().end() );
+        return words;
+    }();
+    return words;
+}
+
+/// C keywords and type words, as in the editor's C language.
+const char *const cKeywords[] = {
+    "auto",       "break",     "case",           "char",
+    "const",      "continue",  "default",        "do",
+    "double",     "else",      "enum",           "extern",
+    "float",      "for",       "goto",           "if",
+    "inline",     "int",       "long",           "register",
+    "restrict",   "return",    "short",          "signed",
+    "sizeof",     "static",    "struct",         "switch",
+    "typedef",    "union",     "unsigned",       "void",
+    "volatile",   "while",     "_Alignas",       "_Alignof",
+    "_Atomic",    "_Bool",     "_Complex",       "_Generic",
+    "_Imaginary", "_Noreturn", "_Static_assert", "_Thread_local",
+};
+
+/// C preprocessor directives, most used first, each with the space before its argument.
+const char *const cDirectives[] = {
+    "include ", "define ",       "ifdef ",   "ifndef ",   "if ",    "else",
+    "elif ",    "endif",         "undef ",   "pragma ",   "error ", "warning ",
+    "line ",    "include_next ", "elifdef ", "elifndef ", "embed ",
+};
+
+/// @brief Finds where the header name of an #include line starts.
+/// @param[in] line Text of the line.
+/// @return Index of its '<' or '"', or nothing if the line is no #include.
+std::optional<size_t> headerNameStart( const std::string &line ) {
+    size_t position = line.find_first_not_of( " \t" );
+    if ( position == std::string::npos || line[position] != '#' ) {
+        return std::nullopt;
+    }
+    position = line.find_first_not_of( " \t", position + 1 );
+    for ( const char *directive : { "include_next", "include" } ) {
+        if ( position != std::string::npos &&
+             line.compare( position, std::strlen( directive ), directive ) == 0 ) {
+            position = line.find_first_not_of( " \t", position + std::strlen( directive ) );
+            if ( position != std::string::npos &&
+                 ( line[position] == '<' || line[position] == '"' ) ) {
+                return position;
+            }
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
+}
+
+/// @brief Lists the headers and folders in one folder of each search folder.
+/// @param[in] searchFolders Folders searched for headers.
+/// @param[in] typed         Typed path: its folder part picks the folder, its last part
+///                          starts the names.
+/// @return Paths of the .h files and folders (with a trailing '/') that start with @p typed.
+std::set<std::string> headerPaths( const std::vector<std::string> &searchFolders,
+                                   const std::string &typed ) {
+    size_t slash = typed.rfind( '/' );
+    std::string folder = slash == std::string::npos ? "" : typed.substr( 0, slash + 1 );
+    std::string namePrefix = typed.substr( folder.size() );
+    std::set<std::string> paths;
+    for ( const std::string &searchFolder : searchFolders ) {
+        std::error_code error;
+        for ( const auto &entry :
+              std::filesystem::directory_iterator( searchFolder + "/" + folder, error ) ) {
+            std::string name = entry.path().filename();
+            if ( !name.starts_with( namePrefix ) || name.starts_with( '.' ) ) {
+                continue;
+            }
+            if ( entry.is_directory( error ) ) {
+                paths.insert( folder + name + "/" );
+            } else if ( entry.path().extension() == ".h" ) {
+                paths.insert( folder + name );
+            }
+        }
+    }
+    return paths;
+}
+
+} // anonymous namespace
+
+std::vector<std::string> completeAssembly( const std::string &term,
+                                           const std::vector<std::string> &documentWords ) {
+    return completeWord( term, assemblyWords(), documentWords, false );
+}
+
+std::vector<std::string> completeC( const std::string &term,
+                                    const std::vector<Declaration> &declarations,
+                                    const std::vector<std::string> &documentWords ) {
+    std::set<std::string> words( std::begin( cKeywords ), std::end( cKeywords ) );
+    for ( const Declaration &declaration : declarations ) {
+        words.insert( declaration.name );
+    }
+    return completeWord( term, words, documentWords, true );
+}
+
+std::optional<IncludeCompletion> completeInclude( const std::string &line, size_t column,
+                                                  const std::string &directory ) {
+    std::optional<size_t> open = headerNameStart( line );
+    if ( !open || column <= *open || column > line.size() ) {
+        return std::nullopt;
+    }
+    char close = line[*open] == '<' ? '>' : '"';
+    std::string typed = line.substr( *open + 1, column - *open - 1 );
+    if ( typed.contains( close ) ) {
+        return std::nullopt;
+    }
+    const std::vector<std::string> &searchFolders =
+        close == '>' ? systemIncludeDirectories() : std::vector<std::string>{ directory };
+    std::set<std::string> paths = headerPaths( searchFolders, typed );
+
+    IncludeCompletion completion;
+    completion.start = *open + 1;
+    completion.end = std::min( line.find( close, column ), line.size() );
+    completion.names.assign( paths.begin(), paths.end() );
+    std::ranges::stable_sort( completion.names, []( const std::string &a, const std::string &b ) {
+        return a.size() < b.size();
+    } );
+    return completion;
+}
+
+std::optional<std::vector<std::string>> completeDirective( const std::string &line,
+                                                           size_t column ) {
+    size_t hash = line.find_first_not_of( " \t" );
+    if ( hash == std::string::npos || line[hash] != '#' || column <= hash ||
+         column > line.size() ) {
+        return std::nullopt;
+    }
+    size_t wordStart = std::min( line.find_first_not_of( " \t", hash + 1 ), column );
+    std::string typed = line.substr( wordStart, column - wordStart );
+    if ( !std::ranges::all_of( typed, []( char c ) { return std::islower( c ) || c == '_'; } ) ) {
+        return std::nullopt;
+    }
+    std::vector<std::string> directives;
+    for ( const char *directive : cDirectives ) {
+        std::string word = directive;
+        bool complete = word.size() > typed.size() && word[typed.size()] == ' ';
+        if ( word.size() > typed.size() && word.starts_with( typed ) && !complete ) {
+            directives.push_back( word );
+        }
+    }
+    return directives;
 }

@@ -85,6 +85,11 @@ class Session {
     /// @param[in] version Edit version, equal to an earlier one when the text is the same again.
     void setDocumentVersion( int id, size_t version );
 
+    /// @brief Reads a C document's header declarations again from its edited text, if its
+    ///        preprocessor lines changed since they were read.
+    /// @param[in] text Text being edited.
+    void updateDeclarations( int id, const std::string &text );
+
     /// @return Names of all documents with unsaved changes.
     std::vector<std::string> unsavedDocumentNames() const;
 

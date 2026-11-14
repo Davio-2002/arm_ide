@@ -16,6 +16,8 @@ struct ColorScheme {
     ImU32 error, warning, success, changedValue, breakpoint;
     ImU32 lineNumber, currentLineNumber, currentLine;
     ImU32 keyword, declaration, number, string, identifier, knownIdentifier, comment;
+    /// Header name of a C #include: <stdio.h>, "mine.h".
+    ImU32 headerName;
 };
 
 /// @brief Which of the two chosen schemes is used: the desktop's light or dark (System), or
