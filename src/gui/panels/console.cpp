@@ -1,6 +1,7 @@
 #include <imgui.h>
 
 #include <app/session.h>
+#include <gui/fonts.h>
 #include <gui/menu.h>
 #include <gui/panels/console.h>
 #include <gui/panels/editor.h>

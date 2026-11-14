@@ -6,28 +6,6 @@
 #include <core/process.h>
 #include <core/toolchain.h>
 
-std::string crossTool( const std::string &name ) {
-    static const char *const prefixes[] = {
-        "aarch64-linux-gnu-",      "aarch64-unknown-linux-gnu-", "aarch64-suse-linux-",
-        "aarch64-none-linux-gnu-", "aarch64-linux-musl-",        "aarch64-alpine-linux-musl-",
-    };
-    for ( const char *prefix : prefixes ) {
-        if ( isInPath( std::string( prefix ) + "as" ) ) {
-            return prefix + name;
-        }
-    }
-    return prefixes[0] + name;
-}
-
-std::string qemuProgram() {
-    for ( const char *program : { "qemu-aarch64", "qemu-aarch64-static" } ) {
-        if ( isInPath( program ) ) {
-            return program;
-        }
-    }
-    return "";
-}
-
 namespace {
 
 /// @brief Formats a command as it is shown in the build log.
@@ -70,6 +48,28 @@ Message parseToolOutputLine( const std::string &text, const std::string &sourceN
 }
 
 } // anonymous namespace
+
+std::string crossTool( const std::string &name ) {
+    static const char *const prefixes[] = {
+        "aarch64-linux-gnu-",      "aarch64-unknown-linux-gnu-", "aarch64-suse-linux-",
+        "aarch64-none-linux-gnu-", "aarch64-linux-musl-",        "aarch64-alpine-linux-musl-",
+    };
+    for ( const char *prefix : prefixes ) {
+        if ( isInPath( std::string( prefix ) + "as" ) ) {
+            return prefix + name;
+        }
+    }
+    return prefixes[0] + name;
+}
+
+std::string qemuProgram() {
+    for ( const char *program : { "qemu-aarch64", "qemu-aarch64-static" } ) {
+        if ( isInPath( program ) ) {
+            return program;
+        }
+    }
+    return "";
+}
 
 BuildResult buildProgram( const std::string &sourcePath ) {
     BuildResult build;

@@ -207,59 +207,6 @@ const ColorScheme *lightScheme = &schemes[1];
 const ColorScheme *scheme = darkScheme;
 std::optional<ImU32> customAccent;
 
-} // anonymous namespace
-
-const ColorScheme &currentScheme() {
-    return *scheme;
-}
-
-std::span<const ColorScheme> colorSchemes() {
-    return schemes;
-}
-
-const ColorScheme *findColorScheme( std::string_view name ) {
-    for ( const ColorScheme &candidate : schemes ) {
-        if ( name == candidate.name ) {
-            return &candidate;
-        }
-    }
-    return nullptr;
-}
-
-ThemeMode themeMode() {
-    return mode;
-}
-
-const ColorScheme &darkColorScheme() {
-    return *darkScheme;
-}
-
-const ColorScheme &lightColorScheme() {
-    return *lightScheme;
-}
-
-ImU32 withAlpha( ImU32 color, int alpha ) {
-    return ( color & ~IM_COL32_A_MASK ) | ( static_cast<ImU32>( alpha ) << IM_COL32_A_SHIFT );
-}
-
-ImU32 accentColor() {
-    return customAccent.value_or( scheme->accent );
-}
-
-bool hasCustomAccent() {
-    return customAccent.has_value();
-}
-
-ImU32 pausedLineColor() {
-    return withAlpha( accentColor(), 40 );
-}
-
-ImU32 accentFillColor() {
-    return ImAlphaBlendColors( scheme->background, withAlpha( accentColor(), 46 ) );
-}
-
-namespace {
-
 /// @param[in] color Packed colour.
 /// @return The colour as floats, as ImGuiStyle stores it.
 ImVec4 toVec4( ImU32 color ) {
@@ -345,16 +292,6 @@ void applyColors( ImGuiStyle &style ) {
     colors[ImGuiCol_NavCursor] = toVec4( accent );
 }
 
-} // anonymous namespace
-
-void applyTheme() {
-    ImGuiStyle &style = ImGui::GetStyle();
-    applySizes( style );
-    applyColors( style );
-}
-
-namespace {
-
 /// @brief Reads the desktop's light or dark setting from the XDG Desktop Portal
 ///        (`org.freedesktop.appearance color-scheme`), which GNOME, KDE and the GTK portal
 ///        provide.
@@ -388,6 +325,61 @@ void selectScheme() {
 }
 
 } // anonymous namespace
+
+const ColorScheme &currentScheme() {
+    return *scheme;
+}
+
+std::span<const ColorScheme> colorSchemes() {
+    return schemes;
+}
+
+const ColorScheme *findColorScheme( std::string_view name ) {
+    for ( const ColorScheme &candidate : schemes ) {
+        if ( name == candidate.name ) {
+            return &candidate;
+        }
+    }
+    return nullptr;
+}
+
+ThemeMode themeMode() {
+    return mode;
+}
+
+const ColorScheme &darkColorScheme() {
+    return *darkScheme;
+}
+
+const ColorScheme &lightColorScheme() {
+    return *lightScheme;
+}
+
+ImU32 withAlpha( ImU32 color, int alpha ) {
+    return ( color & ~IM_COL32_A_MASK ) | ( static_cast<ImU32>( alpha ) << IM_COL32_A_SHIFT );
+}
+
+ImU32 accentColor() {
+    return customAccent.value_or( scheme->accent );
+}
+
+bool hasCustomAccent() {
+    return customAccent.has_value();
+}
+
+ImU32 pausedLineColor() {
+    return withAlpha( accentColor(), 40 );
+}
+
+ImU32 accentFillColor() {
+    return ImAlphaBlendColors( scheme->background, withAlpha( accentColor(), 46 ) );
+}
+
+void applyTheme() {
+    ImGuiStyle &style = ImGui::GetStyle();
+    applySizes( style );
+    applyColors( style );
+}
 
 void setThemeMode( ThemeMode newMode ) {
     mode = newMode;

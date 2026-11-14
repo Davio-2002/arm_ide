@@ -5,6 +5,7 @@
 #include <string>
 
 #include <app/session.h>
+#include <gui/fonts.h>
 #include <gui/panels/memory.h>
 #include <gui/panels/panels.h>
 #include <gui/widgets.h>

@@ -74,6 +74,7 @@ target_link_libraries(arm_ide_core PUBLIC PkgConfig::VTERM util)
 add_executable(arm_ide
     src/main.cpp
     src/gui/window.cpp
+    src/gui/settings.cpp
     src/gui/dialogs.cpp
     src/gui/appearance.cpp
     src/gui/fonts.cpp

@@ -376,6 +376,24 @@ bool connectToQemu( Debugger &debugger, const std::string &path ) {
     return false;
 }
 
+/// @brief Removes and inserts breakpoints in QEMU so they match the given addresses.
+/// @param[in,out] debugger  Paused debugger.
+/// @param[in]     addresses New breakpoint addresses.
+void applyBreakpoints( Debugger &debugger, const std::set<uint64_t> &addresses ) {
+    std::string reply;
+    for ( uint64_t address : debugger.breakpoints ) {
+        if ( !addresses.contains( address ) ) {
+            request( debugger, "z0," + toHex( address ) + ",4", reply );
+        }
+    }
+    for ( uint64_t address : addresses ) {
+        if ( !debugger.breakpoints.contains( address ) ) {
+            request( debugger, "Z0," + toHex( address ) + ",4", reply );
+        }
+    }
+    debugger.breakpoints = addresses;
+}
+
 } // anonymous namespace
 
 bool startDebugger( Debugger &debugger, const std::string &executablePath,
@@ -410,28 +428,6 @@ bool startDebugger( Debugger &debugger, const std::string &executablePath,
     debugger.state = DebuggerState::Paused;
     return true;
 }
-
-namespace {
-
-/// @brief Removes and inserts breakpoints in QEMU so they match the given addresses.
-/// @param[in,out] debugger  Paused debugger.
-/// @param[in]     addresses New breakpoint addresses.
-void applyBreakpoints( Debugger &debugger, const std::set<uint64_t> &addresses ) {
-    std::string reply;
-    for ( uint64_t address : debugger.breakpoints ) {
-        if ( !addresses.contains( address ) ) {
-            request( debugger, "z0," + toHex( address ) + ",4", reply );
-        }
-    }
-    for ( uint64_t address : addresses ) {
-        if ( !debugger.breakpoints.contains( address ) ) {
-            request( debugger, "Z0," + toHex( address ) + ",4", reply );
-        }
-    }
-    debugger.breakpoints = addresses;
-}
-
-} // anonymous namespace
 
 void setBreakpointLines( Debugger &debugger, const std::set<int> &lines ) {
     std::set<uint64_t> addresses;

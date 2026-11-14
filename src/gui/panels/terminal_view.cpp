@@ -6,6 +6,7 @@
 #include <string>
 
 #include <app/session.h>
+#include <gui/fonts.h>
 #include <gui/menu.h>
 #include <gui/panels/terminal_view.h>
 #include <gui/theme.h>
@@ -73,14 +74,6 @@ void pasteClipboard( MenuActions &actions ) {
     const char *clipboard = ImGui::GetClipboardText();
     actions.terminalPaste += clipboard ? clipboard : "";
 }
-
-} // anonymous namespace
-
-void focusTerminalView() {
-    focused = true;
-}
-
-namespace {
 
 /// @brief Makes a terminal input with the modifiers held now.
 /// @param[in] key       Special key, or TerminalKey::None for a character.
@@ -354,6 +347,10 @@ void drawContextMenu( const Terminal &terminal, MenuActions &actions ) {
 }
 
 } // anonymous namespace
+
+void focusTerminalView() {
+    focused = true;
+}
 
 void drawTerminalView( const Session &session, MenuActions &actions ) {
     const Terminal &terminal = session.terminal;

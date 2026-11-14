@@ -84,38 +84,6 @@ void setFileName( const std::string &name ) {
     dialog.fileName[std::min( name.size(), sizeof( dialog.fileName ) - 1 )] = '\0';
 }
 
-} // anonymous namespace
-
-void askForFileToOpen( const std::string &directory,
-                       std::function<void( const std::string & )> onChosen ) {
-    dialog = Dialog();
-    dialog.kind = DialogKind::Open;
-    dialog.needsOpening = true;
-    dialog.onChosen = std::move( onChosen );
-    enterDirectory( directory );
-}
-
-void askForFileToSave( const std::string &suggestedPath,
-                       std::function<void( const std::string & )> onChosen ) {
-    std::filesystem::path path = cleanPath( suggestedPath );
-    dialog = Dialog();
-    dialog.kind = DialogKind::Save;
-    dialog.needsOpening = true;
-    dialog.onChosen = std::move( onChosen );
-    enterDirectory( path.parent_path() );
-    setFileName( path.filename().string() );
-}
-
-void askToDiscardChanges( const std::string &documentName, std::function<void()> onDiscard ) {
-    dialog = Dialog();
-    dialog.kind = DialogKind::Discard;
-    dialog.needsOpening = true;
-    dialog.message = "Discard unsaved changes in " + documentName + "?";
-    dialog.onDiscard = std::move( onDiscard );
-}
-
-namespace {
-
 /// @brief Opens a dialog that needs no arguments.
 /// @param[in] kind Dialog to open.
 void openDialog( DialogKind kind ) {
@@ -123,14 +91,6 @@ void openDialog( DialogKind kind ) {
     dialog.kind = kind;
     dialog.needsOpening = true;
 }
-
-} // anonymous namespace
-
-bool isDialogOpen() {
-    return dialog.kind != DialogKind::None;
-}
-
-namespace {
 
 /// @return Window title of the open dialog, also used as its ImGui popup ID.
 const char *dialogTitle() {
@@ -243,6 +203,38 @@ bool drawFileDialog( std::function<void()> &finish ) {
 }
 
 } // anonymous namespace
+
+void askForFileToOpen( const std::string &directory,
+                       std::function<void( const std::string & )> onChosen ) {
+    dialog = Dialog();
+    dialog.kind = DialogKind::Open;
+    dialog.needsOpening = true;
+    dialog.onChosen = std::move( onChosen );
+    enterDirectory( directory );
+}
+
+void askForFileToSave( const std::string &suggestedPath,
+                       std::function<void( const std::string & )> onChosen ) {
+    std::filesystem::path path = cleanPath( suggestedPath );
+    dialog = Dialog();
+    dialog.kind = DialogKind::Save;
+    dialog.needsOpening = true;
+    dialog.onChosen = std::move( onChosen );
+    enterDirectory( path.parent_path() );
+    setFileName( path.filename().string() );
+}
+
+void askToDiscardChanges( const std::string &documentName, std::function<void()> onDiscard ) {
+    dialog = Dialog();
+    dialog.kind = DialogKind::Discard;
+    dialog.needsOpening = true;
+    dialog.message = "Discard unsaved changes in " + documentName + "?";
+    dialog.onDiscard = std::move( onDiscard );
+}
+
+bool isDialogOpen() {
+    return dialog.kind != DialogKind::None;
+}
 
 void drawDialogs() {
     if ( !isDialogOpen() ) {

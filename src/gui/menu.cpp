@@ -8,31 +8,13 @@
 #include <app/session.h>
 #include <gui/appearance.h>
 #include <gui/dialogs.h>
+#include <gui/fonts.h>
 #include <gui/menu.h>
 #include <gui/panels/editor.h>
 #include <gui/theme.h>
 #include <gui/toolbar.h>
 #include <gui/widgets.h>
 #include <gui/window.h>
-
-void openDocument( Session &session, const std::string &path ) {
-    std::string text;
-    if ( session.openFile( path, text ) ) {
-        openInEditor( session.filePath, text );
-    }
-    ImGui::MarkIniSettingsDirty();
-}
-
-void whenChangesDiscarded( std::function<void()> action ) {
-    std::vector<std::string> unsaved = unsavedDocumentNames();
-    if ( unsaved.empty() ) {
-        action();
-        return;
-    }
-    std::string what =
-        unsaved.size() == 1 ? unsaved.front() : std::to_string( unsaved.size() ) + " files";
-    askToDiscardChanges( what, std::move( action ) );
-}
 
 namespace {
 
@@ -45,18 +27,6 @@ void saveDocument( Session &session, const std::string &path ) {
     }
     ImGui::MarkIniSettingsDirty();
 }
-
-} // anonymous namespace
-
-std::string displayPath( const std::string &path ) {
-    const char *home = std::getenv( "HOME" );
-    if ( home && path.starts_with( std::string( home ) + "/" ) ) {
-        return "~" + path.substr( std::strlen( home ) );
-    }
-    return path;
-}
-
-namespace {
 
 /// @brief Reads the global keyboard shortcuts.
 /// @return Actions whose shortcut was pressed this frame.
@@ -256,6 +226,33 @@ void runActions( Session &session, const MenuActions &actions ) {
 }
 
 } // anonymous namespace
+
+void openDocument( Session &session, const std::string &path ) {
+    std::string text;
+    if ( session.openFile( path, text ) ) {
+        openInEditor( session.filePath, text );
+    }
+    ImGui::MarkIniSettingsDirty();
+}
+
+void whenChangesDiscarded( std::function<void()> action ) {
+    std::vector<std::string> unsaved = unsavedDocumentNames();
+    if ( unsaved.empty() ) {
+        action();
+        return;
+    }
+    std::string what =
+        unsaved.size() == 1 ? unsaved.front() : std::to_string( unsaved.size() ) + " files";
+    askToDiscardChanges( what, std::move( action ) );
+}
+
+std::string displayPath( const std::string &path ) {
+    const char *home = std::getenv( "HOME" );
+    if ( home && path.starts_with( std::string( home ) + "/" ) ) {
+        return "~" + path.substr( std::strlen( home ) );
+    }
+    return path;
+}
 
 MenuActions drawMenuBar( const Session &session ) {
     MenuActions actions = readShortcuts();

@@ -33,6 +33,31 @@ bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool enable
     return clicked;
 }
 
+/// @param[in] tab Tab to measure.
+/// @return Width of the tab with its padding, icon and × button.
+float pillTabWidth( const PillTab &tab ) {
+    float width = tabPadding * 2.0f + ImGui::CalcTextSize( tab.label.c_str() ).x;
+    if ( tab.hasIcon ) {
+        width += iconSize + tabIconGap;
+    }
+    if ( tab.closable ) {
+        width += tabIconGap + closeSize;
+    }
+    return width;
+}
+
+/// @brief Draws the × of a tab's close button.
+/// @param[in] center Centre in screen coordinates.
+/// @param[in] color  Line colour.
+void drawCross( ImVec2 center, ImU32 color ) {
+    float half = closeSize * 0.22f;
+    ImDrawList *drawList = ImGui::GetWindowDrawList();
+    drawList->AddLine( ImVec2( center.x - half, center.y - half ),
+                       ImVec2( center.x + half, center.y + half ), color, 1.5f );
+    drawList->AddLine( ImVec2( center.x - half, center.y + half ),
+                       ImVec2( center.x + half, center.y - half ), color, 1.5f );
+}
+
 } // anonymous namespace
 
 void outlineLastItem( bool show ) {
@@ -61,35 +86,6 @@ void drawVerticalSeparator() {
                                          currentScheme().border );
     ImGui::Dummy( ImVec2( 12.0f, height ) );
 }
-
-namespace {
-
-/// @param[in] tab Tab to measure.
-/// @return Width of the tab with its padding, icon and × button.
-float pillTabWidth( const PillTab &tab ) {
-    float width = tabPadding * 2.0f + ImGui::CalcTextSize( tab.label.c_str() ).x;
-    if ( tab.hasIcon ) {
-        width += iconSize + tabIconGap;
-    }
-    if ( tab.closable ) {
-        width += tabIconGap + closeSize;
-    }
-    return width;
-}
-
-/// @brief Draws the × of a tab's close button.
-/// @param[in] center Centre in screen coordinates.
-/// @param[in] color  Line colour.
-void drawCross( ImVec2 center, ImU32 color ) {
-    float half = closeSize * 0.22f;
-    ImDrawList *drawList = ImGui::GetWindowDrawList();
-    drawList->AddLine( ImVec2( center.x - half, center.y - half ),
-                       ImVec2( center.x + half, center.y + half ), color, 1.5f );
-    drawList->AddLine( ImVec2( center.x - half, center.y + half ),
-                       ImVec2( center.x + half, center.y - half ), color, 1.5f );
-}
-
-} // anonymous namespace
 
 TabClick drawPillTab( const char *id, const PillTab &tab ) {
     ImVec2 size( pillTabWidth( tab ), ImGui::GetFrameHeight() );

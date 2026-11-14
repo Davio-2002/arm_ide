@@ -3,6 +3,7 @@
 #include <string>
 
 #include <app/session.h>
+#include <gui/fonts.h>
 #include <gui/panels/panels.h>
 #include <gui/panels/registers.h>
 #include <gui/theme.h>
