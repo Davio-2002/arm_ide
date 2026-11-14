@@ -1,11 +1,7 @@
 #include <algorithm>
 #include <chrono>
 #include <csignal>
-#include <cstdio>
 #include <cstdlib>
-#include <poll.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <thread>
 #include <unistd.h>
 
@@ -49,128 +45,31 @@ std::string signalName( int signal ) {
     return "Signal " + std::to_string( signal );
 }
 
-/// @brief Formats a number as lower-case hex without a prefix, as the GDB protocol expects.
-/// @param[in] value Number to format.
-/// @return Hex digits.
-std::string toHex( uint64_t value ) {
-    char text[17];
-    std::snprintf( text, sizeof( text ), "%llx", static_cast<unsigned long long>( value ) );
-    return text;
-}
-
-/// @brief Parses hex digits without a prefix.
-/// @param[in] text Hex digits.
-/// @return Parsed number; 0 for invalid text.
-uint64_t parseHex( const std::string &text ) {
-    return std::strtoull( text.c_str(), nullptr, 16 );
-}
-
-/// @brief Decodes a little-endian number from a hex string, two digits per byte.
-/// @param[in] hex       Hex string, as in register and memory replies.
-/// @param[in] offset    Index of the first hex digit.
-/// @param[in] byteCount Number of bytes to decode.
-/// @return Decoded number.
-uint64_t littleEndian( const std::string &hex, size_t offset, size_t byteCount ) {
-    uint64_t value = 0;
-    for ( size_t i = 0; i < byteCount; i++ ) {
-        value |= parseHex( hex.substr( offset + i * 2, 2 ) ) << ( i * 8 );
-    }
-    return value;
-}
-
-/// @brief Sends bytes to the GDB stub as they are.
-/// @param[in] debugger Connected debugger.
-/// @param[in] data     Bytes to send.
-/// @return True if all bytes were sent.
-bool sendRaw( Debugger &debugger, const std::string &data ) {
-    size_t sent = 0;
-    while ( sent < data.size() ) {
-        ssize_t count =
-            send( debugger.socket, data.data() + sent, data.size() - sent, MSG_NOSIGNAL );
-        if ( count <= 0 ) {
-            return false;
-        }
-        sent += count;
-    }
-    return true;
-}
-
-/// @brief Sends a GDB packet: "$payload#xx" with its checksum.
-/// @param[in] debugger Connected debugger.
-/// @param[in] payload  Command, for example "g" or "m1000,4".
-/// @return True if the packet was sent.
-bool sendPacket( Debugger &debugger, const std::string &payload ) {
-    unsigned checksum = 0;
-    for ( char c : payload ) {
-        checksum += static_cast<unsigned char>( c );
-    }
-    char end[4];
-    std::snprintf( end, sizeof( end ), "#%02x", checksum & 0xff );
-    return sendRaw( debugger, "$" + payload + end );
-}
-
-/// @brief Takes one complete "$payload#xx" from the received bytes and acknowledges it.
-///        Acknowledgements before it are skipped.
-/// @param[in,out] debugger Debugger whose received bytes are consumed.
-/// @param[out]    payload  Packet payload, without "$" and the checksum.
-/// @return True if a complete packet was taken.
-bool takePacket( Debugger &debugger, std::string &payload ) {
-    size_t start = debugger.received.find( '$' );
-    if ( start == std::string::npos ) {
-        debugger.received.clear();
-        return false;
-    }
-    size_t end = debugger.received.find( '#', start );
-    if ( end == std::string::npos || end + 2 >= debugger.received.size() ) {
-        debugger.received.erase( 0, start );
-        return false;
-    }
-    payload = debugger.received.substr( start + 1, end - start - 1 );
-    debugger.received.erase( 0, end + 3 );
-    sendRaw( debugger, "+" );
-    return true;
-}
-
-/// @brief Waits for the next packet from the GDB stub.
-/// @param[in,out] debugger            Connected debugger; a lost connection marks it crashed.
-/// @param[out]    payload             Packet payload.
-/// @param[in]     timeoutMilliseconds Longest time to wait.
-/// @return True if a packet arrived in time.
-bool receivePacket( Debugger &debugger, std::string &payload, int timeoutMilliseconds ) {
-    auto deadline =
-        std::chrono::steady_clock::now() + std::chrono::milliseconds( timeoutMilliseconds );
-    while ( !takePacket( debugger, payload ) ) {
-        auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
-            deadline - std::chrono::steady_clock::now() );
-        pollfd descriptor = { debugger.socket, POLLIN, 0 };
-        if ( poll( &descriptor, 1, std::max<int>( 0, left.count() ) ) <= 0 ) {
-            return false;
-        }
-        char buffer[4096];
-        ssize_t count = recv( debugger.socket, buffer, sizeof( buffer ), 0 );
-        if ( count <= 0 ) {
-            debugger.state = DebuggerState::Crashed;
-            debugger.error = "Lost connection to QEMU";
-            return false;
-        }
-        debugger.received.append( buffer, count );
-    }
-    return true;
-}
-
 /// @brief Sends a command and waits for its reply.
 /// @param[in,out] debugger Connected debugger; marked crashed if QEMU does not answer.
-/// @param[in]     payload  Command.
 /// @param[out]    reply    Reply payload.
 /// @return True if a reply arrived.
 bool request( Debugger &debugger, const std::string &payload, std::string &reply ) {
-    if ( debugger.socket < 0 || !sendPacket( debugger, payload ) ||
-         !receivePacket( debugger, reply, requestTimeoutMilliseconds ) ) {
+    if ( !gdbRequest( debugger.gdb, payload, reply, requestTimeoutMilliseconds ) ) {
         debugger.state = DebuggerState::Crashed;
         debugger.error = "QEMU did not answer";
         return false;
     }
     return true;
+}
+
+/// @brief Waits for a stop reply of the running program.
+/// @param[in,out] debugger            Running debugger; a lost connection marks it crashed.
+/// @param[out]    reply               Stop reply payload.
+/// @param[in]     timeoutMilliseconds Longest time to wait.
+/// @return True if a reply arrived in time.
+bool receiveStopReply( Debugger &debugger, std::string &reply, int timeoutMilliseconds ) {
+    GdbReceive received = receiveGdbPacket( debugger.gdb, reply, timeoutMilliseconds );
+    if ( received == GdbReceive::Closed ) {
+        debugger.state = DebuggerState::Crashed;
+        debugger.error = "Lost connection to QEMU";
+    }
+    return received == GdbReceive::Packet;
 }
 
 /// @brief Reads one register of the paused program.
@@ -196,7 +95,7 @@ uint64_t programCounter( Debugger &debugger ) {
 /// @param[in]     command  "c" to continue or "s" to step one instruction.
 void resume( Debugger &debugger, const char *command ) {
     debugger.state = DebuggerState::Running;
-    if ( !sendPacket( debugger, command ) ) {
+    if ( !sendGdbPacket( debugger.gdb, command ) ) {
         debugger.state = DebuggerState::Crashed;
         debugger.error = "Lost connection to QEMU";
     }
@@ -206,7 +105,7 @@ void resume( Debugger &debugger, const char *command ) {
 ///        step landed on another breakpoint.
 /// @param[in,out] debugger Debugger that just stopped after the step.
 void finishStepOverBreakpoint( Debugger &debugger ) {
-    debugger.continueAfterStep = false;
+    debugger.pendingStop = PendingStop::None;
     debugger.state = DebuggerState::Paused;
     if ( !debugger.breakpoints.contains( programCounter( debugger ) ) ) {
         resume( debugger, "c" );
@@ -270,7 +169,7 @@ void continueLineStep( Debugger &debugger ) {
         if ( returnAddress != pc && sourceLineAt( debugger, returnAddress ) != 0 ) {
             runTo( debugger, returnAddress );
         } else {
-            debugger.steppingLine = false;
+            debugger.pendingStop = PendingStop::None;
             resume( debugger, "c" );
         }
         return;
@@ -278,7 +177,7 @@ void continueLineStep( Debugger &debugger ) {
     bool atLineStart = debugger.sourceLines.contains( pc );
     bool newLine = line != debugger.stepLine || pc == debugger.stepStart;
     if ( ( atLineStart && newLine ) || debugger.breakpoints.contains( pc ) ) {
-        debugger.steppingLine = false;
+        debugger.pendingStop = PendingStop::None;
     } else {
         stepInstruction( debugger );
     }
@@ -324,9 +223,9 @@ void handleStopReply( Debugger &debugger, const std::string &reply ) {
         }
         debugger.state = DebuggerState::Paused;
         restoreStepBreakpoints( debugger );
-        if ( debugger.continueAfterStep ) {
+        if ( debugger.pendingStop == PendingStop::StepOverBreakpoint ) {
             finishStepOverBreakpoint( debugger );
-        } else if ( debugger.steppingLine ) {
+        } else if ( debugger.pendingStop == PendingStop::LineStep ) {
             continueLineStep( debugger );
         }
     } else {
@@ -347,14 +246,10 @@ std::string socketPath() {
 /// @param[in]     path     Socket path passed to QEMU.
 /// @return True if connected; otherwise debugger.error holds the reason.
 bool connectToQemu( Debugger &debugger, const std::string &path ) {
-    sockaddr_un address = {};
-    address.sun_family = AF_UNIX;
-    if ( path.size() >= sizeof( address.sun_path ) ) {
+    if ( !isValidSocketPath( path ) ) {
         debugger.error = "Socket path is too long: " + path;
         return false;
     }
-    std::copy( path.begin(), path.end(), address.sun_path );
-
     auto deadline =
         std::chrono::steady_clock::now() + std::chrono::milliseconds( connectTimeoutMilliseconds );
     while ( std::chrono::steady_clock::now() < deadline ) {
@@ -363,13 +258,9 @@ bool connectToQemu( Debugger &debugger, const std::string &path ) {
             debugger.error = "QEMU stopped: " + output;
             return false;
         }
-        debugger.socket = socket( AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0 );
-        if ( connect( debugger.socket, reinterpret_cast<sockaddr *>( &address ),
-                      sizeof( address ) ) == 0 ) {
+        if ( connectGdb( debugger.gdb, path ) ) {
             return true;
         }
-        close( debugger.socket );
-        debugger.socket = -1;
         std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
     }
     debugger.error = "Cannot connect to QEMU";
@@ -442,7 +333,7 @@ void setBreakpointLines( Debugger &debugger, const std::set<int> &lines ) {
     } else if ( debugger.state == DebuggerState::Running ) {
         std::string reply;
         if ( kill( debugger.qemu.pid, SIGTRAP ) != 0 ||
-             !receivePacket( debugger, reply, requestTimeoutMilliseconds ) ) {
+             !receiveStopReply( debugger, reply, requestTimeoutMilliseconds ) ) {
             debugger.state = DebuggerState::Crashed;
             debugger.error = "QEMU did not stop";
             return;
@@ -455,7 +346,7 @@ void setBreakpointLines( Debugger &debugger, const std::set<int> &lines ) {
         applyBreakpoints( debugger, addresses );
         if ( addresses.contains( programCounter( debugger ) ) ) {
             restoreStepBreakpoints( debugger );
-            debugger.continueAfterStep = false;
+            debugger.pendingStop = PendingStop::None;
         } else {
             resume( debugger, "c" );
         }
@@ -472,9 +363,9 @@ void continueDebugger( Debugger &debugger ) {
     if ( debugger.state != DebuggerState::Paused ) {
         return;
     }
-    debugger.steppingLine = false;
-    debugger.continueAfterStep = debugger.breakpoints.contains( programCounter( debugger ) );
-    if ( debugger.continueAfterStep ) {
+    bool onBreakpoint = debugger.breakpoints.contains( programCounter( debugger ) );
+    debugger.pendingStop = onBreakpoint ? PendingStop::StepOverBreakpoint : PendingStop::None;
+    if ( onBreakpoint ) {
         stepInstruction( debugger );
     } else {
         resume( debugger, "c" );
@@ -485,13 +376,13 @@ void stepDebugger( Debugger &debugger ) {
     if ( debugger.state != DebuggerState::Paused ) {
         return;
     }
-    debugger.continueAfterStep = false;
     uint64_t pc = programCounter( debugger );
     int line = sourceLineAt( debugger, pc );
     if ( line == 0 && debugger.mainAddress != 0 && pc != debugger.mainAddress ) {
+        debugger.pendingStop = PendingStop::None;
         runTo( debugger, debugger.mainAddress );
     } else {
-        debugger.steppingLine = true;
+        debugger.pendingStop = PendingStop::LineStep;
         debugger.stepStart = pc;
         debugger.stepLine = line;
         stepInstruction( debugger );
@@ -506,7 +397,7 @@ void pollDebugger( Debugger &debugger, int timeoutMilliseconds ) {
     while ( debugger.state == DebuggerState::Running ) {
         auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
             deadline - std::chrono::steady_clock::now() );
-        if ( !receivePacket( debugger, reply, std::max<int>( 0, left.count() ) ) ) {
+        if ( !receiveStopReply( debugger, reply, std::max<int>( 0, left.count() ) ) ) {
             return;
         }
         handleStopReply( debugger, reply );
@@ -550,12 +441,42 @@ int sourceLineAt( const Debugger &debugger, uint64_t address ) {
     return std::prev( next )->second;
 }
 
+bool parseAddress( const std::string &text, const Registers &registers, uint64_t &address ) {
+    if ( text == "sp" ) {
+        address = registers.sp;
+        return true;
+    }
+    if ( text == "pc" ) {
+        address = registers.pc;
+        return true;
+    }
+
+    const char *start = text.c_str();
+    bool isRegister = text.starts_with( 'x' );
+    if ( isRegister ) {
+        start++;
+    }
+    char *end = nullptr;
+    uint64_t value = std::strtoull( start, &end, isRegister ? 10 : 0 );
+    if ( end == start || *end != '\0' ) {
+        return false;
+    }
+
+    if ( !isRegister ) {
+        address = value;
+        return true;
+    }
+    if ( value > 30 ) {
+        return false;
+    }
+    address = registers.x[value];
+    return true;
+}
+
 void stopDebugger( Debugger &debugger ) {
     if ( isRunning( debugger.qemu ) ) {
         stopProcess( debugger.qemu );
     }
-    if ( debugger.socket >= 0 ) {
-        close( debugger.socket );
-    }
+    closeGdb( debugger.gdb );
     debugger = Debugger();
 }

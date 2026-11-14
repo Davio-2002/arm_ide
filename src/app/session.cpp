@@ -1,83 +1,223 @@
-#include <cstdlib>
 #include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <sstream>
 
 #include <app/session.h>
 
 namespace {
 
-const size_t maxRecentFiles = 10;
 const int debuggerPollMilliseconds = 1;
 const uint64_t memoryBlockSize = 256;
 
-/// @brief Makes a path absolute and removes "." and ".." parts.
-/// @param[in] path Relative or absolute path.
-/// @return Normalized absolute path.
-std::string absolutePath( const std::string &path ) {
-    return std::filesystem::absolute( path ).lexically_normal();
-}
-
-/// @brief Picks the directory a new shell starts in.
-/// @param[in] filePath Current file; may be empty.
-/// @return Directory of the file, or $HOME when no file is open.
-std::string terminalStartDirectory( const std::string &filePath ) {
-    std::string directory = std::filesystem::path( filePath ).parent_path();
-    const char *home = std::getenv( "HOME" );
-    return directory.empty() && home ? home : directory;
-}
-
 } // anonymous namespace
 
-bool Session::openFile( const std::string &path, std::string &text ) {
-    if ( !std::filesystem::exists( path ) ) {
-        status = "File no longer exists: " + path;
-        std::erase( recentFiles, path );
+Session::Session() {
+    recentFiles = readRecentFiles();
+    addDocument( "", "" );
+}
+
+// Commands ----------------------------------------------------------------------------------
+
+std::string Session::commandLabel( Command command ) const {
+    switch ( command ) {
+    case Command::NewFile:
+        return "New File";
+    case Command::Open:
+        return "Open...";
+    case Command::Save:
+        return "Save";
+    case Command::SaveAs:
+        return "Save As...";
+    case Command::Build:
+        return "Build";
+    case Command::Run:
+        return "Build and Run";
+    case Command::Stop:
+        return "Stop";
+    case Command::DebugContinue:
+        return isDebugging() ? "Continue" : "Start Debugging";
+    case Command::DebugStep:
+        return "Step";
+    case Command::ToggleBreakpoint:
+        return "Toggle Breakpoint";
+    case Command::ClearOutput:
+        return "Clear Output";
+    }
+    return "";
+}
+
+bool Session::canRun( Command command ) const {
+    switch ( command ) {
+    case Command::Stop:
+        return isProgramActive();
+    case Command::DebugContinue:
+    case Command::DebugStep:
+        return !isDebugging() || isPaused();
+    default:
+        return true;
+    }
+}
+
+PathRequest Session::pathNeeded( Command command ) const {
+    bool untitled = activeDocument().path.empty();
+    switch ( command ) {
+    case Command::Open:
+        return PathRequest::FileToOpen;
+    case Command::SaveAs:
+        return PathRequest::FileToSave;
+    case Command::Save:
+    case Command::Build:
+    case Command::Run:
+        return untitled ? PathRequest::FileToSave : PathRequest::None;
+    case Command::DebugContinue:
+    case Command::DebugStep:
+        return untitled && !isDebugging() ? PathRequest::FileToSave : PathRequest::None;
+    default:
+        return PathRequest::None;
+    }
+}
+
+void Session::run( Command command, const CommandInput &input ) {
+    switch ( command ) {
+    case Command::NewFile:
+        activeDocumentId = addDocument( "", "" );
+        break;
+    case Command::Open:
+        openFile( input.path );
+        break;
+    case Command::Save:
+    case Command::SaveAs:
+        saveActiveDocument( input.path.empty() ? activeDocument().path : input.path, input );
+        break;
+    case Command::Build:
+        if ( saveBeforeBuild( input ) ) {
+            build();
+        }
+        break;
+    case Command::Run:
+        if ( saveBeforeBuild( input ) ) {
+            runProgram();
+        }
+        break;
+    case Command::Stop:
+        if ( isProgramActive() ) {
+            stopActiveProgram();
+            printResult( "Program stopped", MessageKind::Warning );
+        }
+        break;
+    case Command::DebugContinue:
+        if ( isDebugging() || saveBeforeBuild( input ) ) {
+            debugContinue();
+        }
+        break;
+    case Command::DebugStep:
+        if ( isDebugging() || saveBeforeBuild( input ) ) {
+            debugStep();
+        }
+        break;
+    case Command::ToggleBreakpoint:
+        toggleBreakpoint( activeDocument().path, input.line );
+        break;
+    case Command::ClearOutput:
+        clearOutput();
+        break;
+    }
+}
+
+// Program -----------------------------------------------------------------------------------
+
+void Session::toggleBreakpoint( const std::string &path, int line ) {
+    std::set<int> &lines = breakpoints[path];
+    if ( lines.contains( line ) ) {
+        lines.erase( line );
+    } else {
+        lines.insert( line );
+    }
+    if ( isDebugging() && path == programFilePath ) {
+        bool wasRunning = debugger.state == DebuggerState::Running;
+        setBreakpointLines( debugger, lines );
+        if ( wasRunning ) {
+            handleDebuggerState();
+        }
+    }
+}
+
+bool Session::hasBreakpoint( const std::string &path, int line ) const {
+    auto lines = breakpoints.find( path );
+    return lines != breakpoints.end() && lines->second.contains( line );
+}
+
+void Session::sendProgramInput( const std::string &line ) {
+    Process *program = programProcess();
+    if ( !program ) {
+        return;
+    }
+    appendProgramOutput( line + "\n" );
+    if ( !writeToProcess( *program, line + "\n" ) ) {
+        status = "The program is not reading its input";
+    }
+}
+
+void Session::endProgramInput() {
+    if ( Process *program = programProcess() ) {
+        endProcessInput( *program );
+        status = "End of input sent";
+    }
+}
+
+bool Session::acceptsInput() const {
+    return isRunning( runningProgram ) || isRunning( debugger.qemu );
+}
+
+bool Session::readMemory( uint64_t address, uint8_t &byte ) {
+    if ( !isPaused() ) {
         return false;
     }
-
-    std::ifstream file( path );
-    if ( !file ) {
-        status = "Cannot open " + path;
+    uint64_t blockAddress = address / memoryBlockSize * memoryBlockSize;
+    auto block = memoryBlocks.find( blockAddress );
+    if ( block == memoryBlocks.end() ) {
+        std::vector<uint8_t> bytes;
+        ::readMemory( debugger, blockAddress, memoryBlockSize, bytes );
+        block = memoryBlocks.emplace( blockAddress, std::move( bytes ) ).first;
+    }
+    if ( block->second.empty() ) {
         return false;
     }
-
-    std::stringstream content;
-    content << file.rdbuf();
-    text = content.str();
-    filePath = absolutePath( path );
-    status = "Opened " + path;
-    addRecentFile( path );
+    byte = block->second[address - blockAddress];
     return true;
 }
 
-bool Session::saveFile( const std::string &path, const std::string &text ) {
-    std::ofstream file( path );
-    file << text;
-    if ( !file ) {
-        status = "Cannot save " + path;
-        return false;
-    }
-
-    std::string savedPath = absolutePath( path );
-    if ( savedPath != filePath ) {
-        breakpoints[savedPath] = std::move( breakpoints[filePath] );
-        breakpoints.erase( filePath );
-    }
-    filePath = savedPath;
-    status = "Saved " + path;
-    addRecentFile( path );
-    return true;
+void Session::update() {
+    updateRunningProgram();
+    updateDebugger();
 }
 
+bool Session::isDebugging() const {
+    return debugger.state != DebuggerState::Idle;
+}
+
+bool Session::isPaused() const {
+    return debugger.state == DebuggerState::Paused;
+}
+
+bool Session::isProgramActive() const {
+    return isRunning( runningProgram ) || isDebugging();
+}
+
+bool Session::isProgramBusy() const {
+    return isRunning( runningProgram ) || debugger.state == DebuggerState::Running;
+}
+
+void Session::stop() {
+    stopActiveProgram();
+}
+
+/// Fills the build log and the line marks with the build messages.
 bool Session::build() {
     stopActiveProgram();
     buildLog.clear();
     executablePath.clear();
-    programFilePath = filePath;
+    programFilePath = activeDocument().path;
 
-    BuildResult build = buildProgram( filePath );
+    BuildResult build = buildProgram( programFilePath );
     std::vector<LineMark> marks;
     for ( const Message &message : build.messages ) {
         buildLog.push_back( message );
@@ -102,7 +242,7 @@ bool Session::build() {
     return build.success;
 }
 
-void Session::run() {
+void Session::runProgram() {
     if ( !build() ) {
         return;
     }
@@ -123,6 +263,7 @@ void Session::run() {
     status = "Running " + executablePath;
 }
 
+/// Starts debugging, or resumes the program if it is paused.
 void Session::debugContinue() {
     if ( !isDebugging() ) {
         startDebugging( false );
@@ -132,6 +273,7 @@ void Session::debugContinue() {
     }
 }
 
+/// Starts debugging paused at the first line, or steps to the next line if paused.
 void Session::debugStep() {
     if ( !isDebugging() ) {
         startDebugging( true );
@@ -141,166 +283,10 @@ void Session::debugStep() {
     }
 }
 
-void Session::stop() {
-    if ( !isProgramActive() ) {
-        return;
-    }
-    stopActiveProgram();
-    printResult( "Program stopped", MessageKind::Warning );
-}
-
-void Session::toggleBreakpoint( const std::string &path, int line ) {
-    std::set<int> &lines = breakpoints[path];
-    if ( lines.contains( line ) ) {
-        lines.erase( line );
-    } else {
-        lines.insert( line );
-    }
-    if ( isDebugging() && path == programFilePath ) {
-        bool wasRunning = debugger.state == DebuggerState::Running;
-        setBreakpointLines( debugger, lines );
-        if ( wasRunning ) {
-            handleDebuggerState();
-        }
-    }
-}
-
-Process *Session::programProcess() {
-    if ( isRunning( runningProgram ) ) {
-        return &runningProgram;
-    }
-    if ( isRunning( debugger.qemu ) ) {
-        return &debugger.qemu;
-    }
-    return nullptr;
-}
-
-bool Session::acceptsInput() const {
-    return isRunning( runningProgram ) || isRunning( debugger.qemu );
-}
-
-void Session::sendProgramInput( const std::string &line ) {
-    Process *program = programProcess();
-    if ( !program ) {
-        return;
-    }
-    appendProgramOutput( line + "\n" );
-    if ( !writeToProcess( *program, line + "\n" ) ) {
-        status = "The program is not reading its input";
-    }
-}
-
-void Session::endProgramInput() {
-    if ( Process *program = programProcess() ) {
-        endProcessInput( *program );
-        status = "End of input sent";
-    }
-}
-
 void Session::clearOutput() {
     console.clear();
     buildLog.clear();
     programLineOpen = false;
-}
-
-void Session::openTerminal( int rows, int columns ) {
-    if ( !isRunning( terminal ) && !terminal.exited ) {
-        startTerminal( terminal, terminalStartDirectory( filePath ), rows, columns );
-        terminalActivity = std::chrono::steady_clock::now();
-    } else if ( rows != terminal.rows || columns != terminal.columns ) {
-        resizeTerminal( terminal, rows, columns );
-    }
-}
-
-void Session::sendTerminalInput( const std::vector<TerminalInput> &inputs,
-                                 const std::string &paste ) {
-    if ( inputs.empty() && paste.empty() ) {
-        return;
-    }
-    terminalActivity = std::chrono::steady_clock::now();
-    if ( terminal.exited ) {
-        startTerminal( terminal, terminalStartDirectory( filePath ), terminal.rows,
-                       terminal.columns );
-        return;
-    }
-    for ( const TerminalInput &input : inputs ) {
-        ::sendTerminalInput( terminal, input );
-    }
-    if ( !paste.empty() ) {
-        pasteToTerminal( terminal, paste );
-    }
-}
-
-void Session::stopTerminal() {
-    ::stopTerminal( terminal );
-}
-
-void Session::clearTerminal() {
-    terminal.scrollback.clear();
-    TerminalInput clearScreen;
-    clearScreen.character = U'l';
-    clearScreen.ctrl = true;
-    sendTerminalInput( { clearScreen }, "" );
-}
-
-void Session::update() {
-    updateRunningProgram();
-    updateDebugger();
-    if ( updateTerminal( terminal ) ) {
-        terminalActivity = std::chrono::steady_clock::now();
-    }
-}
-
-bool Session::isDebugging() const {
-    return debugger.state != DebuggerState::Idle;
-}
-
-bool Session::isPaused() const {
-    return debugger.state == DebuggerState::Paused;
-}
-
-bool Session::isProgramActive() const {
-    return isRunning( runningProgram ) || isDebugging();
-}
-
-bool Session::isProgramBusy() const {
-    return isRunning( runningProgram ) || debugger.state == DebuggerState::Running;
-}
-
-bool Session::readMemory( uint64_t address, uint8_t &byte ) {
-    if ( !isPaused() ) {
-        return false;
-    }
-    uint64_t blockAddress = address / memoryBlockSize * memoryBlockSize;
-    auto block = memoryBlocks.find( blockAddress );
-    if ( block == memoryBlocks.end() ) {
-        std::vector<uint8_t> bytes;
-        ::readMemory( debugger, blockAddress, memoryBlockSize, bytes );
-        block = memoryBlocks.emplace( blockAddress, std::move( bytes ) ).first;
-    }
-    if ( block->second.empty() ) {
-        return false;
-    }
-    byte = block->second[address - blockAddress];
-    return true;
-}
-
-bool Session::isTerminalBusy() const {
-    return std::chrono::steady_clock::now() - terminalActivity < std::chrono::milliseconds( 500 );
-}
-
-bool Session::hasBreakpoint( const std::string &path, int line ) const {
-    auto lines = breakpoints.find( path );
-    return lines != breakpoints.end() && lines->second.contains( line );
-}
-
-void Session::addRecentFile( const std::string &path ) {
-    std::string recentPath = absolutePath( path );
-    std::erase( recentFiles, recentPath );
-    recentFiles.insert( recentFiles.begin(), recentPath );
-    if ( recentFiles.size() > maxRecentFiles ) {
-        recentFiles.resize( maxRecentFiles );
-    }
 }
 
 void Session::setLineMarks( const std::vector<LineMark> &marks ) {
@@ -308,6 +294,7 @@ void Session::setLineMarks( const std::vector<LineMark> &marks ) {
     lineMarksVersion++;
 }
 
+/// Splits output into console lines; it may end in the middle of a line.
 void Session::appendProgramOutput( const std::string &output ) {
     for ( char c : output ) {
         if ( !programLineOpen ) {
@@ -322,6 +309,7 @@ void Session::appendProgramOutput( const std::string &output ) {
     }
 }
 
+/// Prints a result line to the console and shows it as the status.
 void Session::printResult( const std::string &text, MessageKind kind, int sourceLine ) {
     programLineOpen = false;
     console.push_back( { text, kind, sourceLine } );
@@ -333,6 +321,17 @@ void Session::printExitCode( int exitCode ) {
     printResult( text, exitCode == 0 ? MessageKind::Success : MessageKind::Error );
 }
 
+/// @return The process reading program input, or nullptr if no program runs.
+Process *Session::programProcess() {
+    if ( isRunning( runningProgram ) ) {
+        return &runningProgram;
+    }
+    if ( isRunning( debugger.qemu ) ) {
+        return &debugger.qemu;
+    }
+    return nullptr;
+}
+
 void Session::stopActiveProgram() {
     if ( isRunning( runningProgram ) ) {
         stopProcess( runningProgram );
@@ -342,6 +341,8 @@ void Session::stopActiveProgram() {
     }
 }
 
+/// Builds the active document and starts it under the debugger, paused at the first line or
+/// running to a breakpoint.
 void Session::startDebugging( bool pauseAtEntry ) {
     if ( !build() ) {
         return;
@@ -355,10 +356,10 @@ void Session::startDebugging( bool pauseAtEntry ) {
     }
     setBreakpointLines( debugger, breakpoints[programFilePath] );
     programLineOpen = false;
-    registers = readRegisters( debugger );
-    hasRegisters = true;
+    paused.registers = readRegisters( debugger );
+    paused.hasRegisters = true;
 
-    if ( pauseAtEntry && sourceLineAt( debugger, registers.pc ) == 0 ) {
+    if ( pauseAtEntry && sourceLineAt( debugger, paused.registers.pc ) == 0 ) {
         stepDebugger( debugger );
         handleDebuggerState();
     } else if ( pauseAtEntry ) {
@@ -371,7 +372,7 @@ void Session::startDebugging( bool pauseAtEntry ) {
 
 void Session::endDebugSession() {
     stopDebugger( debugger );
-    pausedLine = 0;
+    paused.line = 0;
     setLineMarks( {} );
 }
 
@@ -391,29 +392,33 @@ void Session::handleDebuggerState() {
     }
 }
 
+/// Clears the paused line once the program leaves a pause, for example while a step waits in
+/// read for input.
 void Session::showRunning() {
-    if ( pausedLine == 0 && !lineMarks.empty() ) {
+    if ( paused.line == 0 ) {
         return;
     }
-    pausedLine = 0;
+    paused.line = 0;
     setLineMarks( {} );
     status = "Running in debugger";
 }
 
+/// Reads the registers and marks the line the debugger is paused on.
 void Session::showPausedLine() {
-    previousRegisters = registers;
+    paused.previousRegisters = paused.registers;
     memoryBlocks.clear();
-    registers = readRegisters( debugger );
-    pausedLine = sourceLineAt( debugger, registers.pc );
-    if ( pausedLine > 0 ) {
-        setLineMarks( { { pausedLine, LineMarkKind::Paused, "" } } );
+    paused.registers = readRegisters( debugger );
+    paused.line = sourceLineAt( debugger, paused.registers.pc );
+    if ( paused.line > 0 ) {
+        setLineMarks( { { paused.line, LineMarkKind::Paused, "" } } );
+        showProgramLine( paused.line );
     } else {
         setLineMarks( {} );
     }
-    lineToReveal = pausedLine;
-    status = "Paused at line " + std::to_string( pausedLine );
+    status = "Paused at line " + std::to_string( paused.line );
 }
 
+/// Ends the debug session and reports the crash with its line, if known.
 void Session::showCrash() {
     std::string error = debugger.error;
     int line = sourceLineAt( debugger, readRegisters( debugger ).pc );

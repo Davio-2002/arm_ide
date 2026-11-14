@@ -49,6 +49,11 @@ Message parseToolOutputLine( const std::string &text, const std::string &sourceN
 
 } // anonymous namespace
 
+SourceLanguage sourceLanguage( const std::string &path ) {
+    std::string extension = std::filesystem::path( path ).extension();
+    return extension == ".c" || extension == ".h" ? SourceLanguage::C : SourceLanguage::Assembly;
+}
+
 std::string crossTool( const std::string &name ) {
     static const char *const prefixes[] = {
         "aarch64-linux-gnu-",      "aarch64-unknown-linux-gnu-", "aarch64-suse-linux-",
@@ -88,8 +93,9 @@ BuildResult buildProgram( const std::string &sourcePath ) {
     std::string objectPath = std::filesystem::path( source ).replace_extension( ".o" );
     std::string executablePath = std::filesystem::path( source ).replace_extension( "" );
 
+    bool isC = sourceLanguage( source ) == SourceLanguage::C;
     std::vector<std::vector<std::string>> steps;
-    if ( source.extension() == ".c" ) {
+    if ( isC ) {
         steps = { { crossTool( "gcc" ), "-g", "-O0", "-static", source, "-o", executablePath } };
     } else {
         steps = { { crossTool( "as" ), "-g", source, "-o", objectPath },
@@ -99,10 +105,9 @@ BuildResult buildProgram( const std::string &sourcePath ) {
     for ( const std::vector<std::string> &step : steps ) {
         build.messages.push_back( { commandLine( step ), MessageKind::Command } );
         if ( !isInPath( step[0] ) ) {
-            bool isCompiler = source.extension() == ".c";
             build.messages.push_back(
                 { step[0] + " not found in PATH: install the AArch64 " +
-                      ( isCompiler ? "GCC cross compiler with its C library" : "binutils" ),
+                      ( isC ? "GCC cross compiler with its C library" : "binutils" ),
                   MessageKind::Error } );
             return build;
         }

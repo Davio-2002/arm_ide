@@ -6,28 +6,43 @@
 #include <string>
 #include <vector>
 
+#include <core/gdb_remote.h>
 #include <core/process.h>
 
 /// @brief State of a debug session.
 enum class DebuggerState { Idle, Paused, Running, Exited, Crashed };
 
+/// @brief What the debugger does when the running program next stops on a trap.
+enum class PendingStop {
+    /// Stays paused.
+    None,
+    /// Continue was asked on a breakpoint: the instruction under it was stepped, now continue.
+    StepOverBreakpoint,
+    /// A line step is under way: step again until a new line starts.
+    LineStep,
+};
+
 /// @brief A program under `qemu-aarch64 -g`, driven through QEMU's GDB remote protocol stub.
 struct Debugger {
     Process qemu;
-    int socket = -1;
-    std::string received;
-    std::map<uint64_t, int> sourceLines;
-    std::set<uint64_t> breakpoints;
-    bool continueAfterStep = false;
-    uint64_t temporaryBreakpoint = 0;
-    uint64_t liftedBreakpoint = 0;
-    bool steppingLine = false;
-    uint64_t stepStart = 0;
-    int stepLine = 0;
-    uint64_t mainAddress = 0;
+    GdbConnection gdb;
     DebuggerState state = DebuggerState::Idle;
     int exitCode = 0;
     std::string error;
+
+    /// Address of each line-table row to its source line; 0 for code outside the source.
+    std::map<uint64_t, int> sourceLines;
+    uint64_t mainAddress = 0;
+    std::set<uint64_t> breakpoints;
+
+    PendingStop pendingStop = PendingStop::None;
+    /// PC and line where the current line step started.
+    uint64_t stepStart = 0;
+    int stepLine = 0;
+    /// Breakpoint set only to stop a step there, and a user breakpoint lifted meanwhile
+    /// because it is under the PC; both undone at the next stop. 0 for none.
+    uint64_t temporaryBreakpoint = 0;
+    uint64_t liftedBreakpoint = 0;
 };
 
 /// @brief AArch64 general registers of the debugged program.
@@ -90,6 +105,13 @@ bool readMemory( Debugger &debugger, uint64_t address, size_t size, std::vector<
 /// @param[in] address  Code address.
 /// @return 1-based source line, or 0 for code outside the source.
 int sourceLineAt( const Debugger &debugger, uint64_t address );
+
+/// @brief Parses an address typed by the user.
+/// @param[in]  text      "sp", "pc", a register x0 to x30, or a number in C notation.
+/// @param[in]  registers Current register values.
+/// @param[out] address   Parsed address.
+/// @return True if the text is valid.
+bool parseAddress( const std::string &text, const Registers &registers, uint64_t &address );
 
 /// @brief Kills QEMU, closes the connection and resets the debugger to idle.
 /// @param[in,out] debugger Debugger to stop.

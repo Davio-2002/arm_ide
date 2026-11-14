@@ -5,17 +5,11 @@
 #include <gui/icons.h>
 
 /// @brief Draws a flat icon button: transparent until hovered, dimmed while disabled.
-/// @param[in] id      ImGui ID.
-/// @param[in] icon    Icon shown.
-/// @param[in] tooltip Text shown on hover.
 /// @param[in] enabled False to draw the button disabled.
 /// @return True if clicked.
 bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled = true );
 
 /// @brief Draws an icon button that stays highlighted while on. A click flips the state.
-/// @param[in]     id      ImGui ID.
-/// @param[in]     icon    Icon shown.
-/// @param[in]     tooltip Text shown on hover.
 /// @param[in,out] on      Toggle state.
 void iconToggle( const char *id, Icon icon, const char *tooltip, bool &on );
 
@@ -41,7 +35,5 @@ struct PillTab {
 enum class TabClick { None, Select, Close };
 
 /// @brief Draws a pill tab.
-/// @param[in] id  ImGui ID.
-/// @param[in] tab Tab to draw.
 /// @return Whether the tab or its × was clicked.
 TabClick drawPillTab( const char *id, const PillTab &tab );

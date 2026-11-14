@@ -11,9 +11,6 @@ const float tabIconGap = 6.0f;
 const float closeSize = 16.0f;
 
 /// @brief Draws an icon button shared by iconButton() and iconToggle().
-/// @param[in] id      ImGui ID.
-/// @param[in] icon    Icon shown.
-/// @param[in] tooltip Text shown on hover.
 /// @param[in] enabled False to draw the button disabled.
 /// @param[in] active  True to fill and outline it in the accent.
 /// @return True if clicked.
@@ -33,7 +30,6 @@ bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool enable
     return clicked;
 }
 
-/// @param[in] tab Tab to measure.
 /// @return Width of the tab with its padding, icon and × button.
 float pillTabWidth( const PillTab &tab ) {
     float width = tabPadding * 2.0f + ImGui::CalcTextSize( tab.label.c_str() ).x;

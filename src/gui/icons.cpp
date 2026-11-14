@@ -51,10 +51,22 @@ const unsigned char memorySvg[] = {
 #include "memory_svg.inc"
     0 };
 
-const Icon allIcons[] = { Icon::Build,  Icon::Run,       Icon::Debug,   Icon::Stop,
-                          Icon::Resume, Icon::StepOver,  Icon::AsmFile, Icon::Console,
-                          Icon::Clear,  Icon::Registers, Icon::Memory };
-std::array<GLuint, std::size( allIcons )> textures = {};
+/// @brief The SVG of an icon.
+struct IconSource {
+    Icon icon;
+    const unsigned char *svg;
+};
+
+/// Every icon. A new icon adds a row here, its SVG array above and its value to Icon.
+const IconSource iconSources[] = {
+    { Icon::Build, buildSvg },     { Icon::Run, runSvg },
+    { Icon::Debug, debugSvg },     { Icon::Stop, stopSvg },
+    { Icon::Resume, resumeSvg },   { Icon::StepOver, stepOverSvg },
+    { Icon::AsmFile, asmFileSvg }, { Icon::Console, consoleSvg },
+    { Icon::Clear, clearSvg },     { Icon::Registers, registersSvg },
+    { Icon::Memory, memorySvg },
+};
+std::array<GLuint, std::size( iconSources )> textures = {};
 bool loaded = false;
 bool loadedDark = false;
 
@@ -63,36 +75,6 @@ const std::pair<const char *, const char *> lightColors[] = {
     { "#CED0D6", "#6C707E" }, { "#57965C", "#208A3C" }, { "#253627", "#F2FCF3" },
     { "#DB5C5C", "#E55765" }, { "#5E3838", "#FFF7F7" }, { "#8C94F0", "#5E68D9" },
 };
-
-/// @param[in] icon Icon.
-/// @return Null-terminated SVG source of the icon.
-const unsigned char *iconSvg( Icon icon ) {
-    switch ( icon ) {
-    case Icon::Build:
-        return buildSvg;
-    case Icon::Run:
-        return runSvg;
-    case Icon::Debug:
-        return debugSvg;
-    case Icon::Stop:
-        return stopSvg;
-    case Icon::Resume:
-        return resumeSvg;
-    case Icon::StepOver:
-        return stepOverSvg;
-    case Icon::AsmFile:
-        return asmFileSvg;
-    case Icon::Console:
-        return consoleSvg;
-    case Icon::Clear:
-        return clearSvg;
-    case Icon::Registers:
-        return registersSvg;
-    case Icon::Memory:
-        break;
-    }
-    return memorySvg;
-}
 
 /// @brief Renders an SVG to a square RGBA image.
 /// @param[in] svg   Null-terminated SVG source.
@@ -146,9 +128,9 @@ void updateIcons() {
         glDeleteTextures( static_cast<GLsizei>( textures.size() ), textures.data() );
     }
     int size = static_cast<int>( iconSize );
-    for ( Icon icon : allIcons ) {
-        std::vector<unsigned char> pixels = rasterizeSvg( iconSvg( icon ), size, !dark );
-        textures[static_cast<size_t>( icon )] = createTexture( pixels, size );
+    for ( const IconSource &source : iconSources ) {
+        std::vector<unsigned char> pixels = rasterizeSvg( source.svg, size, !dark );
+        textures[static_cast<size_t>( source.icon )] = createTexture( pixels, size );
     }
     loaded = true;
     loadedDark = dark;

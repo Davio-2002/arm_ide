@@ -20,8 +20,6 @@ const float maxCodeFontSize = 48.0f;
 
 float currentCodeFontSize = defaultCodeFontSize;
 
-/// @param[in] text      Text to split.
-/// @param[in] separator Field separator.
 /// @return The fields, empty ones included.
 std::vector<std::string> split( const std::string &text, char separator ) {
     std::vector<std::string> fields;

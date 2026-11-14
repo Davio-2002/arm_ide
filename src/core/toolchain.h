@@ -15,6 +15,13 @@ struct Message {
     int sourceLine = 0;
 };
 
+/// @brief Language of a source file, which decides how it is built and highlighted.
+enum class SourceLanguage { Assembly, C };
+
+/// @param[in] path Source file path.
+/// @return C for .c and .h files, AArch64 assembly for everything else.
+SourceLanguage sourceLanguage( const std::string &path );
+
 /// @brief Result of buildProgram().
 struct BuildResult {
     bool success = false;

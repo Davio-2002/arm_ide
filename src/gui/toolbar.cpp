@@ -5,9 +5,8 @@
 #include <vector>
 
 #include <app/session.h>
+#include <gui/commands.h>
 #include <gui/icons.h>
-#include <gui/menu.h>
-#include <gui/panels/editor.h>
 #include <gui/theme.h>
 #include <gui/toolbar.h>
 #include <gui/widgets.h>
@@ -89,12 +88,6 @@ void drawAppBadge() {
 }
 
 /// @param[in] path File path; may be empty.
-/// @return File name without directory, or "untitled".
-std::string fileName( const std::string &path ) {
-    return path.empty() ? "untitled" : std::filesystem::path( path ).filename().string();
-}
-
-/// @param[in] path File path; may be empty.
 /// @return Name of the folder holding the file, or "No folder".
 std::string folderName( const std::string &path ) {
     if ( path.empty() ) {
@@ -103,53 +96,60 @@ std::string folderName( const std::string &path ) {
     return std::filesystem::path( path ).parent_path().filename().string();
 }
 
-/// @brief Draws files as selectable names, with the full path as tooltip.
-/// @param[in]     paths   Absolute file paths.
-/// @param[in,out] actions Receives the clicked file in fileToOpen.
-void drawFileList( const std::vector<std::string> &paths, MenuActions &actions ) {
-    for ( const std::string &path : paths ) {
-        ImGui::PushID( path.c_str() );
-        if ( ImGui::Selectable( fileName( path ).c_str() ) ) {
-            actions.fileToOpen = path;
-        }
-        ImGui::SetItemTooltip( "%s", displayPath( path ).c_str() );
-        ImGui::PopID();
-    }
+/// @brief Draws a file as a selectable name, with the full path as tooltip.
+/// @param[in] path Absolute file path.
+/// @return True if clicked.
+bool fileItem( const std::string &path ) {
+    ImGui::PushID( path.c_str() );
+    bool clicked = ImGui::Selectable( documentName( path ).c_str() );
+    ImGui::SetItemTooltip( "%s", displayPath( path ).c_str() );
+    ImGui::PopID();
+    return clicked;
 }
 
 } // anonymous namespace
 
-void drawToolbarStart( const Session &session, MenuActions &actions ) {
+void drawToolbarStart( const Session &session ) {
     drawAppBadge();
-    if ( beginDropdown( "##recentFiles", folderName( session.filePath ), transparentColor ) ) {
+    std::string folder = folderName( session.activeDocument().path );
+    if ( beginDropdown( "##recentFiles", folder, transparentColor ) ) {
         if ( session.recentFiles.empty() ) {
             ImGui::TextDisabled( "No recent files" );
         }
-        drawFileList( session.recentFiles, actions );
+        for ( const std::string &path : session.recentFiles ) {
+            if ( fileItem( path ) ) {
+                requestAction( [path]( Session &session ) { session.openFile( path ); } );
+            }
+        }
         ImGui::EndPopup();
     }
     drawVerticalSeparator();
 }
 
-void drawToolbarEnd( const Session &session, MenuActions &actions ) {
+void drawToolbarEnd( const Session &session ) {
     float padding = ( ImGui::GetFrameHeight() - iconSize ) * 0.5f;
     float buttonWidth = iconSize + padding * 2.0f;
     float buttonsWidth = buttonCount * buttonWidth + ( buttonCount - 1 ) * buttonSpacing;
-    std::string runFile = fileName( session.filePath );
+    std::string runFile = documentName( session.activeDocument().path );
     float toolbarWidth = dropdownWidth( runFile ) + buttonSpacing * 4.0f + buttonsWidth;
     ImGui::SetCursorPosX( ImGui::GetWindowWidth() - toolbarWidth - toolbarRightMargin );
 
     if ( beginDropdown( "##openFiles", runFile, currentScheme().background ) ) {
-        drawFileList( openDocumentPaths(), actions );
+        for ( const Document &document : session.documents() ) {
+            int id = document.id;
+            if ( !document.path.empty() && fileItem( document.path ) ) {
+                requestAction( [id]( Session &session ) { session.activateDocument( id ); } );
+            }
+        }
         ImGui::EndPopup();
     }
     ImGui::SameLine( 0.0f, buttonSpacing * 4.0f );
 
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( padding, padding ) );
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( buttonSpacing, 0.0f ) );
-    actions.build |= iconButton( "##build", Icon::Build, "Build  F7" );
-    actions.run |= iconButton( "##run", Icon::Run, "Build and Run  F5" );
-    actions.debugContinue |= iconButton( "##debug", Icon::Debug, "Debug  F8" );
-    actions.stop |= iconButton( "##stop", Icon::Stop, "Stop  Shift+F5", session.isProgramActive() );
+    commandButton( session, "##build", Command::Build, Icon::Build );
+    commandButton( session, "##run", Command::Run, Icon::Run );
+    commandButton( session, "##debug", Command::DebugContinue, Icon::Debug );
+    commandButton( session, "##stop", Command::Stop, Icon::Stop );
     ImGui::PopStyleVar( 2 );
 }

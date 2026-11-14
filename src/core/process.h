@@ -31,20 +31,17 @@ Process startProcess( const std::vector<std::string> &args );
 std::string pollProcess( Process &process );
 
 /// @brief Writes text to the program's stdin.
-/// @param[in,out] process Running process.
 /// @param[in]     text    Text to send.
 /// @return False when the program is not reading and the terminal's buffer is full.
 bool writeToProcess( Process &process, const std::string &text );
 
 /// @brief Makes the program's next read get end of file, as after Ctrl+D in a terminal.
-/// @param[in,out] process Running process.
 void endProcessInput( Process &process );
 
 /// @brief Kills the process and waits for it to end.
 /// @param[in,out] process Running process; reset as ended by SIGKILL.
 void stopProcess( Process &process );
 
-/// @param[in] process Process to check.
 /// @return True until the process ended and pollProcess() or stopProcess() noticed it.
 bool isRunning( const Process &process );
 

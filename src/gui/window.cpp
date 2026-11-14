@@ -19,7 +19,6 @@ std::string droppedFilePath;
 /// @brief Sets the embedded window icon in 32, 64, 128 and 256 pixel sizes.
 ///
 /// Not used on Wayland: it takes the icon from the .desktop file matching the app id.
-/// @param[in] window Main window.
 void setWindowIcon( GLFWwindow *window ) {
     static unsigned char pixels[] = {
 #include "icon_rgba.inc"
@@ -34,7 +33,6 @@ void setWindowIcon( GLFWwindow *window ) {
 }
 
 /// @brief GLFW scroll callback: Ctrl+wheel zooms the code, other scrolling goes to ImGui.
-/// @param[in] window  Main window.
 /// @param[in] xOffset Horizontal scroll.
 /// @param[in] yOffset Vertical scroll.
 void scrollCallback( GLFWwindow *window, double xOffset, double yOffset ) {
@@ -49,7 +47,6 @@ void scrollCallback( GLFWwindow *window, double xOffset, double yOffset ) {
 
 /// @brief GLFW focus callback: passes the event to ImGui and, when the window gets the focus,
 ///        reads the desktop theme again, since it may have been changed in another window.
-/// @param[in] window  Main window.
 /// @param[in] focused GLFW_TRUE if the window got the focus.
 void focusCallback( GLFWwindow *window, int focused ) {
     ImGui_ImplGlfw_WindowFocusCallback( window, focused );
@@ -103,13 +100,13 @@ std::string takeDroppedFile() {
     return std::exchange( droppedFilePath, "" );
 }
 
-void setupImGui( GLFWwindow *window, Session &session ) {
+void setupImGui( GLFWwindow *window ) {
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     applyTheme();
-    loadSettings( session );
+    loadSettings();
     followDesktopTheme();
     loadFonts();
 

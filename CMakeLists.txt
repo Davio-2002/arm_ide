@@ -34,8 +34,7 @@ FetchContent_Declare(imgui
 FetchContent_Declare(text_editor
     GIT_REPOSITORY https://github.com/goossens/ImGuiColorTextEdit.git
     GIT_TAG 0a489da863f22f7493049f5c6eb85355f405b02e)
-
-    FetchContent_Declare(nanosvg
+FetchContent_Declare(nanosvg
     GIT_REPOSITORY https://github.com/memononen/nanosvg.git
     GIT_TAG 239e102ec2c691f2902e20ace2ed36ee4a35cfe6
     SOURCE_SUBDIR no-cmake)
@@ -62,39 +61,48 @@ target_link_libraries(imgui PUBLIC glfw OpenGL::GL Freetype::Freetype)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(VTERM REQUIRED IMPORTED_TARGET vterm)
 
+# Three layers, dependencies only pointing down. Neither library links ImGui, GLFW or the
+# editor, so a GUI include in core/ or app/ fails to build and another frontend can reuse them.
 add_library(arm_ide_core STATIC
     src/core/process.cpp
     src/core/toolchain.cpp
+    src/core/gdb_remote.cpp
     src/core/debugger.cpp
-    src/core/terminal.cpp
-    src/app/session.cpp)
+    src/core/terminal.cpp)
 target_include_directories(arm_ide_core PUBLIC src)
 target_link_libraries(arm_ide_core PUBLIC PkgConfig::VTERM util)
 
+add_library(arm_ide_app STATIC
+    src/app/session.cpp
+    src/app/documents.cpp
+    src/app/completion.cpp
+    src/app/aarch64_words.cpp)
+target_link_libraries(arm_ide_app PUBLIC arm_ide_core)
+
 add_executable(arm_ide
-    src/main.cpp
+    src/gui/main.cpp
     src/gui/window.cpp
     src/gui/settings.cpp
     src/gui/dialogs.cpp
     src/gui/appearance.cpp
     src/gui/fonts.cpp
+    src/gui/commands.cpp
     src/gui/menu.cpp
     src/gui/theme.cpp
+    src/gui/color_schemes.cpp
     src/gui/icons.cpp
     src/gui/toolbar.cpp
     src/gui/widgets.cpp
     src/gui/statusbar.cpp
+    src/gui/syntax.cpp
     src/gui/panels/panels.cpp
     src/gui/panels/editor.cpp
     src/gui/panels/console.cpp
     src/gui/panels/terminal_view.cpp
     src/gui/panels/registers.cpp
-    src/gui/panels/memory.cpp
-    src/language/aarch64_language.cpp
-    src/language/aarch64_words.cpp
-    src/language/c_language.cpp)
+    src/gui/panels/memory.cpp)
 target_include_directories(arm_ide PRIVATE ${nanosvg_SOURCE_DIR}/src)
-target_link_libraries(arm_ide PRIVATE arm_ide_core imgui)
+target_link_libraries(arm_ide PRIVATE arm_ide_app imgui)
 
 # Files compiled in as C byte lists for #include (#embed needs clang 19+, Ubuntu 24.04 ships
 # clang 18).
@@ -106,7 +114,10 @@ function(embed_as_bytes input output)
 endfunction()
 
 embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/app_icon/icon.rgba icon_rgba.inc)
-foreach(icon build run debug stop resume stepOver asmFile console clear registers memory)
-    embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/icons/${icon}.svg ${icon}_svg.inc)
+# Every icon becomes <name>_svg.inc, included by gui/icons.cpp.
+file(GLOB icon_files CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/assets/icons/*.svg)
+foreach(icon_file ${icon_files})
+    get_filename_component(icon ${icon_file} NAME_WE)
+    embed_as_bytes(${icon_file} ${icon}_svg.inc)
 endforeach()
 target_include_directories(arm_ide PRIVATE ${CMAKE_BINARY_DIR}/generated)

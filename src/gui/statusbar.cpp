@@ -35,7 +35,6 @@ std::string breadcrumb( const std::string &path ) {
     return text;
 }
 
-/// @param[in] session Current session.
 /// @return Warning colour while paused, success colour while running, transparent otherwise.
 ImU32 programStateColor( const Session &session ) {
     if ( session.isPaused() ) {
@@ -69,11 +68,15 @@ void drawStatusBar( const Session &session ) {
     if ( ImGui::BeginViewportSideBar( "##StatusBar", ImGui::GetMainViewport(), ImGuiDir_Down,
                                       height, flags ) ) {
         ImGui::PushStyleColor( ImGuiCol_Text, currentScheme().secondaryText );
-        ImGui::TextUnformatted( breadcrumb( session.filePath ).c_str() );
+        const std::string &path = session.activeDocument().path;
+        ImGui::TextUnformatted( breadcrumb( path ).c_str() );
 
-        std::string cursor =
-            std::to_string( editorCursorLine() ) + ":" + std::to_string( editorCursorColumn() );
-        std::vector<std::string> facts = { cursor, "LF", "UTF-8", "AArch64" };
+        int line = 1;
+        int column = 1;
+        editorCursor( session, line, column );
+        bool isC = sourceLanguage( path ) == SourceLanguage::C;
+        std::vector<std::string> facts = { std::to_string( line ) + ":" + std::to_string( column ),
+                                           isC ? "C" : "AArch64" };
 
         float rightWidth = ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.x +
                            ImGui::CalcTextSize( session.status.c_str() ).x;

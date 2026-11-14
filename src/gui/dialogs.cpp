@@ -45,13 +45,14 @@ std::filesystem::path cleanPath( const std::filesystem::path &path ) {
 }
 
 /// @param[in] path File path.
-/// @return True for .s, .S and .asm files.
-bool isAssemblyFile( const std::filesystem::path &path ) {
+/// @return True for files the IDE builds or edits: assembly (.s, .S, .asm) and C (.c, .h).
+bool isSourceFile( const std::filesystem::path &path ) {
     std::string extension = path.extension().string();
-    return extension == ".s" || extension == ".S" || extension == ".asm";
+    return extension == ".s" || extension == ".S" || extension == ".asm" || extension == ".c" ||
+           extension == ".h";
 }
 
-/// @brief Shows a directory in the file list: subdirectories first, then assembly files.
+/// @brief Shows a directory in the file list: subdirectories first, then source files.
 ///        Hidden entries are skipped.
 /// @param[in] directory Directory to list.
 void enterDirectory( const std::filesystem::path &directory ) {
@@ -64,7 +65,7 @@ void enterDirectory( const std::filesystem::path &directory ) {
           it.increment( error ) ) {
         std::string name = it->path().filename().string();
         bool isDirectory = it->is_directory( error );
-        if ( !name.starts_with( '.' ) && ( isDirectory || isAssemblyFile( it->path() ) ) ) {
+        if ( !name.starts_with( '.' ) && ( isDirectory || isSourceFile( it->path() ) ) ) {
             dialog.entries.push_back( { name, isDirectory } );
         }
     }

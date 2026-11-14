@@ -5,9 +5,7 @@
 #include <app/session.h>
 #include <gui/fonts.h>
 #include <gui/panels/panels.h>
-#include <gui/panels/registers.h>
 #include <gui/theme.h>
-#include <gui/window.h>
 
 namespace {
 
@@ -79,7 +77,6 @@ Flags readFlags( uint64_t nzcv ) {
 /// @param[in] text      Label text, also its ImGui ID.
 /// @param[in] on        True to fill and outline it in the accent.
 /// @param[in] textColor Text colour.
-/// @param[in] tooltip   Text shown on hover.
 /// @param[in] rowRight  Right edge of the row in screen coordinates.
 /// @param[in] first     True for the first label of the row.
 void drawPill( const char *text, bool on, ImU32 textColor, const char *tooltip, float rowRight,
@@ -174,14 +171,14 @@ void drawConditions( uint64_t nzcv ) {
 void drawRegistersPanel( const Session &session ) {
     beginPanel( "Registers" );
     drawPanelTitle( "Registers" );
-    if ( !session.hasRegisters ) {
+    if ( !session.paused.hasRegisters ) {
         ImGui::TextDisabled( "Start debugging with F10 or F8" );
         ImGui::End();
         return;
     }
 
-    const Registers &registers = session.registers;
-    const Registers &previous = session.previousRegisters;
+    const Registers &registers = session.paused.registers;
+    const Registers &previous = session.paused.previousRegisters;
     pushCodeFont();
     drawFlags( registers, previous );
     drawConditions( registers.nzcv );

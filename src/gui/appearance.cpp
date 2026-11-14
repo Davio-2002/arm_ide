@@ -7,7 +7,6 @@
 #include <gui/appearance.h>
 #include <gui/fonts.h>
 #include <gui/theme.h>
-#include <gui/window.h>
 
 namespace {
 

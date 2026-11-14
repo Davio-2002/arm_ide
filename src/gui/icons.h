@@ -26,6 +26,5 @@ inline constexpr float iconSize = 20.0f;
 /// frame's draw data uses it.
 void updateIcons();
 
-/// @param[in] icon Icon to draw.
 /// @return Texture of the icon, for ImGui::Image.
 ImTextureID iconTexture( Icon icon );

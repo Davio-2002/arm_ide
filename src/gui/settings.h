@@ -1,8 +1,5 @@
 #pragma once
 
-class Session;
-
-/// @brief Registers the IDE's settings handler and loads $XDG_CONFIG_HOME/arm_ide/imgui.ini:
-///        dock layout, zoom, fonts, theme and recent files.
-/// @param[in,out] session Session whose recent files are read and written.
-void loadSettings( Session &session );
+/// @brief Registers the GUI's settings handler and loads imgui.ini from the config directory:
+///        dock layout, zoom, fonts and theme. Recent files are the session's, in their own file.
+void loadSettings();

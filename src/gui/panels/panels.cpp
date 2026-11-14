@@ -3,11 +3,10 @@
 
 #include <iterator>
 
-#include <gui/panels/console.h>
+#include <app/session.h>
+#include <gui/icons.h>
 #include <gui/panels/editor.h>
-#include <gui/panels/memory.h>
 #include <gui/panels/panels.h>
-#include <gui/panels/registers.h>
 #include <gui/theme.h>
 #include <gui/widgets.h>
 
@@ -15,11 +14,34 @@ namespace {
 
 const float toolStripWidth = 44.0f;
 
-bool showRegisters = true;
-bool showMemory = true;
+/// @brief Where a panel is docked in the default layout.
+enum class DockArea { Main, Bottom, Right, RightBottom };
 
-/// @brief Docks the panels in the default layout: editor with the console below it on the
-///        left, registers with memory below them on the right.
+/// @brief One dock panel.
+struct Panel {
+    const char *name;
+    DockArea area;
+    /// True to show a button on the tool strip that shows and hides the panel.
+    bool canHide;
+    Icon icon;
+    bool visible;
+    void ( *draw )( Session &session );
+};
+
+/// Every panel, drawn in this order. A new panel adds a row here.
+Panel panels[] = {
+    { "Editor", DockArea::Main, false, Icon::AsmFile, true,
+      []( Session &session ) { drawEditorPanel( session ); } },
+    { "Console", DockArea::Bottom, false, Icon::Console, true,
+      []( Session &session ) { drawConsolePanel( session ); } },
+    { "Registers", DockArea::Right, true, Icon::Registers, true,
+      []( Session &session ) { drawRegistersPanel( session ); } },
+    { "Memory", DockArea::RightBottom, true, Icon::Memory, true,
+      []( Session &session ) { drawMemoryPanel( session ); } },
+};
+
+/// @brief Docks the panels in the default layout: the main area with the bottom one below it
+///        on the left, the right one with the right-bottom one below it on the right.
 /// @param[in] dockspace Dock space to build.
 void createDefaultLayout( ImGuiID dockspace ) {
     ImGui::DockBuilderAddNode( dockspace, ImGuiDockNodeFlags_DockSpace );
@@ -27,15 +49,15 @@ void createDefaultLayout( ImGuiID dockspace ) {
 
     ImGuiID leftNode, rightNode;
     ImGui::DockBuilderSplitNode( dockspace, ImGuiDir_Right, 0.3f, &rightNode, &leftNode );
-    ImGuiID editorNode, consoleNode;
-    ImGui::DockBuilderSplitNode( leftNode, ImGuiDir_Down, 0.25f, &consoleNode, &editorNode );
-    ImGuiID registersNode, memoryNode;
-    ImGui::DockBuilderSplitNode( rightNode, ImGuiDir_Down, 0.4f, &memoryNode, &registersNode );
+    ImGuiID mainNode, bottomNode;
+    ImGui::DockBuilderSplitNode( leftNode, ImGuiDir_Down, 0.25f, &bottomNode, &mainNode );
+    ImGuiID rightTopNode, rightBottomNode;
+    ImGui::DockBuilderSplitNode( rightNode, ImGuiDir_Down, 0.4f, &rightBottomNode, &rightTopNode );
 
-    ImGui::DockBuilderDockWindow( "Editor", editorNode );
-    ImGui::DockBuilderDockWindow( "Console", consoleNode );
-    ImGui::DockBuilderDockWindow( "Registers", registersNode );
-    ImGui::DockBuilderDockWindow( "Memory", memoryNode );
+    ImGuiID nodes[] = { mainNode, bottomNode, rightTopNode, rightBottomNode };
+    for ( const Panel &panel : panels ) {
+        ImGui::DockBuilderDockWindow( panel.name, nodes[static_cast<int>( panel.area )] );
+    }
     ImGui::DockBuilderFinish( dockspace );
 }
 
@@ -81,8 +103,13 @@ void drawToolStrip() {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
     if ( ImGui::BeginViewportSideBar( "##ToolStrip", ImGui::GetMainViewport(), ImGuiDir_Right,
                                       toolStripWidth, flags ) ) {
-        iconToggle( "##registers", Icon::Registers, "Registers", showRegisters );
-        iconToggle( "##memory", Icon::Memory, "Memory", showMemory );
+        for ( Panel &panel : panels ) {
+            if ( panel.canHide ) {
+                ImGui::PushID( panel.name );
+                iconToggle( "##toggle", panel.icon, panel.name, panel.visible );
+                ImGui::PopID();
+            }
+        }
     }
     ImGui::End();
     ImGui::PopStyleColor();
@@ -128,16 +155,13 @@ float headerButtonWidth() {
     return ImGui::GetFrameHeight();
 }
 
-void drawPanels( Session &session, MenuActions &actions ) {
+void drawPanels( Session &session ) {
     syncEditorWithSession( session );
     drawToolStrip();
     drawDockSpace();
-    drawEditorPanel();
-    drawConsolePanel( session, actions );
-    if ( showRegisters ) {
-        drawRegistersPanel( session );
-    }
-    if ( showMemory ) {
-        drawMemoryPanel( session );
+    for ( const Panel &panel : panels ) {
+        if ( panel.visible ) {
+            panel.draw( session );
+        }
     }
 }

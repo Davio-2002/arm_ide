@@ -1,19 +1,14 @@
 #include <imgui.h>
 
 #include <app/session.h>
+#include <gui/commands.h>
 #include <gui/fonts.h>
-#include <gui/menu.h>
-#include <gui/panels/console.h>
-#include <gui/panels/editor.h>
 #include <gui/panels/panels.h>
-#include <gui/panels/terminal_view.h>
 #include <gui/theme.h>
 #include <gui/widgets.h>
-#include <gui/window.h>
 
 namespace {
 
-/// @param[in] kind Message kind.
 /// @return Text colour of the message.
 ImU32 messageColor( MessageKind kind ) {
     switch ( kind ) {
@@ -38,7 +33,6 @@ int shownBuildCount = 0;
 
 /// @brief Switches tabs once after each build: a failed build shows its errors, a good one
 ///        shows the program.
-/// @param[in] session Current session.
 void followLatestBuild( const Session &session ) {
     if ( session.buildCount == shownBuildCount ) {
         return;
@@ -48,7 +42,6 @@ void followLatestBuild( const Session &session ) {
 }
 
 /// @brief Draws one tab of the header and selects it on click.
-/// @param[in] id      ImGui ID.
 /// @param[in] label   Tab text.
 /// @param[in] tab     Tab it selects.
 /// @param[in] hasIcon True to show the console icon.
@@ -66,22 +59,23 @@ void drawOutputTab( const char *id, const char *label, OutputTab tab, bool hasIc
     }
 }
 
-/// @brief Draws the Resume, Step and Stop buttons.
-/// @param[in]     session Current session.
-/// @param[in,out] actions Receives the clicked buttons.
-void drawDebugButtons( const Session &session, MenuActions &actions ) {
+/// @brief Draws the Resume, Step and Stop buttons. Resume and Step only resume a paused
+///        program; starting the debugger is the toolbar's.
+void drawDebugButtons( const Session &session ) {
     bool paused = session.isPaused();
-    actions.debugContinue |= iconButton( "##resume", Icon::Resume, "Resume  F8", paused );
+    if ( iconButton( "##resume", Icon::Resume, "Resume  F8", paused ) ) {
+        requestCommand( Command::DebugContinue );
+    }
     ImGui::SameLine();
-    actions.debugStep |= iconButton( "##step", Icon::StepOver, "Step  F10", paused );
+    if ( iconButton( "##step", Icon::StepOver, "Step  F10", paused ) ) {
+        requestCommand( Command::DebugStep );
+    }
     ImGui::SameLine();
-    actions.stop |= iconButton( "##stop", Icon::Stop, "Stop  Shift+F5", session.isProgramActive() );
+    commandButton( session, "##stop", Command::Stop, Icon::Stop );
 }
 
 /// @brief Draws the header row: tabs, then debug or shell buttons, and Clear on the right.
-/// @param[in]     session Current session.
-/// @param[in,out] actions Receives the clicked buttons.
-void drawConsoleHeader( const Session &session, MenuActions &actions ) {
+void drawConsoleHeader( const Session &session ) {
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing,
                          ImVec2( 2.0f, ImGui::GetStyle().ItemSpacing.y ) );
     drawOutputTab( "##consoleTab", "Console", OutputTab::Console, true );
@@ -96,16 +90,22 @@ void drawConsoleHeader( const Session &session, MenuActions &actions ) {
     bool showsTerminal = shownOutputTab == OutputTab::Terminal;
     pushHeaderButtonPadding();
     if ( showsTerminal ) {
-        actions.stopTerminal |=
-            iconButton( "##stopShell", Icon::Stop, "Kill the shell and start a new one",
-                        isRunning( session.terminal ) );
+        if ( iconButton( "##stopShell", Icon::Stop, "Kill the shell and start a new one",
+                         isTerminalRunning() ) ) {
+            stopTerminalShell();
+        }
     } else {
-        drawDebugButtons( session, actions );
+        drawDebugButtons( session );
     }
     ImGui::SameLine( ImGui::GetWindowWidth() - headerButtonWidth() -
                      ImGui::GetStyle().WindowPadding.x );
-    bool clear = iconButton( "##clear", Icon::Clear, "Clear" );
-    ( showsTerminal ? actions.clearTerminal : actions.clearOutput ) |= clear;
+    if ( iconButton( "##clear", Icon::Clear, "Clear" ) ) {
+        if ( showsTerminal ) {
+            clearTerminalView();
+        } else {
+            requestCommand( Command::ClearOutput );
+        }
+    }
     ImGui::PopStyleVar( 2 );
 }
 
@@ -121,7 +121,6 @@ MessageSelection consoleSelection;
 MessageSelection buildSelection;
 
 /// @brief Copies messages to the clipboard, one per line.
-/// @param[in] messages  Messages of the tab.
 /// @param[in] selection Lines to copy, or nullptr to copy all.
 void copyMessages( const std::vector<Message> &messages,
                    const ImGuiSelectionBasicStorage *selection ) {
@@ -135,8 +134,6 @@ void copyMessages( const std::vector<Message> &messages,
 }
 
 /// @brief Handles Ctrl+C and the right-click menu with Copy and Copy All.
-/// @param[in] messages  Messages of the tab.
-/// @param[in] selection Selected lines.
 void drawCopyMenu( const std::vector<Message> &messages,
                    const ImGuiSelectionBasicStorage &selection ) {
     if ( ImGui::IsWindowFocused() && ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_C ) ) {
@@ -198,7 +195,9 @@ void drawMessages( const std::vector<Message> &messages, MessageSelection &selec
             ImGui::PopID();
 
             if ( clicked && message.sourceLine > 0 ) {
-                jumpToSourceLine( message.sourceLine );
+                int line = message.sourceLine;
+                requestAction( [line]( Session &session ) { session.showProgramLine( line ); } );
+                ImGui::SetWindowFocus( "Editor" );
             }
         }
     }
@@ -216,9 +215,7 @@ char programInput[1024];
 
 /// @brief Draws the input line for the running program's stdin. Enter sends the line,
 ///        Ctrl+D ends the input.
-/// @param[in]     session Current session.
-/// @param[in,out] actions Receives the sent line or end of input.
-void drawProgramInput( const Session &session, MenuActions &actions ) {
+void drawProgramInput( const Session &session ) {
     bool enabled = session.acceptsInput();
     const char *hint = enabled ? "Input for the program: Enter sends a line, Ctrl+D ends input"
                                : "Input for the program, while it runs";
@@ -228,43 +225,41 @@ void drawProgramInput( const Session &session, MenuActions &actions ) {
         ImGui::InputTextWithHint( "##programInput", hint, programInput, sizeof( programInput ),
                                   ImGuiInputTextFlags_EnterReturnsTrue );
     if ( entered ) {
-        actions.sendProgramInput = true;
-        actions.programInput = programInput;
+        std::string line = programInput;
+        requestAction( [line]( Session &session ) { session.sendProgramInput( line ); } );
         programInput[0] = '\0';
         ImGui::SetKeyboardFocusHere( -1 );
     }
     if ( ImGui::IsItemActive() && ImGui::IsKeyChordPressed( ImGuiMod_Ctrl | ImGuiKey_D ) ) {
-        actions.endProgramInput = true;
+        requestAction( []( Session &session ) { session.endProgramInput(); } );
     }
     ImGui::EndDisabled();
 }
 
 /// @brief Draws the program output with the input line below it.
-/// @param[in]     session Current session.
-/// @param[in,out] actions Receives the program input.
-void drawConsoleTab( const Session &session, MenuActions &actions ) {
+void drawConsoleTab( const Session &session ) {
     pushCodeFont();
     float inputHeight = ImGui::GetFrameHeightWithSpacing();
     drawMessages( session.console, consoleSelection, -inputHeight );
-    drawProgramInput( session, actions );
+    drawProgramInput( session );
     ImGui::PopFont();
 }
 
 } // anonymous namespace
 
-void drawConsolePanel( const Session &session, MenuActions &actions ) {
+void drawConsolePanel( const Session &session ) {
     followLatestBuild( session );
     beginPanel( "Console" );
-    drawConsoleHeader( session, actions );
+    drawConsoleHeader( session );
     switch ( shownOutputTab ) {
     case OutputTab::Console:
-        drawConsoleTab( session, actions );
+        drawConsoleTab( session );
         break;
     case OutputTab::Build:
         drawMessages( session.buildLog, buildSelection );
         break;
     case OutputTab::Terminal:
-        drawTerminalView( session, actions );
+        drawTerminalView( session );
         break;
     }
     ImGui::End();

@@ -1,56 +1,34 @@
 #include <imgui.h>
-#include <imgui_internal.h>
 
-#include <cstdlib>
-#include <cstring>
-#include <filesystem>
+#include <functional>
 
 #include <app/session.h>
 #include <gui/appearance.h>
-#include <gui/dialogs.h>
+#include <gui/commands.h>
 #include <gui/fonts.h>
 #include <gui/menu.h>
-#include <gui/panels/editor.h>
 #include <gui/theme.h>
 #include <gui/toolbar.h>
 #include <gui/widgets.h>
-#include <gui/window.h>
 
 namespace {
 
-/// @brief Saves the active editor tab and marks it saved.
-/// @param[in,out] session Session that writes the file.
-/// @param[in]     path    File to write.
-void saveDocument( Session &session, const std::string &path ) {
-    if ( session.saveFile( path, editorText() ) ) {
-        markEditorSaved( session.filePath );
-    }
-    ImGui::MarkIniSettingsDirty();
-}
-
-/// @brief Reads the global keyboard shortcuts.
-/// @return Actions whose shortcut was pressed this frame.
-MenuActions readShortcuts() {
+/// @brief Reads the shortcuts that change the view rather than the session: zoom.
+void readViewShortcuts() {
     ImGuiInputFlags global = ImGuiInputFlags_RouteGlobal;
-    MenuActions actions;
-    actions.newFile = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_N, global );
-    actions.open = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_O, global );
-    actions.save = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_S, global );
-    actions.saveAs = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, global );
-    actions.zoomIn = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Equal, global ) ||
-                     ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Equal, global ) ||
-                     ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, global );
-    actions.zoomOut = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Minus, global ) ||
-                      ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, global );
-    actions.resetZoom = ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_0, global ) ||
-                        ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Keypad0, global );
-    actions.build = ImGui::Shortcut( ImGuiKey_F7, global );
-    actions.run = ImGui::Shortcut( ImGuiKey_F5, global );
-    actions.stop = ImGui::Shortcut( ImGuiMod_Shift | ImGuiKey_F5, global );
-    actions.debugContinue = ImGui::Shortcut( ImGuiKey_F8, global );
-    actions.debugStep = ImGui::Shortcut( ImGuiKey_F10, global );
-    actions.toggleBreakpoint = ImGui::Shortcut( ImGuiKey_F9, global );
-    return actions;
+    if ( ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Equal, global ) ||
+         ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Equal, global ) ||
+         ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, global ) ) {
+        zoomCode( 2.0f );
+    }
+    if ( ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Minus, global ) ||
+         ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, global ) ) {
+        zoomCode( -2.0f );
+    }
+    if ( ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_0, global ) ||
+         ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Keypad0, global ) ) {
+        resetZoom();
+    }
 }
 
 /// @brief Pushes the menu bar style: items light up in the accent, rounded like the tabs.
@@ -70,198 +48,77 @@ void popMenuStyle() {
     ImGui::PopStyleVar( 2 );
 }
 
-/// @brief Draws the main menu bar: toolbar start, the File, View, Build, Run and Debug menus,
-///        and toolbar end.
-/// @param[in]     session Current session.
-/// @param[in,out] actions Receives the chosen actions.
-void drawMenus( const Session &session, MenuActions &actions ) {
+/// @brief Draws a menu of the bar, outlined while hovered or open.
+/// @param[in] label     Menu name.
+/// @param[in] drawItems Draws the items while the menu is open.
+void drawMenu( const char *label, const std::function<void()> &drawItems ) {
+    bool open = ImGui::BeginMenu( label );
+    if ( open ) {
+        drawItems();
+        ImGui::EndMenu();
+    }
+    outlineLastItem( open || ImGui::IsItemHovered() );
+}
+
+/// @brief Draws the File menu, with the recent files.
+void drawFileMenu( const Session &session ) {
+    commandMenuItem( session, Command::NewFile );
+    commandMenuItem( session, Command::Open );
+    if ( ImGui::BeginMenu( "Open Recent", !session.recentFiles.empty() ) ) {
+        for ( const std::string &path : session.recentFiles ) {
+            if ( ImGui::MenuItem( displayPath( path ).c_str() ) ) {
+                requestAction( [path]( Session &session ) { session.openFile( path ); } );
+            }
+        }
+        ImGui::EndMenu();
+    }
+    ImGui::Separator();
+    commandMenuItem( session, Command::Save );
+    commandMenuItem( session, Command::SaveAs );
+}
+
+/// @brief Draws the View menu: zoom and Appearance.
+void drawViewMenu() {
+    if ( ImGui::MenuItem( "Zoom In", "Ctrl+=" ) ) {
+        zoomCode( 2.0f );
+    }
+    if ( ImGui::MenuItem( "Zoom Out", "Ctrl+-" ) ) {
+        zoomCode( -2.0f );
+    }
+    if ( ImGui::MenuItem( "Reset Zoom", "Ctrl+0" ) ) {
+        resetZoom();
+    }
+    ImGui::Separator();
+    if ( ImGui::MenuItem( "Appearance..." ) ) {
+        openAppearance();
+    }
+}
+
+} // anonymous namespace
+
+void drawMenuBar( const Session &session ) {
+    readCommandShortcuts();
+    readViewShortcuts();
+
     pushMenuStyle();
     if ( !ImGui::BeginMainMenuBar() ) {
         popMenuStyle();
         return;
     }
-    drawToolbarStart( session, actions );
-
-    bool fileOpen = ImGui::BeginMenu( "File" );
-    if ( fileOpen ) {
-        actions.newFile |= ImGui::MenuItem( "New File", "Ctrl+N" );
-        actions.open |= ImGui::MenuItem( "Open...", "Ctrl+O" );
-        if ( ImGui::BeginMenu( "Open Recent", !session.recentFiles.empty() ) ) {
-            for ( const std::string &path : session.recentFiles ) {
-                if ( ImGui::MenuItem( displayPath( path ).c_str() ) ) {
-                    actions.fileToOpen = path;
-                }
-            }
-            ImGui::EndMenu();
-        }
-        ImGui::Separator();
-        actions.save |= ImGui::MenuItem( "Save", "Ctrl+S" );
-        actions.saveAs |= ImGui::MenuItem( "Save As...", "Ctrl+Shift+S" );
-        ImGui::EndMenu();
-    }
-    outlineLastItem( fileOpen || ImGui::IsItemHovered() );
-    bool viewOpen = ImGui::BeginMenu( "View" );
-    if ( viewOpen ) {
-        actions.zoomIn |= ImGui::MenuItem( "Zoom In", "Ctrl+=" );
-        actions.zoomOut |= ImGui::MenuItem( "Zoom Out", "Ctrl+-" );
-        actions.resetZoom |= ImGui::MenuItem( "Reset Zoom", "Ctrl+0" );
-        ImGui::Separator();
-        actions.openAppearance |= ImGui::MenuItem( "Appearance..." );
-        ImGui::EndMenu();
-    }
-    outlineLastItem( viewOpen || ImGui::IsItemHovered() );
-    bool buildOpen = ImGui::BeginMenu( "Build" );
-    if ( buildOpen ) {
-        actions.build |= ImGui::MenuItem( "Build", "F7" );
-        ImGui::EndMenu();
-    }
-    outlineLastItem( buildOpen || ImGui::IsItemHovered() );
-    bool runOpen = ImGui::BeginMenu( "Run" );
-    if ( runOpen ) {
-        actions.run |= ImGui::MenuItem( "Build and Run", "F5" );
-        actions.stop |= ImGui::MenuItem( "Stop", "Shift+F5", false, session.isProgramActive() );
-        ImGui::EndMenu();
-    }
-    outlineLastItem( runOpen || ImGui::IsItemHovered() );
-    bool debugOpen = ImGui::BeginMenu( "Debug" );
-    if ( debugOpen ) {
-        const char *continueLabel = session.isDebugging() ? "Continue" : "Start Debugging";
-        actions.debugContinue |= ImGui::MenuItem( continueLabel, "F8" );
-        actions.debugStep |= ImGui::MenuItem( "Step", "F10" );
-        actions.toggleBreakpoint |= ImGui::MenuItem( "Toggle Breakpoint", "F9" );
-        ImGui::EndMenu();
-    }
-    outlineLastItem( debugOpen || ImGui::IsItemHovered() );
-
-    drawToolbarEnd( session, actions );
+    drawToolbarStart( session );
+    drawMenu( "File", [&session] { drawFileMenu( session ); } );
+    drawMenu( "View", drawViewMenu );
+    drawMenu( "Build", [&session] { commandMenuItem( session, Command::Build ); } );
+    drawMenu( "Run", [&session] {
+        commandMenuItem( session, Command::Run );
+        commandMenuItem( session, Command::Stop );
+    } );
+    drawMenu( "Debug", [&session] {
+        commandMenuItem( session, Command::DebugContinue );
+        commandMenuItem( session, Command::DebugStep );
+        commandMenuItem( session, Command::ToggleBreakpoint );
+    } );
+    drawToolbarEnd( session );
     ImGui::EndMainMenuBar();
     popMenuStyle();
-}
-
-/// @brief Runs the one build, run or debug action chosen, in that priority.
-/// @param[in,out] session Session to act on.
-/// @param[in]     actions Collected actions.
-void runProgramActions( Session &session, const MenuActions &actions ) {
-    if ( actions.run ) {
-        session.run();
-    } else if ( actions.debugContinue ) {
-        session.debugContinue();
-    } else if ( actions.debugStep ) {
-        session.debugStep();
-    } else if ( actions.build ) {
-        session.build();
-    }
-}
-
-/// @brief Runs all collected actions. Saves the file before a build, asking for a name
-///        first if it has none.
-/// @param[in,out] session Session to act on.
-/// @param[in]     actions Collected actions.
-void runActions( Session &session, const MenuActions &actions ) {
-    if ( actions.zoomIn ) {
-        zoomCode( 2.0f );
-    }
-    if ( actions.zoomOut ) {
-        zoomCode( -2.0f );
-    }
-    if ( actions.resetZoom ) {
-        resetZoom();
-    }
-    if ( actions.openAppearance ) {
-        openAppearance();
-    }
-
-    if ( actions.stop ) {
-        session.stop();
-    }
-    if ( actions.clearOutput ) {
-        session.clearOutput();
-    }
-    if ( actions.sendProgramInput ) {
-        session.sendProgramInput( actions.programInput );
-    }
-    if ( actions.endProgramInput ) {
-        session.endProgramInput();
-    }
-    if ( actions.terminalRows > 0 && actions.terminalColumns > 0 ) {
-        session.openTerminal( actions.terminalRows, actions.terminalColumns );
-    }
-    session.sendTerminalInput( actions.terminalInputs, actions.terminalPaste );
-    if ( actions.stopTerminal ) {
-        session.stopTerminal();
-    }
-    if ( actions.clearTerminal ) {
-        session.clearTerminal();
-    }
-    if ( actions.toggleBreakpoint ) {
-        session.toggleBreakpoint( session.filePath, editorCursorLine() );
-    }
-    if ( actions.newFile ) {
-        openNewDocument();
-    }
-    if ( actions.open ) {
-        std::string directory = std::filesystem::path( session.filePath ).parent_path();
-        askForFileToOpen(
-            directory, [&session]( const std::string &path ) { openDocument( session, path ); } );
-    }
-    if ( !actions.fileToOpen.empty() ) {
-        openDocument( session, actions.fileToOpen );
-    }
-
-    bool startsDebugging = ( actions.debugContinue || actions.debugStep ) && !session.isDebugging();
-    bool rebuilds = actions.build || actions.run || startsDebugging;
-    bool needsPath = ( actions.save || rebuilds ) && session.filePath.empty();
-    if ( actions.saveAs || needsPath ) {
-        std::string suggestedPath = session.filePath.empty() ? "untitled.s" : session.filePath;
-        askForFileToSave( suggestedPath, [&session, actions]( const std::string &path ) {
-            saveDocument( session, path );
-            runProgramActions( session, actions );
-        } );
-        return;
-    }
-    if ( actions.save || rebuilds ) {
-        saveDocument( session, session.filePath );
-    }
-    runProgramActions( session, actions );
-}
-
-} // anonymous namespace
-
-void openDocument( Session &session, const std::string &path ) {
-    std::string text;
-    if ( session.openFile( path, text ) ) {
-        openInEditor( session.filePath, text );
-    }
-    ImGui::MarkIniSettingsDirty();
-}
-
-void whenChangesDiscarded( std::function<void()> action ) {
-    std::vector<std::string> unsaved = unsavedDocumentNames();
-    if ( unsaved.empty() ) {
-        action();
-        return;
-    }
-    std::string what =
-        unsaved.size() == 1 ? unsaved.front() : std::to_string( unsaved.size() ) + " files";
-    askToDiscardChanges( what, std::move( action ) );
-}
-
-std::string displayPath( const std::string &path ) {
-    const char *home = std::getenv( "HOME" );
-    if ( home && path.starts_with( std::string( home ) + "/" ) ) {
-        return "~" + path.substr( std::strlen( home ) );
-    }
-    return path;
-}
-
-MenuActions drawMenuBar( const Session &session ) {
-    MenuActions actions = readShortcuts();
-    drawMenus( session, actions );
-    return actions;
-}
-
-void runMenuActions( Session &session, const MenuActions &actions ) {
-    if ( !isDialogOpen() ) {
-        runActions( session, actions );
-    }
 }

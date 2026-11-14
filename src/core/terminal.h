@@ -100,12 +100,10 @@ bool updateTerminal( Terminal &terminal );
 void resizeTerminal( Terminal &terminal, int rows, int columns );
 
 /// @brief Sends one key press or character to the shell, encoded as the terminal would.
-/// @param[in,out] terminal Running terminal.
 /// @param[in]     input    Key or character with modifiers.
 void sendTerminalInput( Terminal &terminal, const TerminalInput &input );
 
 /// @brief Sends text to the shell as a bracketed paste.
-/// @param[in,out] terminal Running terminal.
 /// @param[in]     text     Text to paste.
 void pasteToTerminal( Terminal &terminal, const std::string &text );
 
@@ -115,19 +113,15 @@ void pasteToTerminal( Terminal &terminal, const std::string &text );
 /// @param[in,out] terminal Terminal to stop.
 void stopTerminal( Terminal &terminal );
 
-/// @param[in] terminal Terminal to check.
 /// @return True while the shell runs.
 bool isRunning( const Terminal &terminal );
 
 /// @brief Reads one cell of the screen or the scrollback.
-/// @param[in] terminal Terminal to read.
 /// @param[in] row      Screen row; negative for scrollback lines, -1 being the newest.
-/// @param[in] column   Column.
 /// @return The cell, or an empty cell outside the screen.
 TerminalCell terminalCell( const Terminal &terminal, int row, int column );
 
 /// @brief Reads the cursor position.
-/// @param[in]  terminal Terminal to read.
 /// @param[out] row      Cursor row.
 /// @param[out] column   Cursor column.
 void terminalCursor( const Terminal &terminal, int &row, int &column );
