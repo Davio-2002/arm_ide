@@ -8,10 +8,13 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
+#include <initializer_list>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include <app/session.h>
+#include <core/fonts.h>
 #include <gui/theme.h>
 #include <gui/window.h>
 
@@ -20,7 +23,6 @@ static const float defaultCodeFontSize = 18.0f;
 static const float minCodeFontSize = 10.0f;
 static const float maxCodeFontSize = 48.0f;
 
-static ImFont *codeFont = nullptr;
 static float codeFontSize = defaultCodeFontSize;
 static std::string droppedFilePath;
 static std::string settingsPath;
@@ -73,39 +75,104 @@ GLFWwindow *createWindow() {
     return window;
 }
 
-/// @param[in] paths Candidate files, in order of preference.
-/// @return The first file that exists, or an empty string.
-static std::string findFirstExistingFile( const std::vector<std::string> &paths ) {
-    for ( const std::string &path : paths ) {
-        if ( std::filesystem::exists( path ) ) {
-            return path;
+/// @brief A font in use, loaded from an installed family.
+struct LoadedFont {
+    std::string family;
+    std::string requestedFamily;
+    ImFont *font = nullptr;
+};
+
+static LoadedFont uiFont;
+static LoadedFont codeFont;
+
+/// @brief Loads the first of the families that is installed and readable, in place of the
+///        font's current one. When none is, the font is kept, or ImGui's built-in font is used
+///        if there is none yet.
+/// @param[in,out] loaded     Font to replace; its family becomes the one loaded.
+/// @param[in]     candidates Families in order of preference; empty names are skipped.
+static void loadFont( LoadedFont &loaded, const std::vector<std::string> &candidates ) {
+    ImFontAtlas *atlas = ImGui::GetIO().Fonts;
+    ImFont *font = nullptr;
+    std::string family;
+    for ( const std::string &candidate : candidates ) {
+        std::optional<FontFace> face = findFont( candidate );
+        if ( !face ) {
+            continue;
+        }
+        ImFontConfig config;
+        config.FontNo = face->index;
+        config.Flags |= ImFontFlags_NoLoadError;
+        font = atlas->AddFontFromFileTTF( face->path.c_str(), 0.0f, &config );
+        if ( font ) {
+            family = candidate;
+            break;
         }
     }
-    return "";
+    if ( !font && !loaded.font ) {
+        font = atlas->AddFontDefault();
+    }
+    if ( !font ) {
+        return;
+    }
+    if ( loaded.font ) {
+        atlas->RemoveFont( loaded.font );
+    }
+    loaded.font = font;
+    loaded.family = family;
 }
 
-/// @brief Loads the first installed UI font and code font. ImGui's built-in font is used
-///        when none is found.
-static void loadFonts() {
-    std::string home = std::getenv( "HOME" ) ? std::getenv( "HOME" ) : "";
-    std::string uiFontPath = findFirstExistingFile( {
-        "/usr/share/fonts/truetype/ubuntu/UbuntuSans[wdth,wght].ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    } );
-    std::string codeFontPath = findFirstExistingFile( {
-        home + "/.local/share/fonts/JetBrainsMonoNerd/JetBrainsMonoNerdFont-Regular.ttf",
-        "/usr/share/fonts/truetype/jetbrains-mono/JetBrainsMono-Regular.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-    } );
+/// @param[in] first       Family tried first.
+/// @param[in] recommended Families tried after it.
+/// @return The families in that order.
+static std::vector<std::string> fontCandidates( const std::string &first,
+                                                std::initializer_list<const char *> recommended ) {
+    std::vector<std::string> candidates = { first };
+    candidates.insert( candidates.end(), recommended.begin(), recommended.end() );
+    return candidates;
+}
 
-    ImGuiIO &io = ImGui::GetIO();
-    io.Fonts->FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
-    if ( !uiFontPath.empty() ) {
-        io.Fonts->AddFontFromFileTTF( uiFontPath.c_str() );
+/// @brief Loads the interface and code fonts chosen in the settings, or else the first
+///        recommended one installed.
+static void loadFonts() {
+    ImGui::GetIO().Fonts->FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
+    loadFont( uiFont, fontCandidates( uiFont.requestedFamily, { "Ubuntu Sans", "Inter", "Noto Sans",
+                                                                "Cantarell", "DejaVu Sans" } ) );
+    loadFont( codeFont, fontCandidates( codeFont.requestedFamily,
+                                        { "JetBrains Mono", "JetBrainsMono Nerd Font", "Fira Code",
+                                          "Cascadia Code", "Source Code Pro", "Ubuntu Mono",
+                                          "DejaVu Sans Mono" } ) );
+    uiFont.requestedFamily.clear();
+    codeFont.requestedFamily.clear();
+    ImGui::GetIO().FontDefault = uiFont.font;
+}
+
+/// @brief Loads a font family asked for with setUiFontFamily() or setCodeFontFamily().
+///
+/// Runs between frames: the old font can only be removed when no draw data uses it.
+/// @param[in,out] loaded Font whose requested family is loaded; kept if it can't be.
+static void applyRequestedFont( LoadedFont &loaded ) {
+    if ( loaded.requestedFamily.empty() ) {
+        return;
     }
-    if ( !codeFontPath.empty() ) {
-        codeFont = io.Fonts->AddFontFromFileTTF( codeFontPath.c_str() );
-    }
+    loadFont( loaded, { loaded.requestedFamily } );
+    loaded.requestedFamily.clear();
+    ImGui::MarkIniSettingsDirty();
+}
+
+const std::string &uiFontFamily() {
+    return uiFont.family;
+}
+
+const std::string &codeFontFamily() {
+    return codeFont.family;
+}
+
+void setUiFontFamily( const std::string &family ) {
+    uiFont.requestedFamily = family;
+}
+
+void setCodeFontFamily( const std::string &family ) {
+    codeFont.requestedFamily = family;
 }
 
 /// @brief Sets the code font size, clamped to its limits, and marks the settings for saving.
@@ -116,7 +183,7 @@ static void setCodeFontSize( float size ) {
 }
 
 void pushCodeFont() {
-    ImGui::PushFont( codeFont, codeFontSize );
+    ImGui::PushFont( codeFont.font, codeFontSize );
 }
 
 void zoomCode( float step ) {
@@ -161,7 +228,7 @@ static void *openSettingsEntry( ImGuiContext *, ImGuiSettingsHandler *, const ch
     return settingsSession;
 }
 
-/// @brief ImGui settings callback: applies one line of the IDE's section: zoom, colours or
+/// @brief ImGui settings callback: applies one line of the IDE's section: zoom, fonts, colours or
 ///        a recent file that still exists.
 /// @param[in] line Line in "Key=value" form.
 static void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line ) {
@@ -169,6 +236,10 @@ static void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, co
     if ( text.starts_with( "Zoom=" ) ) {
         codeFontSize =
             std::clamp( std::strtof( line + 5, nullptr ), minCodeFontSize, maxCodeFontSize );
+    } else if ( text.starts_with( "UiFont=" ) ) {
+        uiFont.requestedFamily = text.substr( 7 );
+    } else if ( text.starts_with( "CodeFont=" ) ) {
+        codeFont.requestedFamily = text.substr( 9 );
     } else if ( text.starts_with( "Accent=" ) ) {
         setAccentColor( static_cast<ImU32>( std::strtoul( line + 7, nullptr, 16 ) ) );
     } else if ( text.starts_with( "PanelBackground=" ) ) {
@@ -185,6 +256,8 @@ static void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler,
                            ImGuiTextBuffer *buffer ) {
     buffer->appendf( "[%s][Settings]\n", handler->TypeName );
     buffer->appendf( "Zoom=%g\n", codeFontSize );
+    buffer->appendf( "UiFont=%s\n", uiFont.family.c_str() );
+    buffer->appendf( "CodeFont=%s\n", codeFont.family.c_str() );
     buffer->appendf( "Accent=%08X\n", accentColor() );
     buffer->appendf( "PanelBackground=%08X\n", islandColor() );
     for ( const std::string &path : settingsSession->recentFiles ) {
@@ -223,10 +296,10 @@ void setupImGui( GLFWwindow *window, Session &session ) {
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    loadFonts();
     applyIslandsTheme();
     ImGui::GetStyle().FontSizeBase = uiFontSize;
     loadSettings( session );
+    loadFonts();
 
     ImGui_ImplGlfw_InitForOpenGL( window, true );
     ImGui_ImplOpenGL3_Init( "#version 330" );
@@ -243,6 +316,9 @@ void shutdownWindow( GLFWwindow *window ) {
 }
 
 void beginFrame() {
+    applyRequestedFont( uiFont );
+    applyRequestedFont( codeFont );
+    ImGui::GetIO().FontDefault = uiFont.font;
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();

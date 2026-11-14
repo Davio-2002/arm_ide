@@ -43,3 +43,19 @@ void zoomCode( float step );
 
 /// @brief Restores the default code font size.
 void resetZoom();
+
+/// @return Family of the interface font; empty for ImGui's built-in font.
+const std::string &uiFontFamily();
+
+/// @return Family of the code font; empty for ImGui's built-in font.
+const std::string &codeFontFamily();
+
+/// @brief Switches the interface font at the next frame and saves it in the settings. The
+///        current font is kept if the family can't be loaded.
+/// @param[in] family Installed family, as fontFamilies() lists it.
+void setUiFontFamily( const std::string &family );
+
+/// @brief Switches the code font at the next frame and saves it in the settings. The current
+///        font is kept if the family can't be loaded.
+/// @param[in] family Installed family, as fontFamilies() lists it.
+void setCodeFontFamily( const std::string &family );
