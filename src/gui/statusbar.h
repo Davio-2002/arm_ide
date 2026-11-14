@@ -2,6 +2,5 @@
 
 class Session;
 
-/// @brief Draws the bottom status bar: file breadcrumb, program state, status text, cursor
-///        position and language.
+/// @brief Draws the bottom bar: breadcrumb, program state, status, cursor and language.
 void drawStatusBar( const Session &session );

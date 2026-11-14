@@ -11,8 +11,6 @@
 
 namespace {
 
-/// @param[in] prefix Prefix to look for.
-/// @return True if word starts with prefix, ignoring case.
 bool startsWithIgnoringCase( const std::string &word, const std::string &prefix ) {
     return word.size() >= prefix.size() &&
            std::equal( prefix.begin(), prefix.end(), word.begin(), []( char a, char b ) {
@@ -22,7 +20,6 @@ bool startsWithIgnoringCase( const std::string &word, const std::string &prefix 
 }
 
 /// @param[in] convert std::toupper or std::tolower.
-/// @return The word with each character converted.
 std::string withCase( std::string word, int ( *convert )( int ) ) {
     for ( char &c : word ) {
         c = static_cast<char>( convert( static_cast<unsigned char>( c ) ) );
@@ -30,16 +27,10 @@ std::string withCase( std::string word, int ( *convert )( int ) ) {
     return word;
 }
 
-/// @brief Finds the words that complete a typed term, shortest first.
-///
-/// In a case-insensitive language (assembly) a term typed in upper case gets the language
-/// words in upper case, and a document word that only differs in case from a language word
-/// is left out.
-/// @param[in] term          Typed start of a word.
-/// @param[in] languageWords Words of the language; lower case when it ignores case.
-/// @param[in] documentWords Identifiers found in the document.
-/// @param[in] caseSensitive True if the language tells upper and lower case apart (C).
-/// @return Words longer than the term that start with it, ignoring case.
+/// @brief Finds completions of a term, shortest first. Without case sensitivity an
+///        upper-case term gets upper-case language words, and document words differing only
+///        in case from a language word are dropped.
+/// @param[in] languageWords Lower case when the language ignores case.
 std::vector<std::string> completeWord( const std::string &term,
                                        const std::set<std::string> &languageWords,
                                        const std::vector<std::string> &documentWords,
@@ -68,7 +59,7 @@ std::vector<std::string> completeWord( const std::string &term,
     return suggestions;
 }
 
-/// @return The words of AArch64 assembly, in lower case.
+/// @return AArch64 assembly words, lower case.
 const std::set<std::string> &assemblyWords() {
     static const std::set<std::string> words = [] {
         std::set<std::string> words( aarch64Mnemonics.begin(), aarch64Mnemonics.end() );
@@ -85,7 +76,7 @@ const std::set<std::string> &assemblyWords() {
     return words;
 }
 
-/// C keywords and type words, as in the editor's C language.
+/// @brief C keywords, as in the editor's C language.
 const char *const cKeywords[] = {
     "auto",       "break",     "case",           "char",
     "const",      "continue",  "default",        "do",
@@ -100,16 +91,14 @@ const char *const cKeywords[] = {
     "_Imaginary", "_Noreturn", "_Static_assert", "_Thread_local",
 };
 
-/// C preprocessor directives, most used first, each with the space before its argument.
+/// @brief Directives, most used first, with the space before their argument.
 const char *const cDirectives[] = {
     "include ", "define ",       "ifdef ",   "ifndef ",   "if ",    "else",
     "elif ",    "endif",         "undef ",   "pragma ",   "error ", "warning ",
     "line ",    "include_next ", "elifdef ", "elifndef ", "embed ",
 };
 
-/// @brief Finds where the header name of an #include line starts.
-/// @param[in] line Text of the line.
-/// @return Index of its '<' or '"', or nothing if the line is no #include.
+/// @return Index of an #include line's '<' or '"', or nothing.
 std::optional<size_t> headerNameStart( const std::string &line ) {
     size_t position = line.find_first_not_of( " \t" );
     if ( position == std::string::npos || line[position] != '#' ) {
@@ -130,11 +119,9 @@ std::optional<size_t> headerNameStart( const std::string &line ) {
     return std::nullopt;
 }
 
-/// @brief Lists the headers and folders in one folder of each search folder.
-/// @param[in] searchFolders Folders searched for headers.
-/// @param[in] typed         Typed path: its folder part picks the folder, its last part
-///                          starts the names.
-/// @return Paths of the .h files and folders (with a trailing '/') that start with @p typed.
+/// @brief Lists .h files and folders matching a typed path in each search folder.
+/// @param[in] typed Folder part picks the folder, last part starts the names.
+/// @return Matching paths, folders ending in '/'.
 std::set<std::string> headerPaths( const std::vector<std::string> &searchFolders,
                                    const std::string &typed ) {
     size_t slash = typed.rfind( '/' );

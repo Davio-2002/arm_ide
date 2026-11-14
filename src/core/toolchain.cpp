@@ -8,9 +8,7 @@
 
 namespace {
 
-/// @brief Formats a command as it is shown in the build log.
-/// @param[in] args Program and its arguments.
-/// @return "$ program arg1 arg2 ...".
+/// @return The command as shown in the build log: "$ program args".
 std::string commandLine( const std::vector<std::string> &args ) {
     std::string line = "$";
     for ( const std::string &arg : args ) {
@@ -19,12 +17,8 @@ std::string commandLine( const std::vector<std::string> &args ) {
     return line;
 }
 
-/// @brief Turns one line of assembler, linker or compiler output into a build message.
-///
-/// Only locations in the source itself get a line, not those in headers it includes.
-/// @param[in] text       Output line.
-/// @param[in] sourceName File name of the source, without directory.
-/// @return Message with its kind and source line detected.
+/// @brief Turns a tool output line into a message. Only locations in the source itself get
+///        a line, not those in its headers.
 Message parseToolOutputLine( const std::string &text, const std::string &sourceName ) {
     static const std::regex sourceLocation( "^([^:]+):([0-9]+):" );
 
@@ -59,7 +53,7 @@ std::string crossTool( const std::string &name ) {
         "aarch64-linux-gnu-",      "aarch64-unknown-linux-gnu-", "aarch64-suse-linux-",
         "aarch64-none-linux-gnu-", "aarch64-linux-musl-",        "aarch64-alpine-linux-musl-",
     };
-    for ( const auto* prefix : prefixes ) {
+    for ( const auto *prefix : prefixes ) {
         if ( isInPath( std::string( prefix ) + "as" ) ) {
             return prefix + name;
         }

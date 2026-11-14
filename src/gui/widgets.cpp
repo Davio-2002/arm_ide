@@ -10,9 +10,8 @@ const float tabPadding = 10.0f;
 const float tabIconGap = 6.0f;
 const float closeSize = 16.0f;
 
-/// @brief Draws an icon button shared by iconButton() and iconToggle().
-/// @param[in] enabled False to draw the button disabled.
-/// @param[in] active  True to fill and outline it in the accent.
+/// @brief Shared by iconButton() and iconToggle().
+/// @param[in] active True to fill and outline it in the accent.
 /// @return True if clicked.
 bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool enabled, bool active ) {
     ImGui::PushStyleColor( ImGuiCol_Button, active ? accentFillColor() : transparentColor );
@@ -30,7 +29,7 @@ bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool enable
     return clicked;
 }
 
-/// @return Width of the tab with its padding, icon and × button.
+/// @return Width with padding, icon and ×.
 float pillTabWidth( const PillTab &tab ) {
     float width = tabPadding * 2.0f + ImGui::CalcTextSize( tab.label.c_str() ).x;
     if ( tab.hasIcon ) {
@@ -42,9 +41,6 @@ float pillTabWidth( const PillTab &tab ) {
     return width;
 }
 
-/// @brief Draws the × of a tab's close button.
-/// @param[in] center Centre in screen coordinates.
-/// @param[in] color  Line colour.
 void drawCross( ImVec2 center, ImU32 color ) {
     float half = closeSize * 0.22f;
     ImDrawList *drawList = ImGui::GetWindowDrawList();

@@ -12,16 +12,12 @@ namespace {
 
 const size_t maxScrollbackLines = 10000;
 
-/// @param[in] color libvterm colour already converted to RGB.
 /// @return The colour as 0xRRGGBB.
 uint32_t packColor( const VTermColor &color ) {
     return ( color.rgb.red << 16 ) | ( color.rgb.green << 8 ) | color.rgb.blue;
 }
 
-/// @brief Converts a libvterm cell to the IDE's cell with RGB colours.
-/// @param[in] screen Screen that owns the palette.
-/// @param[in] cell   Cell as libvterm returns it.
-/// @return Converted cell.
+/// @brief Converts a libvterm cell to RGB colours.
 TerminalCell convertCell( const VTermScreen *screen, VTermScreenCell cell ) {
     TerminalCell result;
     result.character = cell.chars[0] == 0xffffffff ? 0 : cell.chars[0];
@@ -38,10 +34,7 @@ TerminalCell convertCell( const VTermScreen *screen, VTermScreenCell cell ) {
     return result;
 }
 
-/// @brief libvterm output callback: writes encoded keys and pastes to the shell.
-/// @param[in] bytes  Bytes to write.
-/// @param[in] length Number of bytes.
-/// @param[in] user   The Terminal.
+/// @brief libvterm callback: writes encoded keys and pastes to the shell.
 void writeToShell( const char *bytes, size_t length, void *user ) {
     Terminal &terminal = *static_cast<Terminal *>( user );
     while ( length > 0 && terminal.masterFd >= 0 ) {
@@ -54,11 +47,7 @@ void writeToShell( const char *bytes, size_t length, void *user ) {
     }
 }
 
-/// @brief libvterm callback: tracks whether the shell shows the cursor.
-/// @param[in] property Changed property.
-/// @param[in] value    New value.
-/// @param[in] user     The Terminal.
-/// @return 1, as the property is accepted.
+/// @brief libvterm callback: tracks cursor visibility.
 int setProperty( VTermProp property, VTermValue *value, void *user ) {
     if ( property == VTERM_PROP_CURSORVISIBLE ) {
         static_cast<Terminal *>( user )->cursorVisible = value->boolean;
@@ -66,13 +55,7 @@ int setProperty( VTermProp property, VTermValue *value, void *user ) {
     return 1;
 }
 
-/// @brief libvterm callback: keeps a line scrolled off the top of the screen.
-///
-/// The oldest line is dropped beyond maxScrollbackLines.
-/// @param[in] columns Number of cells in the line.
-/// @param[in] cells   Cells of the line.
-/// @param[in] user    The Terminal.
-/// @return 1, as the line is kept.
+/// @brief libvterm callback: keeps a line scrolled off the top, up to maxScrollbackLines.
 int pushScrollbackLine( int columns, const VTermScreenCell *cells, void *user ) {
     Terminal &terminal = *static_cast<Terminal *>( user );
     TerminalLine line;
@@ -86,9 +69,7 @@ int pushScrollbackLine( int columns, const VTermScreenCell *cells, void *user ) 
     return 1;
 }
 
-/// @brief libvterm callback: clears the scrollback when the shell asks, as `clear` does.
-/// @param[in] user The Terminal.
-/// @return 1, as the request is handled.
+/// @brief libvterm callback: clears the scrollback, as `clear` asks.
 int clearScrollback( void *user ) {
     static_cast<Terminal *>( user )->scrollback.clear();
     return 1;
@@ -100,8 +81,7 @@ VTermScreenCallbacks screenCallbacks = {
     .sb_clear = clearScrollback,
 };
 
-/// @brief Frees the libvterm screen and clears the scrollback.
-/// @param[in,out] terminal Terminal whose screen is freed.
+/// @brief Frees the screen and clears the scrollback.
 void freeScreen( Terminal &terminal ) {
     if ( terminal.vterm ) {
         vterm_free( terminal.vterm );
@@ -111,16 +91,14 @@ void freeScreen( Terminal &terminal ) {
     terminal.scrollback.clear();
 }
 
-/// @brief Closes the pty and forgets the shell process. The screen stays.
-/// @param[in,out] terminal Terminal whose shell is closed.
+/// @brief Closes the pty; the screen stays.
 void closeShell( Terminal &terminal ) {
     close( terminal.masterFd );
     terminal.masterFd = -1;
     terminal.pid = -1;
 }
 
-/// @param[in] key IDE key.
-/// @return The matching libvterm key; VTERM_KEY_NONE for TerminalKey::None.
+/// @return The libvterm key; VTERM_KEY_NONE for None.
 VTermKey vtermKey( TerminalKey key ) {
     switch ( key ) {
     case TerminalKey::None:

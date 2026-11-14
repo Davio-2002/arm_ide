@@ -51,13 +51,12 @@ const unsigned char memorySvg[] = {
 #include "memory_svg.inc"
     0 };
 
-/// @brief The SVG of an icon.
 struct IconSource {
     Icon icon;
     const unsigned char *svg;
 };
 
-/// Every icon. A new icon adds a row here, its SVG array above and its value to Icon.
+/// A new icon: a row here, its SVG include above and a value in Icon.
 const IconSource iconSources[] = {
     { Icon::Build, buildSvg },     { Icon::Run, runSvg },
     { Icon::Debug, debugSvg },     { Icon::Stop, stopSvg },
@@ -70,17 +69,14 @@ std::array<GLuint, std::size( iconSources )> textures = {};
 bool loaded = false;
 bool loadedDark = false;
 
-/// @brief Colours of the dark icons and the ones the light variants of JetBrains icons use.
+/// @brief Dark icon colours and their JetBrains light variants.
 const std::pair<const char *, const char *> lightColors[] = {
     { "#CED0D6", "#6C707E" }, { "#57965C", "#208A3C" }, { "#253627", "#F2FCF3" },
     { "#DB5C5C", "#E55765" }, { "#5E3838", "#FFF7F7" }, { "#8C94F0", "#5E68D9" },
 };
 
 /// @brief Renders an SVG to a square RGBA image.
-/// @param[in] svg   Null-terminated SVG source.
-/// @param[in] size  Image width and height in pixels.
-/// @param[in] light True to swap the colours for those of light icons.
-/// @return RGBA pixels, row by row.
+/// @param[in] light True to swap in the light icon colours.
 std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int size, bool light ) {
     std::string text = reinterpret_cast<const char *>( svg );
     if ( light ) {
@@ -101,10 +97,7 @@ std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int size, boo
     return pixels;
 }
 
-/// @brief Uploads a square RGBA image as an OpenGL texture.
-/// @param[in] pixels RGBA pixels, row by row.
-/// @param[in] size   Image width and height in pixels.
-/// @return Texture name.
+/// @return OpenGL texture of a square RGBA image.
 GLuint createTexture( const std::vector<unsigned char> &pixels, int size ) {
     GLuint texture = 0;
     glGenTextures( 1, &texture );

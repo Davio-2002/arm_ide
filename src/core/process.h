@@ -4,7 +4,6 @@
 #include <sys/types.h>
 #include <vector>
 
-/// @brief A child process started with startProcess().
 struct Process {
     pid_t pid = -1;
     int outputFd = -1;
@@ -12,46 +11,39 @@ struct Process {
     int signal = 0;
 };
 
-/// @brief Result of runCommand().
 struct CommandResult {
     int exitCode = -1;
     std::string output;
 };
 
-/// @brief Starts a program on a pseudo-terminal without waiting for it.
-///
-/// On a pty glibc flushes printf at each line and before reading stdin, as in a terminal.
-/// @param[in] args Program and its arguments; the program is looked up in PATH.
-/// @return The started process; not running if it could not start.
+/// @brief Starts a program on a pty, so glibc flushes printf per line as in a terminal.
+/// @param[in] args Program and arguments, looked up in PATH.
+/// @return The process; not running if it failed to start.
 Process startProcess( const std::vector<std::string> &args );
 
-/// @brief Reads available output without blocking and notices if the process ended.
-/// @param[in,out] process Running process; reset with its exit status once it ended.
+/// @brief Reads available output without blocking.
+/// @param[in,out] process Reset with its exit status once it ended.
 /// @return Output since the last call.
 std::string pollProcess( Process &process );
 
-/// @brief Writes text to the program's stdin.
-/// @param[in]     text    Text to send.
-/// @return False when the program is not reading and the terminal's buffer is full.
+/// @return False when the program isn't reading and the pty buffer is full.
 bool writeToProcess( Process &process, const std::string &text );
 
-/// @brief Makes the program's next read get end of file, as after Ctrl+D in a terminal.
+/// @brief Makes the next read get end of file, like Ctrl+D.
 void endProcessInput( Process &process );
 
-/// @brief Kills the process and waits for it to end.
-/// @param[in,out] process Running process; reset as ended by SIGKILL.
+/// @brief Kills the process and waits for it.
 void stopProcess( Process &process );
 
-/// @return True until the process ended and pollProcess() or stopProcess() noticed it.
+/// @return True until pollProcess() or stopProcess() noticed the end.
 bool isRunning( const Process &process );
 
-/// @brief Tells if a program can be run.
-/// @param[in] program Program name searched in PATH, or a path if it contains a slash.
-/// @return True if an executable file is found.
+/// @param[in] program Name searched in PATH, or a path if it contains '/'.
+/// @return True if an executable is found.
 bool isInPath( const std::string &program );
 
-/// @brief Runs a command to the end and collects its output.
-/// @param[in] args      Program and its arguments; the program is looked up in PATH.
+/// @brief Runs a command to the end.
+/// @param[in] args      Program and arguments, looked up in PATH.
 /// @param[in] directory Working directory; empty for the current one.
 /// @return Exit code and combined output.
 CommandResult runCommand( const std::vector<std::string> &args, const std::string &directory );

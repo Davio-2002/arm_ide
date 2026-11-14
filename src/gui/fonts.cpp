@@ -20,7 +20,7 @@ const float maxCodeFontSize = 48.0f;
 
 float currentCodeFontSize = defaultCodeFontSize;
 
-/// @return The fields, empty ones included.
+/// @return Fields, empty ones included.
 std::vector<std::string> split( const std::string &text, char separator ) {
     std::vector<std::string> fields;
     std::istringstream stream( text );
@@ -31,20 +31,18 @@ std::vector<std::string> split( const std::string &text, char separator ) {
     return fields;
 }
 
-/// @return True if the two names are equal ignoring ASCII case.
+/// @return True if equal ignoring ASCII case.
 bool sameName( const std::string &a, const std::string &b ) {
     return std::ranges::equal( a, b, []( unsigned char x, unsigned char y ) {
         return std::tolower( x ) == std::tolower( y );
     } );
 }
 
-/// @brief Tells whether ImGui's FreeType loader can use a font format: TrueType or CFF
-///        (OpenType), not Type 1 or bitmap fonts.
+/// @return True for TrueType or CFF, which FreeType loads; not Type 1 or bitmap.
 bool isScalableFormat( const std::string &format ) {
     return format == "TrueType" || format == "CFF";
 }
 
-/// @brief A font in use, loaded from an installed family.
 struct LoadedFont {
     std::string family;
     std::string requestedFamily;
@@ -54,11 +52,9 @@ struct LoadedFont {
 LoadedFont uiFont;
 LoadedFont codeFont;
 
-/// @brief Loads the first of the families that is installed and readable, in place of the
-///        font's current one. When none is, the font is kept, or ImGui's built-in font is used
-///        if there is none yet.
-/// @param[in,out] loaded     Font to replace; its family becomes the one loaded.
-/// @param[in]     candidates Families in order of preference; empty names are skipped.
+/// @brief Loads the first installed, readable candidate. If none is, keeps the font, or
+///        uses ImGui's built-in one when there is none yet.
+/// @param[in] candidates In order of preference; empty names skipped.
 void loadFont( LoadedFont &loaded, const std::vector<std::string> &candidates ) {
     ImFontAtlas *atlas = ImGui::GetIO().Fonts;
     ImFont *font = nullptr;
@@ -90,9 +86,7 @@ void loadFont( LoadedFont &loaded, const std::vector<std::string> &candidates ) 
     loaded.family = family;
 }
 
-/// @param[in] first       Family tried first.
-/// @param[in] recommended Families tried after it.
-/// @return The families in that order.
+/// @return `first`, then the recommended families.
 std::vector<std::string> fontCandidates( const std::string &first,
                                          std::initializer_list<const char *> recommended ) {
     std::vector<std::string> candidates = { first };
@@ -100,10 +94,7 @@ std::vector<std::string> fontCandidates( const std::string &first,
     return candidates;
 }
 
-/// @brief Loads a font family asked for with setUiFontFamily() or setCodeFontFamily().
-///
-/// Runs between frames: the old font can only be removed when no draw data uses it.
-/// @param[in,out] loaded Font whose requested family is loaded; kept if it can't be.
+/// @brief Loads the requested family between frames; the font is kept if it can't load.
 void applyRequestedFont( LoadedFont &loaded ) {
     if ( loaded.requestedFamily.empty() ) {
         return;

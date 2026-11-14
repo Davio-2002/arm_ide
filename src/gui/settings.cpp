@@ -12,14 +12,12 @@ namespace {
 
 std::string settingsPath;
 
-/// @brief ImGui settings callback: starts reading the IDE's section of the settings file.
-/// @return A non-null entry, which ImGui needs to call readSettingsLine().
+/// @return Non-null, so ImGui calls readSettingsLine().
 void *openSettingsEntry( ImGuiContext *, ImGuiSettingsHandler *, const char * ) {
     return &settingsPath;
 }
 
-/// @brief ImGui settings callback: applies one line of the IDE's section: zoom, fonts or theme.
-/// @param[in] line Line in "Key=value" form.
+/// @brief Applies one "Key=value" line: zoom, fonts or theme.
 void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line ) {
     std::string text = line;
     if ( text.starts_with( "Zoom=" ) ) {
@@ -44,9 +42,7 @@ void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const cha
     }
 }
 
-/// @brief ImGui settings callback: writes the IDE's section of the settings file.
-/// @param[in]     handler The IDE's settings handler.
-/// @param[in,out] buffer  Settings text being written.
+/// @brief Writes the IDE's section of the settings file.
 void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler, ImGuiTextBuffer *buffer ) {
     buffer->appendf( "[%s][Settings]\n", handler->TypeName );
     buffer->appendf( "Zoom=%g\n", codeFontSize() );

@@ -14,21 +14,19 @@ namespace {
 
 const float toolStripWidth = 44.0f;
 
-/// @brief Where a panel is docked in the default layout.
+/// @brief Dock area in the default layout.
 enum class DockArea { Main, Bottom, Right, RightBottom };
 
-/// @brief One dock panel.
 struct Panel {
     const char *name;
     DockArea area;
-    /// True to show a button on the tool strip that shows and hides the panel.
     bool canHide;
     Icon icon;
     bool visible;
     void ( *draw )( Session &session );
 };
 
-/// Every panel, drawn in this order. A new panel adds a row here.
+/// Drawn in this order; a new panel adds a row.
 Panel panels[] = {
     { "Editor", DockArea::Main, false, Icon::AsmFile, true,
       []( Session &session ) { drawEditorPanel( session ); } },
@@ -40,9 +38,7 @@ Panel panels[] = {
       []( Session &session ) { drawMemoryPanel( session ); } },
 };
 
-/// @brief Docks the panels in the default layout: the main area with the bottom one below it
-///        on the left, the right one with the right-bottom one below it on the right.
-/// @param[in] dockspace Dock space to build.
+/// @brief Main and bottom on the left, right and right-bottom on the right.
 void createDefaultLayout( ImGuiID dockspace ) {
     ImGui::DockBuilderAddNode( dockspace, ImGuiDockNodeFlags_DockSpace );
     ImGui::DockBuilderSetNodeSize( dockspace, ImGui::GetMainViewport()->WorkSize );
@@ -61,10 +57,8 @@ void createDefaultLayout( ImGuiID dockspace ) {
     ImGui::DockBuilderFinish( dockspace );
 }
 
-/// @brief Draws the dock space over the whole work area, creating the default layout once.
-///
-/// The ground window and dock title bars stay transparent, and each docked panel draws its
-/// rounded background itself.
+/// @brief Dock space over the work area, default layout created once. Ground and title bars
+///        stay transparent; each docked panel draws its rounded background.
 void drawDockSpace() {
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos( viewport->WorkPos );
@@ -92,7 +86,7 @@ void drawDockSpace() {
     ImGui::End();
 }
 
-/// @brief Draws the bar on the right edge whose buttons show and hide the side panels.
+/// @brief Right-edge bar whose buttons show and hide the side panels.
 void drawToolStrip() {
     float buttonPadding = 6.0f;
     float sidePadding = ( toolStripWidth - iconSize ) * 0.5f - buttonPadding;

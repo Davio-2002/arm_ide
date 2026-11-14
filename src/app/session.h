@@ -11,159 +11,127 @@
 #include <core/process.h>
 #include <core/toolchain.h>
 
-/// @brief Kind of a mark the editor shows next to a line.
 enum class LineMarkKind { Error, Warning, Paused };
 
-/// @brief A mark on one line of the built file: a build message or the paused line.
+/// @brief A build message or the paused line, on a line of the built file.
 struct LineMark {
     int line = 0;
     LineMarkKind kind = LineMarkKind::Error;
     std::string message;
 };
 
-/// @brief The program as the debugger last saw it paused.
 struct PausedState {
-    /// True once the debugger paused; the registers stay shown after the session ends.
     bool hasRegisters = false;
     Registers registers;
-    /// Registers at the pause before, to show what changed.
     Registers previousRegisters;
-    /// Line of the built file the program is paused on; 0 while not paused or outside it.
     int line = 0;
 };
 
-/// @brief State of the IDE behind any frontend: open documents, builds, running and debugging
-///        the program.
+/// @brief IDE state behind any frontend: documents, builds, running and debugging.
 ///
-/// A frontend reads the public fields and the const methods to draw, and calls the other
-/// methods for user actions, never while it is drawing. It never draws or reads input itself.
-/// The document methods are defined in documents.cpp, the rest in session.cpp.
+/// Frontends draw from public fields and const methods, and call the rest for user actions,
+/// never while drawing. Document methods live in documents.cpp.
 class Session {
   public:
-    /// @brief Starts with one empty untitled document and the saved recent files.
+    /// @brief Starts with one untitled document and the saved recent files.
     Session();
 
-    // Commands ------------------------------------------------------------------------------
+    // Commands
 
-    /// @return Its name for menus and tooltips, such as "Build and Run".
+    /// @return Menu and tooltip name, e.g. "Build and Run".
     std::string commandLabel( Command command ) const;
 
-    /// @return False if the command does nothing now, as Stop without a program.
+    /// @return False if the command does nothing now, e.g. Stop without a program.
     bool canRun( Command command ) const;
 
-    /// @return The file the frontend must ask for before running the command: one to open,
-    ///         or a name to save under (Save As, or a build of an untitled document).
+    /// @return The file to ask for first: one to open, or a name to save under.
     PathRequest pathNeeded( Command command ) const;
 
-    /// @brief Runs a command. Build, Run and starting the debugger save the active document
-    ///        first and stop if it can't be saved.
-    /// @param[in] input   Active document text, cursor line, and the path pathNeeded() asked for.
+    /// @brief Runs a command. Build, Run and Debug save the active document first and stop if
+    ///        that fails.
     void run( Command command, const CommandInput &input );
 
-    // Documents -----------------------------------------------------------------------------
+    // Documents
 
-    /// @return Open documents, in tab order. There is always at least one.
+    /// @return Open documents in tab order; never empty.
     const std::vector<Document> &documents() const;
 
     /// @return The document Build, Run and Save work on.
     const Document &activeDocument() const;
 
-    /// @brief Opens a file, or activates its document if already open. An empty, unmodified
-    ///        untitled active document is replaced.
-    /// @param[in] path File to open.
-    /// @return True if the file is open; otherwise @ref status holds the error.
+    /// @brief Opens a file or activates its document; replaces an empty untitled one.
+    /// @return True if open; otherwise `status` says why.
     bool openFile( const std::string &path );
 
-    /// @param[in] id Document to make active; ignored if not open.
+    /// @param[in] id Ignored if not open.
     void activateDocument( int id );
 
-    /// @brief Closes a document without asking. The last one is replaced by an untitled one.
-    /// @param[in] id Document to close.
+    /// @brief Closes without asking; the last one is replaced by an untitled one.
     void closeDocument( int id );
 
-    /// @brief Records the frontend's edit version of a document's text.
-    /// @param[in] version Edit version, equal to an earlier one when the text is the same again.
+    /// @brief Records the frontend's edit version; equal versions mean equal text.
     void setDocumentVersion( int id, size_t version );
 
-    /// @brief Reads a C document's header declarations again from its edited text, if its
-    ///        preprocessor lines changed since they were read.
-    /// @param[in] text Text being edited.
+    /// @brief Rereads a C document's header declarations if its preprocessor lines changed.
+    /// @param[in] text Edited text.
     void updateDeclarations( int id, const std::string &text );
 
-    /// @return Names of all documents with unsaved changes.
+    /// @return Names of documents with unsaved changes.
     std::vector<std::string> unsavedDocumentNames() const;
 
-    /// @brief Activates the built file and asks the frontend to show a line of it.
-    /// @param[in] line 1-based line of the built file.
+    /// @brief Activates the built file and asks the frontend to reveal a line.
     void showProgramLine( int line );
 
-    /// @brief Takes the line the frontend should scroll to in the active document.
-    /// @return 1-based line, or 0 if none was asked for since the last call.
+    /// @return 1-based line to scroll to, or 0 if none was asked since the last call.
     int takeLineToReveal();
 
-    // Program -------------------------------------------------------------------------------
+    // Program
 
-    /// @brief Adds or removes a breakpoint. Applies it at once if the file is being debugged.
-    /// @param[in] path Absolute path of the file.
-    /// @param[in] line 1-based line number.
+    /// @brief Applies at once if the file is being debugged.
     void toggleBreakpoint( const std::string &path, int line );
 
-    /// @param[in] path Absolute path of the file.
-    /// @param[in] line 1-based line number.
-    /// @return True if the line has a breakpoint.
     bool hasBreakpoint( const std::string &path, int line ) const;
 
-    /// @brief Sends a line typed by the user to the stdin of the running program.
-    ///
-    /// The line is echoed into the console, as a terminal does.
-    /// @param[in] line Typed text, without the trailing newline.
+    /// @brief Sends a line to the program's stdin and echoes it into the console.
+    /// @param[in] line Text without the newline.
     void sendProgramInput( const std::string &line );
 
-    /// @brief Sends end of file to the program's stdin, as Ctrl+D does in a terminal.
+    /// @brief Sends end of file, like Ctrl+D.
     void endProgramInput();
 
     /// @return True if a program can read input.
     bool acceptsInput() const;
 
-    /// @brief Reads one byte of program memory while the debugger is paused.
-    ///
-    /// Memory is fetched in aligned blocks and cached until the program resumes.
-    /// @param[in]  address Address in the program.
-    /// @param[out] byte    Byte at @p address.
-    /// @return True if the byte was read; false if not paused or the memory is unreadable.
+    /// @brief Reads a byte while paused; aligned blocks are cached until the program resumes.
+    /// @return False if not paused or unreadable.
     bool readMemory( uint64_t address, uint8_t &byte );
 
-    /// @brief Collects output and state changes of the program and the debugger. Called once
-    ///        per frame or loop iteration.
+    /// @brief Polls the program and the debugger; called once per frame.
     void update();
 
-    /// @return True while a debug session is active, paused or running.
+    /// @return True while a debug session is paused or running.
     bool isDebugging() const;
 
-    /// @return True while the debugger is paused.
     bool isPaused() const;
 
     /// @return True while a program runs, with or without the debugger.
     bool isProgramActive() const;
 
-    /// @return True while a program is executing, that is, running and not paused.
+    /// @return True while a program runs and is not paused.
     bool isProgramBusy() const;
 
-    /// @brief Ends the program, if any. Called when the IDE quits.
+    /// @brief Ends the program, if any; called on quit.
     void stop();
 
-    /// File last built; the line marks, paused line and build messages refer to it.
     std::string programFilePath;
     std::string status;
     std::vector<std::string> recentFiles;
     std::vector<Message> console;
     std::vector<Message> buildLog;
-    /// Counts builds, so a frontend can react once to each.
     int buildCount = 0;
     bool buildSucceeded = false;
 
     std::vector<LineMark> lineMarks;
-    /// Changes whenever @ref lineMarks change.
     int lineMarksVersion = 0;
 
     std::map<std::string, std::set<int>> breakpoints;

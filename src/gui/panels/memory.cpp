@@ -15,9 +15,7 @@ const uint64_t memoryRowCount = 64;
 
 char memoryAddressInput[64] = "sp";
 
-/// @brief Draws one row: address, bytes in hex and as ASCII. Unreadable bytes show "??".
-/// @param[in,out] session    Session that reads the memory.
-/// @param[in]     rowAddress Address of the first byte.
+/// @brief Address, hex bytes and ASCII; unreadable bytes show "??".
 void drawMemoryRow( Session &session, uint64_t rowAddress ) {
     std::string hex;
     std::string text;

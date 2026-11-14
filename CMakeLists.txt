@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# The newest library parts the code uses; old compilers fail here instead of midway through.
+# Fail early on compilers lacking the library parts the code uses.
 include(CheckCXXSourceCompiles)
 set(CMAKE_REQUIRED_FLAGS ${CMAKE_CXX23_STANDARD_COMPILE_OPTION})
 check_cxx_source_compiles([[
@@ -61,8 +61,7 @@ target_link_libraries(imgui PUBLIC glfw OpenGL::GL Freetype::Freetype)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(VTERM REQUIRED IMPORTED_TARGET vterm)
 
-# Three layers, dependencies only pointing down. Neither library links ImGui, GLFW or the
-# editor, so a GUI include in core/ or app/ fails to build and another frontend can reuse them.
+# core <- app <- gui. The libraries don't link ImGui, so GUI includes there fail to build.
 add_library(arm_ide_core STATIC
     src/core/process.cpp
     src/core/toolchain.cpp
@@ -105,8 +104,7 @@ add_executable(arm_ide
 target_include_directories(arm_ide PRIVATE ${nanosvg_SOURCE_DIR}/src)
 target_link_libraries(arm_ide PRIVATE arm_ide_app imgui)
 
-# Files compiled in as C byte lists for #include (#embed needs clang 19+, Ubuntu 24.04 ships
-# clang 18).
+# Embedded files as byte lists for #include (#embed needs clang 19; Ubuntu 24.04 has 18).
 function(embed_as_bytes input output)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${input})
     file(READ ${input} hex HEX)

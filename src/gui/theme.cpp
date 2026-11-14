@@ -6,8 +6,8 @@
 #include <core/process.h>
 #include <gui/theme.h>
 
-// Defined in color_schemes.cpp. Pointers to its elements are address constants, so the
-// defaults below are set before any code runs, whatever order the files initialize in.
+// Defined in color_schemes.cpp; pointers into it are constant-initialized, so the defaults
+// below don't depend on static-init order.
 extern const ColorScheme colorSchemeTable[];
 
 namespace {
@@ -20,13 +20,10 @@ const ColorScheme *lightScheme = &colorSchemeTable[1];
 const ColorScheme *scheme = &colorSchemeTable[0];
 std::optional<ImU32> customAccent;
 
-/// @param[in] color Packed colour.
-/// @return The colour as floats, as ImGuiStyle stores it.
 ImVec4 toVec4( ImU32 color ) {
     return ImGui::ColorConvertU32ToFloat4( color );
 }
 
-/// @brief Sets paddings, roundings and borders of the theme.
 void applySizes( ImGuiStyle &style ) {
     style.WindowPadding = ImVec2( 12.0f, 10.0f );
     style.FramePadding = ImVec2( 8.0f, 5.0f );
@@ -48,7 +45,6 @@ void applySizes( ImGuiStyle &style ) {
     style.WindowMenuButtonPosition = ImGuiDir_None;
 }
 
-/// @brief Sets the ImGui colours from the current scheme and accent.
 void applyColors( ImGuiStyle &style ) {
     const ColorScheme &colorScheme = *scheme;
     ImU32 scrollbarColor = colorScheme.border;
@@ -103,11 +99,9 @@ void applyColors( ImGuiStyle &style ) {
     colors[ImGuiCol_NavCursor] = toVec4( accent );
 }
 
-/// @brief Reads the desktop's light or dark setting from the XDG Desktop Portal
-///        (`org.freedesktop.appearance color-scheme`), which GNOME, KDE and the GTK portal
-///        provide.
-/// @return Dark or Light, or nullopt if there is no portal, no such setting or no `gdbus`.
-/// @todo Think about this, how this will be ported to other platforms ??
+/// @brief Reads `org.freedesktop.appearance color-scheme` from the XDG Desktop Portal.
+/// @return Dark or Light, or nullopt without a portal, the setting or `gdbus`.
+/// @todo Port to other platforms.
 std::optional<ThemeMode> desktopThemeMode() {
     if ( !isInPath( "gdbus" ) ) {
         return std::nullopt;
@@ -117,7 +111,7 @@ std::optional<ThemeMode> desktopThemeMode() {
           "/org/freedesktop/portal/desktop", "--method", "org.freedesktop.portal.Settings.ReadOne",
           "org.freedesktop.appearance", "color-scheme" },
         "" );
-    // The reply is "(<uint32 N>,)": 1 is dark, 2 is light, 0 is no preference (light on GNOME).
+    // Reply "(<uint32 N>,)": 1 dark, 2 light, 0 no preference (light on GNOME).
     const std::string valuePrefix = "uint32 ";
     size_t at = result.output.find( valuePrefix );
     if ( result.exitCode != 0 || at == std::string::npos ) {
@@ -127,8 +121,7 @@ std::optional<ThemeMode> desktopThemeMode() {
     return dark ? ThemeMode::Dark : ThemeMode::Light;
 }
 
-/// @brief Picks the dark or the light scheme by the mode, or by the desktop for System, and
-///        updates the ImGui style.
+/// @brief Picks the scheme by mode (by the desktop for System) and updates the style.
 void selectScheme() {
     ThemeMode effectiveMode = mode == ThemeMode::System ? desktopMode : mode;
     scheme = effectiveMode == ThemeMode::Light ? lightScheme : darkScheme;

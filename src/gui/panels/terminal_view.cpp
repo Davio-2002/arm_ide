@@ -20,11 +20,11 @@ namespace {
 const int wheelLines = 3;
 const auto busyTime = std::chrono::milliseconds( 500 );
 
-/// The shell. It keeps a fixed address: libvterm callbacks receive a pointer to it.
+/// Fixed address: libvterm callbacks get a pointer to it.
 Terminal terminal;
 std::chrono::steady_clock::time_point lastActivity;
 
-/// @brief Keys and pasted text read this frame, sent to the shell in order.
+/// @brief Keys and pasted text of this frame, sent in order.
 struct TypedInput {
     std::vector<TerminalInput> inputs;
     std::string paste;
@@ -46,7 +46,6 @@ CellPosition selectionAnchor;
 CellPosition selectionEnd;
 size_t selectionScrollbackSize = 0;
 
-/// @brief An ImGui key and the terminal key it sends.
 struct KeyMapping {
     ImGuiKey key;
     TerminalKey terminalKey;
@@ -82,17 +81,13 @@ const KeyMapping specialKeys[] = {
     { ImGuiKey_F12, TerminalKey::F12 },
 };
 
-/// @brief Queues the clipboard text for pasting into the shell.
-/// @param[in,out] typed Receives the text.
 void pasteClipboard( TypedInput &typed ) {
     const char *clipboard = ImGui::GetClipboardText();
     typed.paste += clipboard ? clipboard : "";
 }
 
-/// @brief Makes a terminal input with the modifiers held now.
-/// @param[in] key       Special key, or TerminalKey::None for a character.
-/// @param[in] character Typed character when key is None.
-/// @return The input.
+/// @brief Input with the modifiers held now.
+/// @param[in] character Used when key is None.
 TerminalInput makeInput( TerminalKey key, char32_t character ) {
     const ImGuiIO &io = ImGui::GetIO();
     TerminalInput input;
@@ -104,12 +99,9 @@ TerminalInput makeInput( TerminalKey key, char32_t character ) {
     return input;
 }
 
-/// @brief Reads this frame's keys and text for the shell.
-///
-/// Takes the keys from ImGui navigation so Tab, arrows and Escape reach the shell. Ctrl+letter
-/// comes as a key, other text as typed characters. Ctrl+Shift+V pastes, as in VS Code.
-/// @param[in]     owner   ImGui ID of the terminal view, made owner of the special keys.
-/// @param[in,out] typed Receives the inputs and pasted text.
+/// @brief Reads this frame's input. Owns the navigation keys so Tab, arrows and Escape reach
+///        the shell; Ctrl+letter is a key, other text characters; Ctrl+Shift+V pastes.
+/// @param[in] owner ImGui ID of the view.
 void readKeyboard( ImGuiID owner, TypedInput &typed ) {
     const ImGuiIO &io = ImGui::GetIO();
     for ( const KeyMapping &mapping : specialKeys ) {
@@ -142,17 +134,12 @@ void readKeyboard( ImGuiID owner, TypedInput &typed ) {
     }
 }
 
-/// @param[in] rgb Colour as 0xRRGGBB.
-/// @return The same colour, opaque, as an ImGui colour.
+/// @return Opaque ImGui colour of 0xRRGGBB.
 ImU32 cellColor( uint32_t rgb ) {
     return IM_COL32( ( rgb >> 16 ) & 0xff, ( rgb >> 8 ) & 0xff, rgb & 0xff, 255 );
 }
 
-/// @brief Draws one cell: background, character and underline, with reverse video applied.
-/// @param[in] cell     Cell to draw.
-/// @param[in] topLeft  Top-left corner in screen coordinates.
-/// @param[in] cellSize Size of one cell.
-/// @param[in] selected True to draw the selection background.
+/// @brief Background, character and underline, with reverse video applied.
 void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 topLeft, ImVec2 cellSize,
                bool selected ) {
     ImU32 foreground =
@@ -183,10 +170,7 @@ void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 topLeft, I
     }
 }
 
-/// @brief Draws the cursor: a filled block while focused, an outline otherwise.
-/// @param[in] terminal Terminal whose cursor is drawn.
-/// @param[in] origin   Top-left corner of the screen.
-/// @param[in] cellSize Size of one cell.
+/// @brief Filled block while focused, outline otherwise.
 void drawCursor( ImDrawList *drawList, const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
     int row, column;
     terminalCursor( terminal, row, column );
@@ -205,16 +189,13 @@ void drawCursor( ImDrawList *drawList, const Terminal &terminal, ImVec2 origin, 
     }
 }
 
-/// @brief Orders the selection ends.
-/// @param[out] start Earlier end of the selection.
-/// @param[out] end   Later end of the selection.
+/// @brief Selection ends in order.
 void selectionRange( CellPosition &start, CellPosition &end ) {
     start = std::min( selectionAnchor, selectionEnd );
     end = std::max( selectionAnchor, selectionEnd );
 }
 
-/// @param[in] line   Screen row; negative for scrollback lines.
-/// @return True if the cell is inside the selection.
+/// @param[in] line Screen row; negative for scrollback.
 bool isSelected( int line, int column ) {
     if ( !hasSelection ) {
         return false;
@@ -225,10 +206,7 @@ bool isSelected( int line, int column ) {
     return cell >= start && cell < end;
 }
 
-/// @brief Finds the place between cells nearest to the mouse, clamped to the text.
-/// @param[in] origin   Top-left corner of the screen.
-/// @param[in] cellSize Size of one cell.
-/// @return Position under the mouse, with the scroll offset applied.
+/// @return Place between cells nearest the mouse, clamped to the text, scroll applied.
 CellPosition positionAt( const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
     ImVec2 mouse = ImGui::GetMousePos();
     int row = static_cast<int>( std::floor( ( mouse.y - origin.y ) / cellSize.y ) );
@@ -238,15 +216,13 @@ CellPosition positionAt( const Terminal &terminal, ImVec2 origin, ImVec2 cellSiz
              std::clamp( column, 0, terminal.columns ) };
 }
 
-/// @param[in] line     Screen row; negative for scrollback lines.
 /// @return True if the cell holds a visible character.
 bool isWordCell( const Terminal &terminal, int line, int column ) {
     char32_t character = terminalCell( terminal, line, column ).character;
     return character > U' ';
 }
 
-/// @brief Selects the word at a position, or clears the selection on a blank.
-/// @param[in] position Position inside the word.
+/// @brief Selects the word at a position, or clears on a blank.
 void selectWord( const Terminal &terminal, CellPosition position ) {
     int column = std::min( position.column, terminal.columns - 1 );
     if ( !isWordCell( terminal, position.line, column ) ) {
@@ -266,12 +242,8 @@ void selectWord( const Terminal &terminal, CellPosition position ) {
     hasSelection = true;
 }
 
-/// @brief Updates the selection from the mouse: a drag selects, a double click selects a
-///        word, a plain click clears.
-///
-/// The selection moves up as new output pushes lines into the scrollback.
-/// @param[in] origin   Top-left corner of the screen.
-/// @param[in] cellSize Size of one cell.
+/// @brief Drag selects, double click selects a word, click clears. The selection moves up
+///        as output pushes lines into the scrollback.
 void updateSelection( const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
     if ( terminal.scrollback.size() < selectionScrollbackSize ) {
         hasSelection = false;
@@ -299,7 +271,7 @@ void updateSelection( const Terminal &terminal, ImVec2 origin, ImVec2 cellSize )
     }
 }
 
-/// @return Selected text as UTF-8, each line without trailing spaces.
+/// @return UTF-8, lines without trailing spaces.
 std::string selectedText( const Terminal &terminal ) {
     CellPosition start, end;
     selectionRange( start, end );
@@ -327,15 +299,13 @@ std::string selectedText( const Terminal &terminal ) {
     return text;
 }
 
-/// @brief Copies the selected text to the clipboard, if any.
 void copySelection( const Terminal &terminal ) {
     if ( hasSelection ) {
         ImGui::SetClipboardText( selectedText( terminal ).c_str() );
     }
 }
 
-/// @brief Draws the right-click menu with Copy and Paste.
-/// @param[in,out] typed    Receives the pasted text.
+/// @brief Right-click menu with Copy and Paste.
 void drawContextMenu( const Terminal &terminal, TypedInput &typed ) {
     if ( !ImGui::BeginPopupContextItem( "##terminalMenu" ) ) {
         return;
@@ -349,16 +319,14 @@ void drawContextMenu( const Terminal &terminal, TypedInput &typed ) {
     ImGui::EndPopup();
 }
 
-/// @return Folder of the active document, or $HOME for an untitled one.
+/// @return Active document's folder, or $HOME for an untitled one.
 std::string startDirectory( const Session &session ) {
     std::string directory = std::filesystem::path( session.activeDocument().path ).parent_path();
     const char *home = std::getenv( "HOME" );
     return directory.empty() && home ? home : directory;
 }
 
-/// @brief Starts the shell the first time, and keeps the pty sized to the view.
-/// @param[in] rows    Visible rows.
-/// @param[in] columns Visible columns.
+/// @brief Starts the shell the first time and keeps the pty sized to the view.
 void fitTerminal( const Session &session, int rows, int columns ) {
     if ( !isRunning( terminal ) && !terminal.exited ) {
         startTerminal( terminal, startDirectory( session ), rows, columns );
@@ -368,9 +336,7 @@ void fitTerminal( const Session &session, int rows, int columns ) {
     }
 }
 
-/// @brief Sends the typed keys and text to the shell. A key after the shell exited starts a
-///        new one instead.
-/// @param[in] typed   Input of this frame.
+/// @brief Sends this frame's input; a key after the shell exited starts a new one.
 void sendTyped( const Session &session, const TypedInput &typed ) {
     if ( typed.inputs.empty() && typed.paste.empty() ) {
         return;

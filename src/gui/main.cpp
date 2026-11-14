@@ -14,13 +14,12 @@
 
 namespace {
 
-/// The one session. It keeps a fixed address: requests and dialog callbacks hold it.
+/// Fixed address: requests and dialog callbacks hold it.
 Session session;
 
 bool quitRequested = false;
 
-/// @brief Turns a window close into a quit request, after the user agrees to discard unsaved
-///        changes.
+/// @brief Quits on window close once unsaved changes are discarded.
 void handleCloseRequest( GLFWwindow *window ) {
     if ( !glfwWindowShouldClose( window ) ) {
         return;
@@ -31,16 +30,14 @@ void handleCloseRequest( GLFWwindow *window ) {
     }
 }
 
-/// @return Window title: file path, "*" if unsaved, and the app name.
+/// @return File path, "*" if unsaved, and the app name.
 std::string windowTitle() {
     const Document &document = session.activeDocument();
     std::string name = document.path.empty() ? "untitled" : document.path;
     return name + ( isModified( document ) ? " *" : "" ) + " - ARM IDE";
 }
 
-/// @brief Opens the file given on the command line, or else the most recent file.
-/// @param[in] argc Argument count of main.
-/// @param[in] argv Arguments of main.
+/// @brief Opens the file from the command line, else the most recent one.
 void openStartupFile( int argc, char **argv ) {
     if ( argc > 1 ) {
         session.openFile( argv[1] );
@@ -51,8 +48,7 @@ void openStartupFile( int argc, char **argv ) {
 
 } // anonymous namespace
 
-/// Each frame: collect program output, draw everything (drawing only reads the session and
-/// requests changes), then run the requests and the dialogs' answers.
+/// Each frame: poll, draw (read-only, requesting changes), then run requests and dialog answers.
 int main( int argc, char **argv ) {
     GLFWwindow *window = createWindow();
     if ( !window ) {

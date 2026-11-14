@@ -13,7 +13,7 @@
 
 namespace {
 
-/// @brief Reads the shortcuts that change the view rather than the session: zoom.
+/// @brief Reads the zoom shortcuts.
 void readViewShortcuts() {
     ImGuiInputFlags global = ImGuiInputFlags_RouteGlobal;
     if ( ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Equal, global ) ||
@@ -31,8 +31,7 @@ void readViewShortcuts() {
     }
 }
 
-/// @brief Pushes the menu bar style: items light up in the accent, rounded like the tabs.
-///        Undo with popMenuStyle().
+/// @brief Accent-lit, rounded menu items; pop with popMenuStyle().
 void pushMenuStyle() {
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding,
                          ImVec2( ImGui::GetStyle().FramePadding.x, toolbarFramePaddingY ) );
@@ -42,15 +41,12 @@ void pushMenuStyle() {
     }
 }
 
-/// @brief Pops the style pushed by pushMenuStyle().
 void popMenuStyle() {
     ImGui::PopStyleColor( 3 );
     ImGui::PopStyleVar( 2 );
 }
 
-/// @brief Draws a menu of the bar, outlined while hovered or open.
-/// @param[in] label     Menu name.
-/// @param[in] drawItems Draws the items while the menu is open.
+/// @brief A menu outlined while hovered or open.
 void drawMenu( const char *label, const std::function<void()> &drawItems ) {
     bool open = ImGui::BeginMenu( label );
     if ( open ) {
@@ -60,7 +56,6 @@ void drawMenu( const char *label, const std::function<void()> &drawItems ) {
     outlineLastItem( open || ImGui::IsItemHovered() );
 }
 
-/// @brief Draws the File menu, with the recent files.
 void drawFileMenu( const Session &session ) {
     commandMenuItem( session, Command::NewFile );
     commandMenuItem( session, Command::Open );
@@ -77,7 +72,6 @@ void drawFileMenu( const Session &session ) {
     commandMenuItem( session, Command::SaveAs );
 }
 
-/// @brief Draws the View menu: zoom and Appearance.
 void drawViewMenu() {
     if ( ImGui::MenuItem( "Zoom In", "Ctrl+=" ) ) {
         zoomCode( 2.0f );

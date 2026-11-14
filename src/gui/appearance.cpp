@@ -12,7 +12,6 @@ namespace {
 
 const char *const popupTitle = "Appearance";
 
-/// @brief State of the Appearance popup while it is open.
 struct Appearance {
     bool needsOpening = false;
     std::vector<std::string> uiFonts;
@@ -21,12 +20,10 @@ struct Appearance {
 
 Appearance appearance;
 
-/// @brief Draws a combo box listing font families.
-/// @param[in]  label    Combo label.
-/// @param[in]  families Families to list.
-/// @param[in]  current  Family in use; empty for ImGui's built-in font.
-/// @param[out] picked   Set to the family clicked; unchanged otherwise.
-/// @return True if a family was clicked.
+/// @brief Combo of font families.
+/// @param[in]  current Family in use; empty for the built-in font.
+/// @param[out] picked  Family clicked.
+/// @return True if one was clicked.
 bool drawFontCombo( const char *label, const std::vector<std::string> &families,
                     const std::string &current, std::string &picked ) {
     const char *preview = current.empty() ? "Built-in" : current.c_str();
@@ -48,7 +45,6 @@ bool drawFontCombo( const char *label, const std::vector<std::string> &families,
     return clicked;
 }
 
-/// @brief Draws the System, Dark and Light radio buttons.
 /// @return True if the mode changed.
 bool drawThemeMode() {
     bool changed = false;
@@ -65,10 +61,8 @@ bool drawThemeMode() {
     return changed;
 }
 
-/// @brief Draws a combo box listing the dark or the light schemes.
-/// @param[in] label Combo label.
-/// @param[in] dark  True to list the dark schemes.
-/// @return True if a scheme was clicked.
+/// @brief Combo of the dark or light schemes.
+/// @return True if one was clicked.
 bool drawSchemeCombo( const char *label, bool dark ) {
     const ColorScheme &current = dark ? darkColorScheme() : lightColorScheme();
     if ( !ImGui::BeginCombo( label, current.name ) ) {
@@ -92,8 +86,8 @@ bool drawSchemeCombo( const char *label, bool dark ) {
     return clicked;
 }
 
-/// @brief Draws the accent colour button and, for a picked accent, a Reset button.
-/// @return True if the accent changed.
+/// @brief Accent colour button, plus Reset for a picked accent.
+/// @return True if changed.
 bool drawAccent() {
     ImVec4 color = ImGui::ColorConvertU32ToFloat4( accentColor() );
     bool changed = false;
@@ -111,7 +105,6 @@ bool drawAccent() {
     return changed;
 }
 
-/// @brief Draws the theme mode, the two scheme choices and the accent.
 void drawColors() {
     ImGui::SeparatorText( "Colors" );
     bool changed = drawThemeMode();

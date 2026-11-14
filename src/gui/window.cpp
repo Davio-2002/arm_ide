@@ -18,21 +18,19 @@ namespace {
 
 std::string droppedFilePath;
 
-/// After input every frame is drawn for a while: ImGui answers some input a frame late, and
-/// the autocomplete popup and tooltips appear after a delay.
+/// Full rate this long after input: ImGui answers some input a frame late, and popups and
+/// tooltips appear after a delay.
 const auto inputSettleTime = std::chrono::milliseconds( 500 );
 
-/// Time between idle frames: the caret blink (0.8 s on, 0.4 s off) and shell output.
+/// Idle frame interval, for the caret blink (0.8 s on, 0.4 s off) and shell output.
 const auto idleWait = std::chrono::milliseconds( 400 );
 
 std::chrono::steady_clock::time_point lastInput;
 
-/// Set by window events that need a frame but are not ImGui input: resize, redraw, close, drop.
+/// Resize, redraw, close or drop: events that need a frame but aren't ImGui input.
 bool windowEventPending = false;
 
-/// @brief Sets the embedded window icon in 32, 64, 128 and 256 pixel sizes.
-///
-/// Not used on Wayland: it takes the icon from the .desktop file matching the app id.
+/// @brief Sets the embedded icon; Wayland ignores it and uses the .desktop file.
 void setWindowIcon( GLFWwindow *window ) {
     static unsigned char pixels[] = {
 #include "icon_rgba.inc"
@@ -46,9 +44,7 @@ void setWindowIcon( GLFWwindow *window ) {
     glfwSetWindowIcon( window, static_cast<int>( images.size() ), images.data() );
 }
 
-/// @brief GLFW scroll callback: Ctrl+wheel zooms the code, other scrolling goes to ImGui.
-/// @param[in] xOffset Horizontal scroll.
-/// @param[in] yOffset Vertical scroll.
+/// @brief Ctrl+wheel zooms the code; other scrolling goes to ImGui.
 void scrollCallback( GLFWwindow *window, double xOffset, double yOffset ) {
     bool ctrlDown = glfwGetKey( window, GLFW_KEY_LEFT_CONTROL ) == GLFW_PRESS ||
                     glfwGetKey( window, GLFW_KEY_RIGHT_CONTROL ) == GLFW_PRESS;
@@ -59,9 +55,7 @@ void scrollCallback( GLFWwindow *window, double xOffset, double yOffset ) {
     ImGui_ImplGlfw_ScrollCallback( window, xOffset, yOffset );
 }
 
-/// @brief GLFW focus callback: passes the event to ImGui and, when the window gets the focus,
-///        reads the desktop theme again, since it may have been changed in another window.
-/// @param[in] focused GLFW_TRUE if the window got the focus.
+/// @brief Rereads the desktop theme on focus, as it may have changed meanwhile.
 void focusCallback( GLFWwindow *window, int focused ) {
     ImGui_ImplGlfw_WindowFocusCallback( window, focused );
     if ( focused ) {
@@ -69,9 +63,7 @@ void focusCallback( GLFWwindow *window, int focused ) {
     }
 }
 
-/// @brief GLFW drop callback: keeps the first dropped file for takeDroppedFile().
-/// @param[in] count Number of dropped paths.
-/// @param[in] paths Dropped paths.
+/// @brief Keeps the first dropped file for takeDroppedFile().
 void dropCallback( GLFWwindow *, int count, const char **paths ) {
     if ( count > 0 ) {
         droppedFilePath = paths[0];
@@ -151,9 +143,8 @@ void shutdownWindow( GLFWwindow *window ) {
     glfwTerminate();
 }
 
-/// Under Wayland the window's own protocol traffic (frame callbacks, buffer releases) ends a
-/// GLFW wait at once, so an idle wait goes on until the deadline unless input or a window
-/// event arrived.
+/// Under Wayland the window's own protocol traffic ends a GLFW wait at once, so an idle wait
+/// loops until the deadline, input or a window event.
 void waitForNextFrame( bool busy ) {
     using Clock = std::chrono::steady_clock;
     const ImGuiContext &context = *ImGui::GetCurrentContext();

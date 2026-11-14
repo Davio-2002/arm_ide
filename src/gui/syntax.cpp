@@ -7,30 +7,25 @@
 
 namespace {
 
-/// @return True for 0-9.
 bool isDigit( ImWchar c ) {
     return c >= '0' && c <= '9';
 }
 
-/// @return True for 0-9, a-f and A-F.
 bool isHexDigit( ImWchar c ) {
     return isDigit( c ) || ( c >= 'a' && c <= 'f' ) || ( c >= 'A' && c <= 'F' );
 }
 
-/// @return True for a character that can start a word: a letter, '_', '.' or '$'.
+/// @return True for a letter, '_', '.' or '$'.
 bool isIdentifierStart( ImWchar c ) {
     return ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) || c == '_' || c == '.' || c == '$';
 }
 
-/// @return True for a character that can continue a word.
 bool isIdentifierChar( ImWchar c ) {
     return isIdentifierStart( c ) || isDigit( c );
 }
 
-/// @brief Tokenizer callback: finds the end of a word, such as a mnemonic, b.eq or .global.
-/// @param[in] start Start of the text to scan.
-/// @param[in] end   End of the line.
-/// @return End of the word, or @p start if no word starts there.
+/// @brief Tokenizer callback: end of a word such as b.eq or .global.
+/// @return End of the word, or `start` if none starts there.
 TextEditor::Iterator getIdentifier( TextEditor::Iterator start, TextEditor::Iterator end ) {
     if ( start == end || !isIdentifierStart( *start ) ) {
         return start;
@@ -43,10 +38,8 @@ TextEditor::Iterator getIdentifier( TextEditor::Iterator start, TextEditor::Iter
     return i;
 }
 
-/// @brief Tokenizer callback: finds the end of a decimal or 0x hex number.
-/// @param[in] start Start of the text to scan.
-/// @param[in] end   End of the line.
-/// @return End of the number, or @p start if no number starts there.
+/// @brief Tokenizer callback: end of a decimal or 0x number.
+/// @return End of the number, or `start` if none starts there.
 TextEditor::Iterator getNumber( TextEditor::Iterator start, TextEditor::Iterator end ) {
     if ( start == end || !isDigit( *start ) ) {
         return start;
@@ -213,20 +206,13 @@ const char *const libraryNames[] = {
     "main",
 };
 
-/// True after an #include directive was coloured: the next token on its line is the header name.
+/// The next token after a coloured #include is its header name.
 bool headerNameExpected = false;
 
-/// @brief Colours what the C language of the editor colours differently: a preprocessor
-///        directive word ("#include", "#define"), the header name after #include ("<stdio.h>",
-///        "mine.h") and double-quoted strings.
-///
-/// The editor would colour a whole preprocessor line alike, and a quoted header name as a
-/// string, so C leaves both to this tokenizer, which the editor calls token by token from the
-/// left of each line.
-/// @param[in]  start First character of the token.
-/// @param[in]  end   End of the line.
-/// @param[out] color Colour of the token found.
-/// @return End of the token, or @p start if it is none of these.
+/// @brief Colours directive words, the header name after #include, and strings. The editor
+///        would colour a whole preprocessor line alike and a quoted header as a string.
+/// @param[out] color Token colour.
+/// @return End of the token, or `start` if it is none of these.
 TextEditor::Iterator tokenizeC( TextEditor::Iterator start, TextEditor::Iterator end,
                                 TextEditor::Color &color ) {
     bool isHeaderName = std::exchange( headerNameExpected, false ) && start.hasPrevious();

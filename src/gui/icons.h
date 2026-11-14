@@ -2,7 +2,6 @@
 
 #include <imgui.h>
 
-/// @brief Icons of the toolbar, panels and tool strip.
 enum class Icon {
     Build,
     Run,
@@ -19,12 +18,9 @@ enum class Icon {
 
 inline constexpr float iconSize = 20.0f;
 
-/// @brief Rasterizes the embedded SVG icons into textures, again when the scheme switches between
-///        dark and light (light schemes get the light colours of the JetBrains icons).
-///
-/// Needs the OpenGL context. Called before each frame, so no texture is deleted while the
-/// frame's draw data uses it.
+/// @brief Rasterizes the SVG icons, again when the scheme turns dark or light. Needs the GL
+///        context; called before each frame so no texture in use is deleted.
 void updateIcons();
 
-/// @return Texture of the icon, for ImGui::Image.
+/// @return Texture for ImGui::Image.
 ImTextureID iconTexture( Icon icon );

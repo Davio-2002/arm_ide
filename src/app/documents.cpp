@@ -13,15 +13,13 @@ namespace {
 
 const size_t maxRecentFiles = 10;
 
-/// @return Path of the file holding the recent files, one per line.
+/// @return The recent files list, one path per line.
 std::filesystem::path recentFilesPath() {
     return configDirectory() / "recent_files";
 }
 
-/// @brief Reads the declarations of the headers a C document includes, unless its path and
-///        preprocessor lines are those they were read from; other documents have none.
-/// @param[in,out] document Document to update.
-/// @param[in]     text     Its text, saved or being edited.
+/// @brief Rereads a C document's header declarations unless its path and preprocessor lines
+///        are unchanged; other documents get none.
 void readDeclarations( Document &document, const std::string &text ) {
     bool isC = !document.path.empty() && sourceLanguage( document.path ) == SourceLanguage::C;
     std::string directives = isC ? preprocessorLines( text ) : "";
@@ -89,7 +87,7 @@ void writeRecentFiles( const std::vector<std::string> &paths ) {
     }
 }
 
-// Session's document methods ----------------------------------------------------------------
+// Session's document methods
 
 const std::vector<Document> &Session::documents() const {
     return openDocuments;
@@ -219,7 +217,7 @@ int Session::addDocument( const std::string &path, const std::string &text ) {
     return document.id;
 }
 
-/// Breakpoints follow the file when it is saved under a new name.
+/// @brief Breakpoints follow the file to a new name.
 bool Session::saveActiveDocument( const std::string &path, const CommandInput &input ) {
     std::ofstream file( path );
     file << input.text;

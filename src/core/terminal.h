@@ -9,7 +9,6 @@
 struct VTerm;
 struct VTermScreen;
 
-/// @brief One character cell of the terminal screen.
 struct TerminalCell {
     char32_t character = 0;
     int width = 1;
@@ -24,7 +23,6 @@ struct TerminalCell {
 
 using TerminalLine = std::vector<TerminalCell>;
 
-/// @brief Special key sent to the terminal.
 enum class TerminalKey {
     None,
     Enter,
@@ -55,7 +53,6 @@ enum class TerminalKey {
     F12
 };
 
-/// @brief One key press or one typed character, with the modifiers held.
 struct TerminalInput {
     TerminalKey key = TerminalKey::None;
     char32_t character = 0;
@@ -64,9 +61,8 @@ struct TerminalInput {
     bool alt = false;
 };
 
-/// @brief A shell on a pseudo-terminal, with libvterm keeping its screen.
-///
-/// It must keep a fixed address: libvterm callbacks receive a pointer to it.
+/// @brief A shell on a pty with its screen kept by libvterm. Needs a fixed address:
+///        libvterm callbacks get a pointer to it.
 struct Terminal {
     pid_t pid = -1;
     int masterFd = -1;
@@ -80,48 +76,34 @@ struct Terminal {
     std::deque<TerminalLine> scrollback;
 };
 
-/// @brief Starts the user's login shell on a new pseudo-terminal.
-/// @param[in,out] terminal  Terminal to start; any previous screen is discarded.
-/// @param[in]     directory Working directory of the shell; empty for the current one.
-/// @param[in]     rows      Screen height in cells.
-/// @param[in]     columns   Screen width in cells.
-/// @return True if the shell was started.
+/// @brief Starts the user's login shell; a previous screen is discarded.
+/// @param[in] directory Working directory; empty for the current one.
+/// @param[in] rows      Height in cells.
+/// @param[in] columns   Width in cells.
+/// @return True if started.
 bool startTerminal( Terminal &terminal, const std::string &directory, int rows, int columns );
 
-/// @brief Feeds what the shell printed into the screen and notices if the shell exited.
-/// @param[in,out] terminal Terminal to update.
+/// @brief Feeds shell output into the screen and notices when the shell exits.
 /// @return True if anything changed.
 bool updateTerminal( Terminal &terminal );
 
-/// @brief Resizes the screen and tells the shell the new size.
-/// @param[in,out] terminal Terminal to resize.
-/// @param[in]     rows     New height in cells.
-/// @param[in]     columns  New width in cells.
+/// @brief Resizes the screen and tells the shell.
 void resizeTerminal( Terminal &terminal, int rows, int columns );
 
-/// @brief Sends one key press or character to the shell, encoded as the terminal would.
-/// @param[in]     input    Key or character with modifiers.
+/// @brief Sends a key or character, encoded as a terminal would.
 void sendTerminalInput( Terminal &terminal, const TerminalInput &input );
 
-/// @brief Sends text to the shell as a bracketed paste.
-/// @param[in]     text     Text to paste.
+/// @brief Sends text as a bracketed paste.
 void pasteToTerminal( Terminal &terminal, const std::string &text );
 
-/// @brief Kills the shell and discards its screen.
-///
-/// Closing the pty hangs up the programs running in it.
-/// @param[in,out] terminal Terminal to stop.
+/// @brief Kills the shell; closing the pty hangs up programs running in it.
 void stopTerminal( Terminal &terminal );
 
 /// @return True while the shell runs.
 bool isRunning( const Terminal &terminal );
 
-/// @brief Reads one cell of the screen or the scrollback.
-/// @param[in] row      Screen row; negative for scrollback lines, -1 being the newest.
-/// @return The cell, or an empty cell outside the screen.
+/// @param[in] row Screen row; negative for scrollback, -1 the newest.
+/// @return The cell, or an empty one outside the screen.
 TerminalCell terminalCell( const Terminal &terminal, int row, int column );
 
-/// @brief Reads the cursor position.
-/// @param[out] row      Cursor row.
-/// @param[out] column   Cursor column.
 void terminalCursor( const Terminal &terminal, int &row, int &column );

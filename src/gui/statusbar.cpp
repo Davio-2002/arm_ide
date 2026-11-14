@@ -16,9 +16,7 @@ const int breadcrumbDepth = 3;
 const float itemGap = 16.0f;
 const float sidePadding = 14.0f;
 
-/// @brief Shows the last parts of a path, separated by "›".
-/// @param[in] path File path; may be empty.
-/// @return The last breadcrumbDepth parts, or "untitled" for an empty path.
+/// @return The last breadcrumbDepth path parts joined by "›", or "untitled".
 std::string breadcrumb( const std::string &path ) {
     if ( path.empty() ) {
         return "untitled";
@@ -35,7 +33,7 @@ std::string breadcrumb( const std::string &path ) {
     return text;
 }
 
-/// @return Warning colour while paused, success colour while running, transparent otherwise.
+/// @return Warning colour while paused, success while running, else transparent.
 ImU32 programStateColor( const Session &session ) {
     if ( session.isPaused() ) {
         return currentScheme().warning;
@@ -46,8 +44,7 @@ ImU32 programStateColor( const Session &session ) {
     return transparentColor;
 }
 
-/// @brief Draws a small dot one text line high.
-/// @param[in] color Dot colour.
+/// @brief A dot one text line high.
 void drawStateDot( ImU32 color ) {
     float size = ImGui::GetTextLineHeight();
     ImVec2 topLeft = ImGui::GetCursorScreenPos();

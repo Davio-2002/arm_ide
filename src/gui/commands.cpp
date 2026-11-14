@@ -12,14 +12,12 @@
 
 namespace {
 
-/// @brief A command's keyboard shortcut.
 struct Shortcut {
     Command command;
     ImGuiKeyChord chord;
     const char *text;
 };
 
-/// The shortcut of each command that has one. A new command with a shortcut adds a row.
 const Shortcut shortcuts[] = {
     { Command::NewFile, ImGuiMod_Ctrl | ImGuiKey_N, "Ctrl+N" },
     { Command::Open, ImGuiMod_Ctrl | ImGuiKey_O, "Ctrl+O" },
@@ -35,8 +33,7 @@ const Shortcut shortcuts[] = {
 
 std::vector<std::function<void( Session & )>> requests;
 
-/// @brief Runs a command with the active editor's text, asking first for the file it needs.
-/// @param[in,out] session Session to run it in.
+/// @brief Runs a command with the editor's text, asking first for a file if it needs one.
 void runCommand( Session &session, Command command ) {
     CommandInput input = editorCommandInput( session );
     auto runWithPath = [&session, command, input]( const std::string &path ) mutable {

@@ -11,8 +11,6 @@
 
 namespace {
 
-/// @brief Sends bytes as they are.
-/// @param[in] data       Bytes to send.
 /// @return True if all bytes were sent.
 bool sendRaw( GdbConnection &connection, const std::string &data ) {
     size_t sent = 0;
@@ -27,11 +25,8 @@ bool sendRaw( GdbConnection &connection, const std::string &data ) {
     return true;
 }
 
-/// @brief Takes one complete "$payload#xx" from the received bytes and acknowledges it.
-///        Acknowledgements before it are skipped.
-/// @param[in,out] connection Connection whose received bytes are consumed.
-/// @param[out]    payload    Packet payload, without "$" and the checksum.
-/// @return True if a complete packet was taken.
+/// @brief Takes one complete packet from the received bytes and acknowledges it.
+/// @return True if a packet was taken.
 bool takePacket( GdbConnection &connection, std::string &payload ) {
     size_t start = connection.received.find( '$' );
     if ( start == std::string::npos ) {

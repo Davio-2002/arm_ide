@@ -21,29 +21,25 @@
 
 namespace {
 
-/// @brief The text being edited for one document of the session.
+/// @brief The edited text of one session document.
 struct EditorBuffer {
     int documentId = 0;
-    /// Path the language was chosen for.
     std::string path;
     TextEditor editor;
     int shownLineMarksVersion = -1;
     bool shownLineMarksOfProgram = false;
-    /// Edit versions last looked at for the header names popup and the header declarations.
     size_t headerNamesCheckedVersion = 0;
     size_t declarationsCheckedVersion = 0;
-    /// Frame after which the header names popup opens; 0 when none is waiting.
     int headerNamesFrame = 0;
 };
 
 std::vector<std::unique_ptr<EditorBuffer>> buffers;
 
-/// Session and buffer being drawn, for the editor's callbacks, which get no user data.
+/// For the editor's callbacks, which get no user data.
 const Session *drawingSession = nullptr;
 EditorBuffer *drawingBuffer = nullptr;
 
-/// @param[in] documentId Document of the session.
-/// @return Its buffer, or nullptr before the next sync.
+/// @return The buffer, or nullptr before the next sync.
 EditorBuffer *findBuffer( int documentId ) {
     for ( const std::unique_ptr<EditorBuffer> &buffer : buffers ) {
         if ( buffer->documentId == documentId ) {
@@ -53,17 +49,12 @@ EditorBuffer *findBuffer( int documentId ) {
     return nullptr;
 }
 
-/// @brief Tells if a buffer shows the file last built, which owns the build errors and the
-///        paused line.
-/// @param[in] buffer  Buffer to check.
-/// @return True if the buffer shows the built file.
+/// @return True if the buffer shows the built file, which owns build errors and the paused line.
 bool showsProgram( const EditorBuffer &buffer, const Session &session ) {
     return !buffer.path.empty() && buffer.path == session.programFilePath;
 }
 
-/// @brief Colours a marked line and its number by the mark kind.
-/// @param[in,out] editor Editor to mark.
-/// @param[in]     mark   Line mark; its message becomes the tooltip.
+/// @brief Colours a marked line by kind; its message becomes the tooltip.
 void addLineMarker( TextEditor &editor, const LineMark &mark ) {
     ImU32 numberColor = currentScheme().error;
     ImU32 lineColor = withAlpha( currentScheme().error, 40 );
@@ -77,9 +68,6 @@ void addLineMarker( TextEditor &editor, const LineMark &mark ) {
     editor.AddMarker( mark.line - 1, numberColor, lineColor, mark.message, mark.message );
 }
 
-/// @brief Draws the arrow of the line the program is paused on.
-/// @param[in] center   Centre of the decoration area.
-/// @param[in] size     Height of the decoration area.
 void drawPausedArrow( ImDrawList *drawList, ImVec2 center, float size ) {
     float half = size * 0.26f;
     float left = center.x - size * 0.3f;
@@ -100,9 +88,7 @@ void drawPausedArrow( ImDrawList *drawList, ImVec2 center, float size ) {
     drawList->AddConcavePolyFilled( points, IM_ARRAYSIZE( points ), accentColor() );
 }
 
-/// @brief Line decorator callback: draws the breakpoint dot and the execution arrow left of
-///        a line. A click toggles the breakpoint.
-/// @param[in] decorator Line and size of the decoration area.
+/// @brief Line decorator: breakpoint dot and paused arrow; a click toggles the breakpoint.
 void drawLineDecoration( TextEditor::Decorator &decorator ) {
     const Session &session = *drawingSession;
     const EditorBuffer &buffer = *drawingBuffer;
@@ -128,9 +114,7 @@ void drawLineDecoration( TextEditor::Decorator &decorator ) {
     }
 }
 
-/// @brief Autocomplete callback: suggests the words of the document's language and its
-///        identifiers that start with the typed term.
-/// @param[in,out] state Typed term in, suggestions out.
+/// @brief Autocomplete callback: language words and document identifiers starting with the term.
 void suggestCompletions( TextEditor::AutoCompleteState &state ) {
     std::vector<std::string> documentWords;
     drawingBuffer->editor.IterateIdentifiers(
@@ -164,11 +148,8 @@ void suggestCompletions( TextEditor::AutoCompleteState &state ) {
     }
 }
 
-/// @brief Picks the language from the path, as the build does.
-///
-/// In assembly a '.' is part of a word (directives, b.cond) and starts autocomplete; in C a
-/// '#' starts it, for the directive.
-/// @param[in,out] buffer Buffer to configure.
+/// @brief Picks the language by path. Assembly: '.' is a word character and triggers
+///        autocomplete; C: '#' triggers it.
 void setLanguage( EditorBuffer &buffer ) {
     bool isC = sourceLanguage( buffer.path ) == SourceLanguage::C;
     buffer.editor.SetLanguage( isC ? cLanguage() : aarch64Language() );
@@ -180,9 +161,6 @@ void setLanguage( EditorBuffer &buffer ) {
     buffer.editor.SetAutoCompleteConfig( &autoComplete );
 }
 
-/// @brief Adds the buffer of a new document, with its text and language.
-/// @param[in] document Document of the session.
-/// @return The new buffer.
 EditorBuffer *addBuffer( const Document &document ) {
     auto buffer = std::make_unique<EditorBuffer>();
     buffer->documentId = document.id;
@@ -199,9 +177,7 @@ EditorBuffer *addBuffer( const Document &document ) {
     return buffers.back().get();
 }
 
-/// @brief Updates a buffer's markers when the session's line marks changed. Only the built
-///        file shows them.
-/// @param[in,out] buffer  Buffer to update.
+/// @brief Rebuilds markers when the line marks changed; only the built file shows them.
 void showLineMarks( EditorBuffer &buffer, const Session &session ) {
     bool marksVisible = showsProgram( buffer, session );
     if ( buffer.shownLineMarksVersion == session.lineMarksVersion &&
@@ -219,7 +195,6 @@ void showLineMarks( EditorBuffer &buffer, const Session &session ) {
 }
 
 /// @brief Closes a document, asking first if it has unsaved changes.
-/// @param[in]     documentId Document to close.
 void closeAsking( Session &session, int documentId ) {
     for ( const Document &document : session.documents() ) {
         if ( document.id == documentId && isModified( document ) ) {
@@ -231,7 +206,7 @@ void closeAsking( Session &session, int documentId ) {
     session.closeDocument( documentId );
 }
 
-/// @brief Draws the tab row. Selecting and closing are requested for after the frame.
+/// @brief Tab row; selecting and closing are requested for after the frame.
 void drawDocumentTabs( const Session &session ) {
     for ( const Document &document : session.documents() ) {
         PillTab tab;
@@ -260,16 +235,15 @@ void drawDocumentTabs( const Session &session ) {
     ImGui::NewLine();
 }
 
-/// @return True if the cursor's line is a preprocessor line, starting with '#'.
+/// @return True if the cursor line starts with '#'.
 bool onPreprocessorLine( const EditorBuffer &buffer ) {
     std::string line = buffer.editor.GetLineText( buffer.editor.GetMainCursorPosition().line );
     size_t start = line.find_first_not_of( " \t" );
     return start != std::string::npos && line[start] == '#';
 }
 
-/// @brief Gives the session the text of an edited C buffer, to read its header declarations
-///        again if its preprocessor lines changed. Waits while the cursor is on a preprocessor
-///        line, so an #include is not compiled at every typed character.
+/// @brief Passes an edited C buffer to the session for its header declarations, once the
+///        cursor is off a '#' line, so #include isn't compiled at every keystroke.
 void updateDeclarations( Session &session, EditorBuffer &buffer ) {
     size_t version = buffer.editor.GetUndoIndex();
     if ( version == buffer.declarationsCheckedVersion ||
@@ -280,12 +254,9 @@ void updateDeclarations( Session &session, EditorBuffer &buffer ) {
     session.updateDeclarations( buffer.documentId, buffer.editor.GetText() );
 }
 
-/// @brief Opens autocomplete when an edit leaves the cursor just after the '<' or '"' of a C
-///        #include line, so the header names show as soon as one is typed.
-///
-/// The editor has no call to open it, so its trigger shortcut (Ctrl+Space) is queued as input.
-/// That waits one frame: a popup still open closes only in the next one, and the editor
-/// ignores the shortcut while it is open.
+/// @brief Opens autocomplete after an edit leaves the cursor just after an #include's '<' or
+///        '"'. The editor has no call for it, so Ctrl+Space is queued as input one frame later:
+///        an open popup closes only next frame and the shortcut is ignored meanwhile.
 void openHeaderNames( EditorBuffer &buffer ) {
     if ( buffer.headerNamesFrame != 0 && ImGui::GetFrameCount() > buffer.headerNamesFrame ) {
         buffer.headerNamesFrame = 0;

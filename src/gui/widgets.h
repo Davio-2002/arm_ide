@@ -4,24 +4,19 @@
 
 #include <gui/icons.h>
 
-/// @brief Draws a flat icon button: transparent until hovered, dimmed while disabled.
-/// @param[in] enabled False to draw the button disabled.
+/// @brief Flat icon button, transparent until hovered.
 /// @return True if clicked.
 bool iconButton( const char *id, Icon icon, const char *tooltip, bool enabled = true );
 
-/// @brief Draws an icon button that stays highlighted while on. A click flips the state.
-/// @param[in,out] on      Toggle state.
+/// @brief Icon button highlighted while on; a click flips it.
 void iconToggle( const char *id, Icon icon, const char *tooltip, bool &on );
 
-/// @brief Draws a rounded accent outline around the last item, as on hovered toolbar items
-///        and edited text fields.
-/// @param[in] show False to draw nothing.
+/// @brief Draws a rounded accent outline around the last item when `show`.
 void outlineLastItem( bool show );
 
-/// @brief Draws a short vertical line between groups in a header row.
 void drawVerticalSeparator();
 
-/// @brief A rounded tab for the header row of a panel.
+/// @brief A rounded tab of a panel header.
 struct PillTab {
     std::string label;
     Icon icon = Icon::AsmFile;
@@ -31,9 +26,7 @@ struct PillTab {
     bool unsaved = false;
 };
 
-/// @brief What a click on a PillTab hit.
 enum class TabClick { None, Select, Close };
 
-/// @brief Draws a pill tab.
 /// @return Whether the tab or its × was clicked.
 TabClick drawPillTab( const char *id, const PillTab &tab );

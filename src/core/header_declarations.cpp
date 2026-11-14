@@ -12,9 +12,8 @@
 
 namespace {
 
-/// @brief Reads a line of gcc -aux-info:
-///        "/* stdio.h:370:NC */ extern int printf (const char *, ...);".
-/// @return True if the line declares a function.
+/// @brief Reads a gcc -aux-info line: "/* stdio.h:370:NC */ extern int printf (...);".
+/// @return True if it declares a function.
 bool parseFunction( const std::string &line, Declaration &declaration ) {
     const char *marker = "*/ extern ";
     size_t markerStart = line.find( marker );
@@ -38,8 +37,8 @@ bool parseFunction( const std::string &line, Declaration &declaration ) {
     return true;
 }
 
-/// @brief Reads a line of gcc -dM: "#define SEEK_SET 0" or "#define getc(fp) _IO_getc (fp)".
-/// @return True if the line defines a macro.
+/// @brief Reads a gcc -dM line: "#define SEEK_SET 0".
+/// @return True if it defines a macro.
 bool parseMacro( const std::string &line, Declaration &declaration ) {
     const char *marker = "#define ";
     if ( !line.starts_with( marker ) ) {
@@ -70,9 +69,7 @@ std::string preprocessorLines( const std::string &text ) {
     return directives;
 }
 
-/// Functions come from gcc -aux-info, which writes every function declaration it compiles,
-/// macros from gcc -E -dM. A name declared twice, or a function also defined as a macro, is
-/// listed once.
+/// Functions from gcc -aux-info, macros from gcc -E -dM; each name listed once.
 std::vector<Declaration> headerDeclarations( const std::string &text,
                                              const std::string &directory ) {
     std::filesystem::path temporary = std::filesystem::temp_directory_path() /
@@ -116,8 +113,7 @@ std::vector<Declaration> headerDeclarations( const std::string &text,
     return declarations;
 }
 
-/// gcc -v lists them between "#include <...> search starts here:" and "End of search list.",
-/// one per line with a leading space.
+/// gcc -v lists them between "search starts here:" and "End of search list.".
 const std::vector<std::string> &systemIncludeDirectories() {
     static const std::vector<std::string> directories = [] {
         CommandResult command = runCommand(

@@ -14,7 +14,7 @@ Session::Session() {
     addDocument( "", "" );
 }
 
-// Commands ----------------------------------------------------------------------------------
+// Commands
 
 std::string Session::commandLabel( Command command ) const {
     switch ( command ) {
@@ -122,7 +122,7 @@ void Session::run( Command command, const CommandInput &input ) {
     }
 }
 
-// Program -----------------------------------------------------------------------------------
+// Program
 
 void Session::toggleBreakpoint( const std::string &path, int line ) {
     std::set<int> &lines = breakpoints[path];
@@ -210,7 +210,7 @@ void Session::stop() {
     stopActiveProgram();
 }
 
-/// Fills the build log and the line marks with the build messages.
+/// @brief Builds and puts the messages in the build log and line marks.
 bool Session::build() {
     stopActiveProgram();
     buildLog.clear();
@@ -263,7 +263,7 @@ void Session::runProgram() {
     status = "Running " + executablePath;
 }
 
-/// Starts debugging, or resumes the program if it is paused.
+/// @brief Starts debugging, or resumes if paused.
 void Session::debugContinue() {
     if ( !isDebugging() ) {
         startDebugging( false );
@@ -273,7 +273,7 @@ void Session::debugContinue() {
     }
 }
 
-/// Starts debugging paused at the first line, or steps to the next line if paused.
+/// @brief Starts paused at the first line, or steps a line if paused.
 void Session::debugStep() {
     if ( !isDebugging() ) {
         startDebugging( true );
@@ -294,7 +294,7 @@ void Session::setLineMarks( const std::vector<LineMark> &marks ) {
     lineMarksVersion++;
 }
 
-/// Splits output into console lines; it may end in the middle of a line.
+/// @brief Splits output into console lines; it may end mid-line.
 void Session::appendProgramOutput( const std::string &output ) {
     for ( char c : output ) {
         if ( !programLineOpen ) {
@@ -309,7 +309,7 @@ void Session::appendProgramOutput( const std::string &output ) {
     }
 }
 
-/// Prints a result line to the console and shows it as the status.
+/// @brief Prints a result to the console and the status.
 void Session::printResult( const std::string &text, MessageKind kind, int sourceLine ) {
     programLineOpen = false;
     console.push_back( { text, kind, sourceLine } );
@@ -321,7 +321,7 @@ void Session::printExitCode( int exitCode ) {
     printResult( text, exitCode == 0 ? MessageKind::Success : MessageKind::Error );
 }
 
-/// @return The process reading program input, or nullptr if no program runs.
+/// @return The process reading program input, or nullptr.
 Process *Session::programProcess() {
     if ( isRunning( runningProgram ) ) {
         return &runningProgram;
@@ -341,8 +341,7 @@ void Session::stopActiveProgram() {
     }
 }
 
-/// Builds the active document and starts it under the debugger, paused at the first line or
-/// running to a breakpoint.
+/// @brief Builds and debugs the active document, paused at the first line or running.
 void Session::startDebugging( bool pauseAtEntry ) {
     if ( !build() ) {
         return;
@@ -392,8 +391,7 @@ void Session::handleDebuggerState() {
     }
 }
 
-/// Clears the paused line once the program leaves a pause, for example while a step waits in
-/// read for input.
+/// @brief Clears the paused line once the program runs, e.g. a step waiting for input.
 void Session::showRunning() {
     if ( paused.line == 0 ) {
         return;
@@ -403,7 +401,7 @@ void Session::showRunning() {
     status = "Running in debugger";
 }
 
-/// Reads the registers and marks the line the debugger is paused on.
+/// @brief Reads the registers and marks the paused line.
 void Session::showPausedLine() {
     paused.previousRegisters = paused.registers;
     memoryBlocks.clear();
@@ -418,7 +416,7 @@ void Session::showPausedLine() {
     status = "Paused at line " + std::to_string( paused.line );
 }
 
-/// Ends the debug session and reports the crash with its line, if known.
+/// @brief Ends the debug session and reports the crash line, if known.
 void Session::showCrash() {
     std::string error = debugger.error;
     int line = sourceLineAt( debugger, readRegisters( debugger ).pc );

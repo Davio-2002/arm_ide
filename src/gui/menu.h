@@ -2,8 +2,5 @@
 
 class Session;
 
-/// @brief Draws the main menu bar with the toolbar, and reads the keyboard shortcuts.
-///
-/// Chosen commands are requested (gui/commands.h) and run after the frame; view actions such
-/// as zoom apply at once.
+/// @brief Draws the menu bar with the toolbar and reads the shortcuts.
 void drawMenuBar( const Session &session );

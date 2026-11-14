@@ -1,7 +1,7 @@
 #include <gui/theme.h>
 
-// Declared extern in both this file and theme.cpp, so that theme.cpp can point at its default
-// schemes by constant initialization, independent of the order translation units initialize in.
+// Extern here and in theme.cpp, so theme.cpp's defaults are constant-initialized,
+// independent of static-init order.
 extern const ColorScheme colorSchemeTable[];
 
 const ColorScheme colorSchemeTable[] = {

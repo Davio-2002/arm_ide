@@ -11,14 +11,10 @@
 
 namespace {
 
-/// @brief Opens the channel a child process talks through.
-///
-/// A program gets a pseudo-terminal, so glibc flushes printf at each line and before reading
-/// stdin, as in a terminal. Lines are read whole (canonical mode) without echo and output is
-/// not translated. Tools get a pipe and read /dev/null.
-/// @param[in]  isProgram True for a user program, false for a build tool.
-/// @param[out] fds       Parent end in fds[0], child end in fds[1]; both close-on-exec.
-/// @return True if the channel was opened.
+/// @brief Opens the child's output channel: a pty for programs (canonical, no echo, no output
+///        translation), a pipe and /dev/null for tools.
+/// @param[out] fds Parent end in fds[0], child end in fds[1]; both close-on-exec.
+/// @return True if opened.
 bool openOutput( bool isProgram, int ( &fds )[2] ) {
     if ( !isProgram ) {
         return pipe2( fds, O_CLOEXEC ) == 0;
@@ -36,14 +32,8 @@ bool openOutput( bool isProgram, int ( &fds )[2] ) {
     return true;
 }
 
-/// @brief Forks and executes a program with its output redirected to the parent.
-///
-/// The descriptors are close-on-exec, so other children (the terminal's shell) never hold them.
-/// @param[in]  args      Program and its arguments.
-/// @param[in]  directory Working directory; empty for the current one.
-/// @param[out] outputFd  Parent end of the output channel.
-/// @param[in]  isProgram True for a user program on a pty, false for a tool on a pipe.
-/// @return Child process ID, or -1 on failure.
+/// @brief Forks and runs a program with its output going to the parent.
+/// @return Child pid, or -1 on failure.
 pid_t spawnProcess( const std::vector<std::string> &args, const std::string &directory,
                     int &outputFd, bool isProgram ) {
     int output[2];

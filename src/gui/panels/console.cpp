@@ -9,7 +9,6 @@
 
 namespace {
 
-/// @return Text colour of the message.
 ImU32 messageColor( MessageKind kind ) {
     switch ( kind ) {
     case MessageKind::Command:
@@ -31,8 +30,7 @@ enum class OutputTab { Console, Build, Terminal };
 OutputTab shownOutputTab = OutputTab::Console;
 int shownBuildCount = 0;
 
-/// @brief Switches tabs once after each build: a failed build shows its errors, a good one
-///        shows the program.
+/// @brief Once per build: shows Build after a failure, Console after success.
 void followLatestBuild( const Session &session ) {
     if ( session.buildCount == shownBuildCount ) {
         return;
@@ -41,10 +39,6 @@ void followLatestBuild( const Session &session ) {
     shownOutputTab = session.buildSucceeded ? OutputTab::Console : OutputTab::Build;
 }
 
-/// @brief Draws one tab of the header and selects it on click.
-/// @param[in] label   Tab text.
-/// @param[in] tab     Tab it selects.
-/// @param[in] hasIcon True to show the console icon.
 void drawOutputTab( const char *id, const char *label, OutputTab tab, bool hasIcon ) {
     PillTab pill;
     pill.label = label;
@@ -59,8 +53,7 @@ void drawOutputTab( const char *id, const char *label, OutputTab tab, bool hasIc
     }
 }
 
-/// @brief Draws the Resume, Step and Stop buttons. Resume and Step only resume a paused
-///        program; starting the debugger is the toolbar's.
+/// @brief Resume, Step and Stop; they only resume a paused program, the toolbar starts it.
 void drawDebugButtons( const Session &session ) {
     bool paused = session.isPaused();
     if ( iconButton( "##resume", Icon::Resume, "Resume  F8", paused ) ) {
@@ -74,7 +67,7 @@ void drawDebugButtons( const Session &session ) {
     commandButton( session, "##stop", Command::Stop, Icon::Stop );
 }
 
-/// @brief Draws the header row: tabs, then debug or shell buttons, and Clear on the right.
+/// @brief Tabs, debug or shell buttons, and Clear on the right.
 void drawConsoleHeader( const Session &session ) {
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing,
                          ImVec2( 2.0f, ImGui::GetStyle().ItemSpacing.y ) );
@@ -109,9 +102,7 @@ void drawConsoleHeader( const Session &session ) {
     ImGui::PopStyleVar( 2 );
 }
 
-/// @brief Selected lines of one output tab.
-///
-/// It holds indices into the tab's messages, so a shorter list clears it.
+/// @brief Selected line indices; a shorter message list clears it.
 struct MessageSelection {
     ImGuiSelectionBasicStorage lines;
     size_t messageCount = 0;
@@ -120,8 +111,7 @@ struct MessageSelection {
 MessageSelection consoleSelection;
 MessageSelection buildSelection;
 
-/// @brief Copies messages to the clipboard, one per line.
-/// @param[in] selection Lines to copy, or nullptr to copy all.
+/// @param[in] selection Lines to copy, or nullptr for all.
 void copyMessages( const std::vector<Message> &messages,
                    const ImGuiSelectionBasicStorage *selection ) {
     std::string text;
@@ -133,7 +123,7 @@ void copyMessages( const std::vector<Message> &messages,
     ImGui::SetClipboardText( text.c_str() );
 }
 
-/// @brief Handles Ctrl+C and the right-click menu with Copy and Copy All.
+/// @brief Ctrl+C and the right-click Copy / Copy All menu.
 void drawCopyMenu( const std::vector<Message> &messages,
                    const ImGuiSelectionBasicStorage &selection ) {
     if ( ImGui::IsWindowFocused() && ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_C ) ) {
@@ -150,14 +140,9 @@ void drawCopyMenu( const std::vector<Message> &messages,
     }
 }
 
-/// @brief Draws messages as a selectable list that follows new output while scrolled to the
-///        bottom.
-///
-/// Lines are selected like a list: click, Shift/Ctrl+click, drag or Ctrl+A. A click on a
-/// message with a source line jumps to that line.
-/// @param[in]     messages  Messages to draw.
-/// @param[in,out] selection Selection of this list.
-/// @param[in]     height    Height of the list; 0 to fill the panel, negative to leave room.
+/// @brief Selectable list (click, Shift/Ctrl+click, drag, Ctrl+A) that follows new output at
+///        the bottom; a message with a source line jumps to it.
+/// @param[in] height 0 fills the panel, negative leaves room.
 void drawMessages( const std::vector<Message> &messages, MessageSelection &selection,
                    float height = 0.0f ) {
     if ( messages.size() < selection.messageCount ) {
@@ -213,8 +198,7 @@ void drawMessages( const std::vector<Message> &messages, MessageSelection &selec
 
 char programInput[1024];
 
-/// @brief Draws the input line for the running program's stdin. Enter sends the line,
-///        Ctrl+D ends the input.
+/// @brief Program stdin line: Enter sends, Ctrl+D ends input.
 void drawProgramInput( const Session &session ) {
     bool enabled = session.acceptsInput();
     const char *hint = enabled ? "Input for the program: Enter sends a line, Ctrl+D ends input"
@@ -236,7 +220,6 @@ void drawProgramInput( const Session &session ) {
     ImGui::EndDisabled();
 }
 
-/// @brief Draws the program output with the input line below it.
 void drawConsoleTab( const Session &session ) {
     pushCodeFont();
     float inputHeight = ImGui::GetFrameHeightWithSpacing();

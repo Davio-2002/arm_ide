@@ -12,13 +12,12 @@ namespace {
 
 enum class DialogKind { None, Open, Save, Discard };
 
-/// @brief One row of the file list.
 struct DirectoryEntry {
     std::string name;
     bool isDirectory = false;
 };
 
-/// @brief State of the one dialog that can be open at a time.
+/// @brief The one dialog that can be open.
 struct Dialog {
     DialogKind kind = DialogKind::None;
     bool needsOpening = false;
@@ -32,9 +31,7 @@ struct Dialog {
 
 Dialog dialog;
 
-/// @brief Makes a path absolute and normalized, without a trailing slash.
-/// @param[in] path Any path.
-/// @return Clean absolute path.
+/// @return Normalized absolute path without a trailing slash.
 std::filesystem::path cleanPath( const std::filesystem::path &path ) {
     std::error_code error;
     std::filesystem::path clean = std::filesystem::absolute( path, error ).lexically_normal();
@@ -44,17 +41,14 @@ std::filesystem::path cleanPath( const std::filesystem::path &path ) {
     return clean.parent_path();
 }
 
-/// @param[in] path File path.
-/// @return True for files the IDE builds or edits: assembly (.s, .S, .asm) and C (.c, .h).
+/// @return True for .s, .S, .asm, .c and .h.
 bool isSourceFile( const std::filesystem::path &path ) {
     std::string extension = path.extension().string();
     return extension == ".s" || extension == ".S" || extension == ".asm" || extension == ".c" ||
            extension == ".h";
 }
 
-/// @brief Shows a directory in the file list: subdirectories first, then source files.
-///        Hidden entries are skipped.
-/// @param[in] directory Directory to list.
+/// @brief Lists folders, then source files; hidden entries skipped.
 void enterDirectory( const std::filesystem::path &directory ) {
     dialog.directory = cleanPath( directory );
     dialog.entries.clear();
@@ -78,22 +72,19 @@ void enterDirectory( const std::filesystem::path &directory ) {
     } );
 }
 
-/// @brief Fills the file name field, truncating a name that does not fit.
-/// @param[in] name File name.
+/// @brief Fills the name field, truncating a name that doesn't fit.
 void setFileName( const std::string &name ) {
     name.copy( dialog.fileName, sizeof( dialog.fileName ) - 1 );
     dialog.fileName[std::min( name.size(), sizeof( dialog.fileName ) - 1 )] = '\0';
 }
 
-/// @brief Opens a dialog that needs no arguments.
-/// @param[in] kind Dialog to open.
 void openDialog( DialogKind kind ) {
     dialog = Dialog();
     dialog.kind = kind;
     dialog.needsOpening = true;
 }
 
-/// @return Window title of the open dialog, also used as its ImGui popup ID.
+/// @return Title of the open dialog, also its popup ID.
 const char *dialogTitle() {
     switch ( dialog.kind ) {
     case DialogKind::Open:
@@ -107,14 +98,12 @@ const char *dialogTitle() {
     return "Unsaved Changes";
 }
 
-/// @brief Draws the Cancel button.
-/// @return True if Cancel was clicked or Escape pressed.
+/// @return True on Cancel or Escape.
 bool cancelPressed() {
     return ImGui::Button( "Cancel" ) || ImGui::IsKeyPressed( ImGuiKey_Escape );
 }
 
-/// @brief Draws the unsaved changes question.
-/// @param[out] finish Set to the discard callback when the user chooses Discard.
+/// @param[out] finish Discard callback, set if the user discards.
 /// @return True when the dialog should close.
 bool drawDiscardDialog( std::function<void()> &finish ) {
     ImGui::TextUnformatted( dialog.message.c_str() );
@@ -127,8 +116,8 @@ bool drawDiscardDialog( std::function<void()> &finish ) {
     return cancelPressed();
 }
 
-/// @brief Draws the list of the current directory. A click on a file fills the name field.
-/// @param[out] nextDirectory Set to the directory the user clicked; unchanged otherwise.
+/// @brief A click on a file fills the name field.
+/// @param[out] nextDirectory Folder clicked.
 /// @return True if a file was double-clicked.
 bool drawFileList( std::filesystem::path &nextDirectory ) {
     bool chosen = false;
@@ -157,8 +146,8 @@ bool drawFileList( std::filesystem::path &nextDirectory ) {
     return chosen;
 }
 
-/// @brief Draws the Open or Save As dialog: file list, name field and buttons.
-/// @param[out] finish Set to call the chosen-file callback when a file is accepted.
+/// @brief Open or Save As: file list, name field and buttons.
+/// @param[out] finish Chosen-file callback, set when a file is accepted.
 /// @return True when the dialog should close.
 bool drawFileDialog( std::function<void()> &finish ) {
     bool isSave = dialog.kind == DialogKind::Save;

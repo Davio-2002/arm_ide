@@ -9,18 +9,13 @@
 
 namespace {
 
-/// @param[in] changed True if the value changed since the previous pause.
-/// @return Text colour of the value.
 ImVec4 changeColor( bool changed ) {
     return ImGui::ColorConvertU32ToFloat4( changed ? currentScheme().changedValue
                                                    : currentScheme().codeText );
 }
 
-/// @brief Shows a tooltip on the last item with the value as unsigned and signed, and its low
-///        32 bits as the w register.
-/// @param[in] name    Register name.
-/// @param[in] lowName Name of the 32-bit view, or nullptr for none (pc).
-/// @param[in] value   Register value.
+/// @brief Tooltip with the value unsigned, signed and as its w register.
+/// @param[in] lowName 32-bit view name, or nullptr (pc).
 void drawValueTooltip( const std::string &name, const char *lowName, uint64_t value ) {
     if ( !ImGui::BeginItemTooltip() ) {
         return;
@@ -37,11 +32,7 @@ void drawValueTooltip( const std::string &name, const char *lowName, uint64_t va
     ImGui::EndTooltip();
 }
 
-/// @brief Draws one table row: name, hex value and signed value.
-/// @param[in] name          Register name.
-/// @param[in] lowName       Name of the 32-bit view, or nullptr for none.
-/// @param[in] value         Current value.
-/// @param[in] previousValue Value at the previous pause; the row is highlighted if different.
+/// @brief Name, hex and signed value; highlighted if changed since the last pause.
 void drawRegisterRow( const std::string &name, const char *lowName, uint64_t value,
                       uint64_t previousValue ) {
     bool changed = value != previousValue;
@@ -61,24 +52,19 @@ void drawRegisterRow( const std::string &name, const char *lowName, uint64_t val
     drawValueTooltip( name, lowName, value );
 }
 
-/// @brief The NZCV condition flags.
 struct Flags {
     bool n, z, c, v;
 };
 
 /// @param[in] nzcv Flags in bits 28 to 31.
-/// @return The flags as booleans.
 Flags readFlags( uint64_t nzcv ) {
     return { ( ( nzcv >> 31 ) & 1 ) != 0, ( ( nzcv >> 30 ) & 1 ) != 0, ( ( nzcv >> 29 ) & 1 ) != 0,
              ( ( nzcv >> 28 ) & 1 ) != 0 };
 }
 
-/// @brief Draws a rounded label that wraps to the next line when the row is full.
-/// @param[in] text      Label text, also its ImGui ID.
-/// @param[in] on        True to fill and outline it in the accent.
-/// @param[in] textColor Text colour.
-/// @param[in] rowRight  Right edge of the row in screen coordinates.
-/// @param[in] first     True for the first label of the row.
+/// @brief Rounded label that wraps to the next line when the row is full.
+/// @param[in] on       True to fill and outline it in the accent.
+/// @param[in] rowRight Right edge of the row.
 void drawPill( const char *text, bool on, ImU32 textColor, const char *tooltip, float rowRight,
                bool first ) {
     ImVec2 padding( 6.0f, 2.0f );
@@ -101,9 +87,7 @@ void drawPill( const char *text, bool on, ImU32 textColor, const char *tooltip, 
     ImGui::SetItemTooltip( "%s", tooltip );
 }
 
-/// @brief Draws the N, Z, C and V flags with their meaning as tooltip.
-/// @param[in] registers Current registers.
-/// @param[in] previous  Registers at the previous pause, to highlight changed flags.
+/// @brief N, Z, C and V with their meaning as tooltip; changed ones highlighted.
 void drawFlags( const Registers &registers, const Registers &previous ) {
     struct Flag {
         const char *label;
@@ -131,9 +115,7 @@ void drawFlags( const Registers &registers, const Registers &previous ) {
     }
 }
 
-/// @brief Draws the condition codes of b.cond, csel and similar instructions, highlighting
-///        those that hold for the current flags.
-/// @param[in] nzcv Flags in bits 28 to 31.
+/// @brief Condition codes of b.cond, csel etc., highlighting those that hold.
 void drawConditions( uint64_t nzcv ) {
     Flags f = readFlags( nzcv );
     struct Condition {
