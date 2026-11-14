@@ -3,44 +3,40 @@
 #include <TextEditor.h>
 #include <imgui.h>
 
-inline constexpr ImU32 hoveredColor = IM_COL32( 38, 40, 43, 255 );
-inline constexpr ImU32 selectedColor = IM_COL32( 43, 45, 48, 255 );
-inline constexpr ImU32 borderColor = IM_COL32( 57, 59, 64, 255 );
-inline constexpr ImU32 textSelectionColor = IM_COL32( 33, 66, 131, 255 );
+/// @brief Every colour of one theme.
+struct ColorScheme {
+    const char *name;
+    bool dark;
+    ImU32 background, accent;
+    ImU32 hovered, selected, border, textSelection, rowStripe;
+    ImU32 text, mutedText, secondaryText, codeText;
+    ImU32 error, warning, success, changedValue, breakpoint;
+    ImU32 lineNumber, currentLineNumber, currentLine;
+    ImU32 keyword, declaration, number, string, identifier, knownIdentifier, comment;
+};
+
+/// @return Colours of the theme in use.
+const ColorScheme &currentScheme();
+
+/// @param[in] color Colour.
+/// @param[in] alpha New alpha, 0 to 255.
+/// @return The colour with its alpha replaced.
+ImU32 withAlpha( ImU32 color, int alpha );
+
 inline constexpr ImU32 transparentColor = IM_COL32( 0, 0, 0, 0 );
 
-inline constexpr ImU32 textColor = IM_COL32( 223, 225, 229, 255 );
-inline constexpr ImU32 mutedTextColor = IM_COL32( 134, 138, 145, 255 );
-inline constexpr ImU32 secondaryTextColor = IM_COL32( 168, 171, 178, 255 );
-inline constexpr ImU32 codeTextColor = IM_COL32( 188, 190, 196, 255 );
-
-inline constexpr ImU32 errorColor = IM_COL32( 247, 84, 100, 255 );
-inline constexpr ImU32 errorLineColor = IM_COL32( 247, 84, 100, 40 );
-inline constexpr ImU32 warningColor = IM_COL32( 242, 197, 92, 255 );
-inline constexpr ImU32 warningLineColor = IM_COL32( 242, 197, 92, 30 );
-inline constexpr ImU32 successColor = IM_COL32( 106, 171, 115, 255 );
-inline constexpr ImU32 commandColor = mutedTextColor;
-inline constexpr ImU32 changedValueColor = IM_COL32( 242, 197, 92, 255 );
-inline constexpr ImU32 changedRowColor = IM_COL32( 242, 197, 92, 32 );
-
-inline constexpr ImU32 breakpointColor = IM_COL32( 219, 92, 92, 255 );
-inline constexpr ImU32 breakpointHoverColor = IM_COL32( 219, 92, 92, 90 );
-
-inline constexpr float islandRounding = 10.0f;
-inline constexpr float islandGap = 6.0f;
+inline constexpr float panelRounding = 10.0f;
+inline constexpr float panelGap = 6.0f;
 inline constexpr float toolbarFramePaddingY = 9.0f;
 inline constexpr float editorTabsGap = 6.0f;
 
-inline constexpr ImU32 defaultAccentColor = IM_COL32( 87, 150, 92, 255 );
-inline constexpr ImU32 defaultIslandColor = IM_COL32( 24, 25, 27, 255 );
-
-/// @brief Applies the Islands Dark sizes and colours to the ImGui style.
-void applyIslandsTheme();
+/// @brief Applies the theme sizes and the current scheme's colours to the ImGui style.
+void applyTheme();
 
 /// @return The accent: selected tabs, switched-on buttons and panel outlines.
 ImU32 accentColor();
 
-/// @return The accent faintly mixed into the island colour: fill of selected and hovered tabs.
+/// @return The accent faintly mixed into the panel background: fill of selected and hovered tabs.
 ImU32 accentFillColor();
 
 /// @brief Sets the accent colour and updates the ImGui style.
@@ -50,19 +46,12 @@ void setAccentColor( ImU32 color );
 /// @return The accent at low alpha: background of the line the debugger is paused on.
 ImU32 pausedLineColor();
 
-/// @return Background of every panel and of the code.
-ImU32 islandColor();
-
-/// @brief Colour of the frame around the islands: toolbar, status bar, tool strip and gaps.
+/// @brief Colour of the frame around the panels: toolbar, status bar, tool strip and gaps.
 ///
-/// It is the island colour at 65% brightness, so the two levels keep their contrast whatever
-/// colour is picked.
+/// It is the panel background at 65% brightness, so the two levels keep their contrast in every
+/// scheme.
 /// @return Ground colour.
 ImU32 groundColor();
 
-/// @brief Sets the panel background colour and updates the ImGui style.
-/// @param[in] color New island colour; its alpha is ignored.
-void setIslandColor( ImU32 color );
-
-/// @return Syntax colours of the code editor, on the current island colour.
+/// @return Syntax colours of the code editor, on the current panel background.
 TextEditor::Palette editorPalette();

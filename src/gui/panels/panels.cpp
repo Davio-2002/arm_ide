@@ -42,12 +42,12 @@ void createDefaultLayout( ImGuiID dockspace ) {
 /// @brief Draws the dock space over the whole work area, creating the default layout once.
 ///
 /// The ground window and dock title bars stay transparent, and each docked panel draws its
-/// rounded island background itself.
+/// rounded background itself.
 void drawDockSpace() {
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos( viewport->WorkPos );
     ImGui::SetNextWindowSize( viewport->WorkSize );
-    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( islandGap, islandGap ) );
+    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( panelGap, panelGap ) );
     ImGuiWindowFlags groundFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                                    ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoBackground |
                                    ImGuiWindowFlags_NoBringToFrontOnFocus |
@@ -88,10 +88,10 @@ void beginPanel( const char *name, ImGuiWindowFlags flags ) {
     }
 
     if ( ImGuiDockNode *node = ImGui::GetWindowDockNode() ) {
-        ImVec2 islandEnd( node->Pos.x + node->Size.x, node->Pos.y + node->Size.y );
+        ImVec2 panelEnd( node->Pos.x + node->Size.x, node->Pos.y + node->Size.y );
         ImDrawList *drawList = ImGui::GetBackgroundDrawList();
-        drawList->AddRectFilled( node->Pos, islandEnd, islandColor(), islandRounding );
-        drawList->AddRect( node->Pos, islandEnd, accentColor(), islandRounding );
+        drawList->AddRectFilled( node->Pos, panelEnd, currentScheme().background, panelRounding );
+        drawList->AddRect( node->Pos, panelEnd, accentColor(), panelRounding );
     }
 }
 
@@ -115,7 +115,7 @@ namespace {
 void drawToolStrip() {
     float buttonPadding = 6.0f;
     float sidePadding = ( toolStripWidth - iconSize ) * 0.5f - buttonPadding;
-    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( sidePadding, islandGap ) );
+    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( sidePadding, panelGap ) );
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( buttonPadding, buttonPadding ) );
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0.0f, 4.0f ) );
     ImGui::PushStyleColor( ImGuiCol_WindowBg, groundColor() );

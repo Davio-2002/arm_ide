@@ -260,8 +260,6 @@ void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const cha
         codeFont.requestedFamily = text.substr( 9 );
     } else if ( text.starts_with( "Accent=" ) ) {
         setAccentColor( static_cast<ImU32>( std::strtoul( line + 7, nullptr, 16 ) ) );
-    } else if ( text.starts_with( "PanelBackground=" ) ) {
-        setIslandColor( static_cast<ImU32>( std::strtoul( line + 16, nullptr, 16 ) ) );
     } else if ( text.starts_with( "Recent=" ) && std::filesystem::exists( text.substr( 7 ) ) ) {
         settingsSession->recentFiles.push_back( text.substr( 7 ) );
     }
@@ -276,7 +274,6 @@ void writeSettings( ImGuiContext *, ImGuiSettingsHandler *handler, ImGuiTextBuff
     buffer->appendf( "UiFont=%s\n", uiFont.family.c_str() );
     buffer->appendf( "CodeFont=%s\n", codeFont.family.c_str() );
     buffer->appendf( "Accent=%08X\n", accentColor() );
-    buffer->appendf( "PanelBackground=%08X\n", islandColor() );
     for ( const std::string &path : settingsSession->recentFiles ) {
         buffer->appendf( "Recent=%s\n", path.c_str() );
     }
@@ -315,7 +312,7 @@ void setupImGui( GLFWwindow *window, Session &session ) {
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    applyIslandsTheme();
+    applyTheme();
     ImGui::GetStyle().FontSizeBase = uiFontSize;
     loadSettings( session );
     loadFonts();

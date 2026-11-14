@@ -12,7 +12,7 @@
 
 namespace {
 
-enum class DialogKind { None, Open, Save, Discard, AccentColor, PanelColor };
+enum class DialogKind { None, Open, Save, Discard, AccentColor };
 
 /// @brief One row of the file list.
 struct DirectoryEntry {
@@ -132,15 +132,11 @@ void openAccentColorDialog() {
     openDialog( DialogKind::AccentColor );
 }
 
-void openPanelColorDialog() {
-    openDialog( DialogKind::PanelColor );
-}
-
 namespace {
 
 /// @return True if the open dialog is a colour picker.
 bool isColorDialog() {
-    return dialog.kind == DialogKind::AccentColor || dialog.kind == DialogKind::PanelColor;
+    return dialog.kind == DialogKind::AccentColor;
 }
 
 } // anonymous namespace
@@ -160,8 +156,6 @@ const char *dialogTitle() {
         return "Save As";
     case DialogKind::AccentColor:
         return "Accent Color";
-    case DialogKind::PanelColor:
-        return "Panel Background";
     case DialogKind::Discard:
     case DialogKind::None:
         break;
@@ -227,8 +221,9 @@ bool drawColorPicker( ImU32 &color, ImU32 defaultColor, std::span<const ImU32> p
 /// @brief Draws the accent colour picker and applies the colour at once.
 /// @return True when the dialog should close.
 bool drawAccentColorDialog() {
+    ImU32 defaultAccent = currentScheme().accent;
     const ImU32 presets[] = {
-        defaultAccentColor,
+        defaultAccent,
         IM_COL32( 53, 116, 240, 255 ),
         IM_COL32( 227, 140, 70, 255 ),
         IM_COL32( 168, 112, 220, 255 ),
@@ -236,25 +231,8 @@ bool drawAccentColorDialog() {
         IM_COL32( 42, 172, 184, 255 ),
     };
     ImU32 color = accentColor();
-    if ( drawColorPicker( color, defaultAccentColor, presets ) ) {
+    if ( drawColorPicker( color, defaultAccent, presets ) ) {
         setAccentColor( color );
-        ImGui::MarkIniSettingsDirty();
-    }
-    ImGui::Separator();
-    return ImGui::Button( "Close" ) || ImGui::IsKeyPressed( ImGuiKey_Escape );
-}
-
-/// @brief Draws the panel background colour picker and applies the colour at once.
-/// @return True when the dialog should close.
-bool drawPanelColorDialog() {
-    const ImU32 presets[] = {
-        defaultIslandColor,
-        IM_COL32( 30, 31, 34, 255 ),
-        IM_COL32( 0, 0, 0, 255 ),
-    };
-    ImU32 color = islandColor();
-    if ( drawColorPicker( color, defaultIslandColor, presets ) ) {
-        setIslandColor( color );
         ImGui::MarkIniSettingsDirty();
     }
     ImGui::Separator();
@@ -362,8 +340,6 @@ void drawDialogs() {
     bool done = false;
     if ( dialog.kind == DialogKind::AccentColor ) {
         done = drawAccentColorDialog();
-    } else if ( dialog.kind == DialogKind::PanelColor ) {
-        done = drawPanelColorDialog();
     } else if ( dialog.kind == DialogKind::Discard ) {
         done = drawDiscardDialog( finish );
     } else {

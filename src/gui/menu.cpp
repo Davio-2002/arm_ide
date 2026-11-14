@@ -138,7 +138,6 @@ void drawMenus( const Session &session, MenuActions &actions ) {
         ImGui::Separator();
         actions.openAppearance |= ImGui::MenuItem( "Appearance..." );
         actions.openAccentColor |= ImGui::MenuItem( "Accent Color..." );
-        actions.openPanelColor |= ImGui::MenuItem( "Panel Background..." );
         ImGui::EndMenu();
     }
     outlineLastItem( viewOpen || ImGui::IsItemHovered() );
@@ -204,9 +203,6 @@ void runActions( Session &session, const MenuActions &actions ) {
     }
     if ( actions.openAccentColor ) {
         openAccentColorDialog();
-    }
-    if ( actions.openPanelColor ) {
-        openPanelColorDialog();
     }
 
     if ( actions.stop ) {

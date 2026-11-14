@@ -72,11 +72,11 @@ Document *findDocument( const std::string &path ) {
 /// @param[in,out] editor Editor to mark.
 /// @param[in]     mark   Line mark; its message becomes the tooltip.
 void addLineMarker( TextEditor &editor, const LineMark &mark ) {
-    ImU32 numberColor = errorColor;
-    ImU32 lineColor = errorLineColor;
+    ImU32 numberColor = currentScheme().error;
+    ImU32 lineColor = withAlpha( currentScheme().error, 40 );
     if ( mark.kind == LineMarkKind::Warning ) {
-        numberColor = warningColor;
-        lineColor = warningLineColor;
+        numberColor = currentScheme().warning;
+        lineColor = withAlpha( currentScheme().warning, 30 );
     } else if ( mark.kind == LineMarkKind::Paused ) {
         numberColor = pausedLineColor();
         lineColor = pausedLineColor();
@@ -101,9 +101,9 @@ void drawLineDecoration( TextEditor::Decorator &decorator ) {
     ImVec2 center( topLeft.x + size * 0.5f, topLeft.y + size * 0.5f );
     float radius = size * 0.3f;
     if ( session.hasBreakpoint( document.path, line ) ) {
-        drawList->AddCircleFilled( center, radius, breakpointColor );
+        drawList->AddCircleFilled( center, radius, currentScheme().breakpoint );
     } else if ( ImGui::IsItemHovered() ) {
-        drawList->AddCircleFilled( center, radius, breakpointHoverColor );
+        drawList->AddCircleFilled( center, radius, withAlpha( currentScheme().breakpoint, 90 ) );
     }
 
     if ( line == session.pausedLine && showsProgram( document ) ) {
@@ -122,7 +122,7 @@ void drawLineDecoration( TextEditor::Decorator &decorator ) {
         for ( ImVec2 point : points ) {
             drawList->PathLineTo( point );
         }
-        drawList->PathStroke( islandColor(), ImDrawFlags_Closed, 2.0f );
+        drawList->PathStroke( currentScheme().background, ImDrawFlags_Closed, 2.0f );
         drawList->AddConcavePolyFilled( points, IM_ARRAYSIZE( points ), accentColor() );
     }
 }

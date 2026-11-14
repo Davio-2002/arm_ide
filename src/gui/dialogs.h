@@ -23,9 +23,6 @@ void askToDiscardChanges( const std::string &documentName, std::function<void()>
 /// @brief Opens the accent colour picker. The colour applies while it is picked.
 void openAccentColorDialog();
 
-/// @brief Opens the panel background colour picker. The colour applies while it is picked.
-void openPanelColorDialog();
-
 /// @return True while any dialog is open.
 bool isDialogOpen();
 

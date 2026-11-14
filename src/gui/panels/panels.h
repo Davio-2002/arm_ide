@@ -12,7 +12,7 @@ void drawPanels( Session &session, MenuActions &actions );
 
 /// @brief Begins a panel window. End it with ImGui::End.
 ///
-/// A docked panel is an island with its own header row instead of a dock tab.
+/// A docked panel is a rounded rectangle with its own header row instead of a dock tab.
 /// @param[in] name  Window name, also its dock ID.
 /// @param[in] flags ImGui window flags.
 void beginPanel( const char *name, ImGuiWindowFlags flags = 0 );
