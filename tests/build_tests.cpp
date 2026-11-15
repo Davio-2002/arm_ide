@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <filesystem>
 #include <set>
 #include <test_support.h>
@@ -28,6 +29,13 @@ std::vector<int> linesInAddressOrder( const std::map<uint64_t, int> &sourceLines
     return lines;
 }
 
+/// @return Whether some message is an error on this source line.
+bool hasErrorOnLine( const std::vector<Message> &messages, int line ) {
+    return std::ranges::any_of( messages, [line]( const Message &message ) {
+        return message.kind == MessageKind::Error && message.sourceLine == line;
+    } );
+}
+
 } // namespace
 
 TEST_F( AssemblyTest, BuildsExecutable ) {
@@ -38,9 +46,14 @@ TEST_F( AssemblyTest, BuildsExecutable ) {
 }
 
 TEST_F( AssemblyTest, ReportsErrorOnItsLine ) {
-    // TODO(you): build a source with an unknown instruction on a known line, then check that
-    // the build fails and that some message has MessageKind::Error and that line.
-    FAIL() << "not written yet";
+    const std::string source = ".global _start\n"         // 1
+                               "_start: mov x0, #0\n"     // 2
+                               "        frobnicate x0\n"; // 3
+
+    const BuildResult build = buildProgram( writeSource( "bad.s", source ) );
+
+    EXPECT_FALSE( build.success );
+    EXPECT_TRUE( hasErrorOnLine( build.messages, 3 ) );
 }
 
 TEST_F( AssemblyTest, GivesEachInstructionItsOwnLine ) {
@@ -58,6 +71,17 @@ TEST_F( CTest, BuildsExecutable ) {
 
     EXPECT_TRUE( build.success );
     EXPECT_TRUE( std::filesystem::exists( build.executablePath ) );
+}
+
+TEST_F( CTest, ReportsErrorOnItsLine ) {
+    const std::string source = "int main( void ) {\n"     // 1
+                               "    return undeclared;\n" // 2
+                               "}\n";                     // 3
+
+    const BuildResult build = buildProgram( writeSource( "bad.c", source ) );
+
+    EXPECT_FALSE( build.success );
+    EXPECT_TRUE( hasErrorOnLine( build.messages, 2 ) );
 }
 
 TEST_F( CTest, ReadsLinesOfMain ) {
