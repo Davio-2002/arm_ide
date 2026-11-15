@@ -147,6 +147,180 @@ to `Icon` in `gui/icons.h`, and in `gui/icons.cpp` an array including `name_svg.
 - **`as -g` segfaults when its working directory was deleted**; tools run in the source's
   folder.
 
+## Target architecture
+
+Decided on 2026-11-15. The sections above describe the code as it is; this one describes where
+it is going. Until the restructuring below is done, new code follows this section where the two
+differ.
+
+### Goal and scope
+
+An IDE with full support of AArch64 assembly and C/C++ for comfortable development, research
+and learning, open to new languages and instruction set architectures (ISAs) later.
+
+- Linux programs for AArch64: cross-built on x86 and run in QEMU, or built natively on an ARM
+  machine and run directly.
+- Where a program runs is a choice: QEMU now, a device over ssh + gdbserver later.
+- Bare metal (microcontrollers) is out of scope for now.
+- The user never writes configuration. Behaviour follows what is open; a rare choice is a
+  click, remembered by the IDE.
+
+### Decisions
+
+1. **Document text.** `app` owns the logical document: text, version, saved text, language and
+   everything derived from it. The frontend keeps an editing mirror: cursor, selection, scroll,
+   undo, rendering.
+   - The frontend sends the whole text to `app` after every edit; consumers (clangd, the `as`
+     check) wait for a pause themselves. Measure on a 10 000-line file; send edits instead of
+     the whole text only if that is too slow.
+   - The version is one counter per document, not a history. Whoever changes the text raises
+     it; the frontend applies `app`'s text when its own version is behind.
+   - A document is modified while its text differs from the saved text.
+   - The cursor stays in the frontend and is passed with each request that needs it.
+   - "Read-only while debugging" is decided by `app`; the frontend only applies it.
+2. **What a program is.** One concept inside: a program is a set of files plus a target. How the
+   set is chosen depends on what is open:
+   - *Playground*: one file, saved automatically in a service folder, F5 without a save dialog,
+     "Save as project" turns it into a folder.
+   - *File from disk*: a program of that one file, where it lies.
+   - *Folder without a build system*: every `.s`, `.c`, `.cpp` in it and its subfolders except
+     `build/` and hidden ones. Built with `g++` if there is C++, `gcc` if there is C, otherwise
+     `as` + `ld` without the C library. Output in `build/`.
+   - *Folder with `CMakeLists.txt`*: CMake, with a generated AArch64 toolchain file, its own
+     build folder, the Debug build type, executables from the CMake File API and its
+     `compile_commands.json`.
+   - *Folder with a `Makefile`*: `make CC=… CXX=…`; the user picks the executable once.
+   - CMake wins over a Makefile. "Run this file alone" works inside a project.
+   - The build methods are a table (detect, build, executables, compile commands); the build,
+     the debugger and clangd don't know which one made the program. For our own builds we
+     write `compile_commands.json` for clangd. QEMU gets the sysroot (`-L`) for dynamically
+     linked programs. Flags are `-g -O0` for now, the optimization level becomes a click later.
+     Every build rebuilds everything.
+3. **Language and ISA knowledge.** Two names in `core`: `Language` (assembly, C, C++) and `Isa`
+   (AArch64). Assembly is always `Language::Assembly` plus an `Isa`.
+   - Each layer has its own table of plain structs indexed by them: `core` for building and
+     tools, `app` for editing behaviour, `gui` for drawing. No single descriptor, no
+     data-file language packs.
+   - A `static_assert` checks that every table has a row for every value, so a forgotten row
+     does not build.
+   - Knowledge goes where it is used: facts about the ISA (what `hi` means in flags) live in
+     `core`, panels only show them.
+   - AArch64 knowledge is gathered in one place now; the `Isa` table gets rows with a second
+     ISA.
+   - Derive from tools instead of writing lists by hand: registers from QEMU's `target.xml`,
+     system call numbers from the cross `unistd.h`, assembly words from `as`.
+4. **Background work.** One thread. All background work is child processes polled in
+   `update()`.
+   - A worker thread only if a measurement asks for it, and only for a pure input-to-output
+     function without access to `Session`.
+   - A job is a sequence of commands whose output reaches the log line by line, and it can be
+     cancelled.
+   - A job remembers the document version it ran for; a newer check cancels an older one and
+     results for an old version are dropped.
+   - The status bar shows a running build, Stop cancels builds too, editing continues during
+     a build.
+   - Small blocking calls in `gui` (`fc-list`, `fc-match`, `gdbus`) stay unless measured as
+     noticeable.
+5. **Session.** Still the one class, but it only coordinates the rules between its parts (save
+   before a build, read-only while debugging, breakpoints to the debugger after a build).
+   - Parts are plain structs with free functions, each in its own `app/` file: *workspace*
+     (documents, open folder or playground, recent files), *build* (build methods, jobs, build
+     log), *program* (run, debugger, console, breakpoints, paused state, memory), *language
+     services* (clangd, completion, the `as` check), *diagnostics*.
+   - The frontend reads state every frame. Versions only for what the frontend mirrors (text,
+     marks); one event queue for one-time requests (reveal a line, switch a tab), replacing
+     `buildCount`/`buildSucceeded` and `takeLineToReveal()`.
+   - Fields are private; the frontend gets `const &` to the parts' state and changes things
+     only through `Session` methods.
+6. **Diagnostics.** One type for every source (build, clangd, the `as` check while typing,
+   checks while the program runs): file, line, column, error or warning, text.
+   - Diagnostics of every file, not only the built one. The paused line is program state, not
+     a diagnostic.
+   - Editing a file removes its old build diagnostics; the checks while typing bring the
+     correct ones back.
+   - When a check while typing and the build report the same problem, the editor shows the
+     first; the build message stays in the Build log.
+   - Tool output is parsed without guessing: gcc's JSON diagnostics, the strict
+     `file:line: Error:` format of `as` and `ld`.
+7. **Highlighting.** `app` says what each piece of a line is (label, instruction, register,
+   number, comment, …); any frontend uses it. Colours stay in the frontend. Highlighting by
+   meaning from clangd comes later as the same kinds.
+8. **Verification.** Automatic tests with GoogleTest, only for the debugger and the build (the
+   fragile parts during the restructuring). They run through `core` and `app` without a
+   window, with `ctest`, and are skipped with a reason when the cross tools or QEMU are
+   missing.
+9. **Compilers.** Assembly is always GNU `as`. The C/C++ compiler is a choice in the language
+   table: gcc by default, clang by a click when installed (clang still needs the GNU cross
+   C library and a linker). Later the C ↔ assembly view can compare gcc and clang.
+10. **Build speed and releases.** Measured on 2026-11-15 (16 cores): fetching dependencies 25 s
+    (full git histories, 161 MB), compiling 13 s; the slowest own file is `core/toolchain.cpp`
+    (9.6 s, `std::regex`).
+    - FetchContent downloads commit archives with a SHA256 instead of cloning.
+    - `std::regex` goes away when tool output parsing is redone (decision 6).
+    - GitHub Actions: a check on every push (build, clang-tidy, `ctest`, cached dependencies)
+      and a release on a tag.
+    - Releases are an AppImage. The cross tools and QEMU still come from the user's
+      distribution.
+
+### C++ guidelines
+
+Binding for all code. C++23 (the project already uses it), errors through `std::expected`.
+
+**Code**
+- Simple and readable for an average developer. No tricks.
+- Modern idioms only when they make code shorter and clearer.
+- A function does one thing, at most 40 lines and 4 parameters.
+- Early return instead of nesting. Depth at most 3.
+- No double negatives (`!isNotEmpty`).
+- `auto` only when the type is obvious.
+
+**Names**
+- A name says what the thing does.
+- Functions are verbs, types are nouns, bools start with `is`/`has`/`can`.
+- Needing "And" in a name means the function should be split.
+- Name length grows with scope.
+
+**Comments**
+- Public API: Doxygen, `@brief` in one sentence.
+- `@param`/`@return` only when not obvious.
+- Inside functions, only *why*, never *what*.
+- Don't document the trivial.
+
+**Resources and types**
+- RAII. No bare `new`/`delete`.
+- `unique_ptr` by default; `shared_ptr` only for shared ownership.
+- A raw pointer or reference does not own.
+- `const` wherever possible. Heavy things by `const &`.
+- `enum class` and `constexpr` instead of macros.
+- One error policy: `std::expected`, never mixed with exceptions or `bool` plus a status
+  string.
+
+**Architecture**
+- Layers: UI → logic → platform. Dependencies point down only.
+- A lower layer calls an upper one through a callback or an event.
+- Composition over inheritance. Inheritance at most 2 levels deep.
+- An interface only with at least 2 implementations or for tests.
+- No globals or singletons. Dependencies come through the constructor.
+- Data without an invariant is a `struct` with free functions.
+- A module is a folder: a small public header, details hidden.
+- No circular dependencies. What is shared goes into its own module.
+- Templates against duplication, constrained with concepts.
+- One owner per resource. Ownership is a tree.
+- Complexity matches the current task. Nothing "for the future".
+
+**Checks**
+- clang-format and clang-tidy are mandatory.
+- A newcomer understands the structure in 10 minutes.
+
+Known violations to remove during the restructuring: the `static Session` in `gui/main.cpp`, the
+`static Terminal` in `gui/panels/terminal_view.cpp`, the `drawingSession`/`drawingBuffer`
+globals in `gui/panels/editor.cpp`, and the mix of `bool`, status strings and
+`std::optional` for errors.
+
+### Restructuring order
+
+The steps of the restructuring and the features after it are in [PLAN.md](PLAN.md).
+
 ## Build
 
 ```bash
