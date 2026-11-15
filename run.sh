@@ -33,7 +33,7 @@ elif command -v zypper &>/dev/null; then
     no_cross_libc=1
 else
     echo "Unknown package manager. Install these yourself, then run this script again:"
-    echo "  clang (C++23), cmake 3.24+, ninja, pkg-config, git,"
+    echo "  clang (C++23), cmake 3.25+, ninja, pkg-config, git,"
     echo "  AArch64 binutils (aarch64-*-as, ld, objdump, nm), for C an AArch64 GCC cross compiler"
     echo "  with its C library, QEMU user mode (qemu-aarch64),"
     echo "  GLFW 3, OpenGL, FreeType and libvterm development files."

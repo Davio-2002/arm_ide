@@ -18,37 +18,37 @@
 namespace {
 
 const unsigned char buildSvg[] = {
-#include "build_svg.inc"
+#include <build_svg.inc>
     0 };
 const unsigned char runSvg[] = {
-#include "run_svg.inc"
+#include <run_svg.inc>
     0 };
 const unsigned char debugSvg[] = {
-#include "debug_svg.inc"
+#include <debug_svg.inc>
     0 };
 const unsigned char stopSvg[] = {
-#include "stop_svg.inc"
+#include <stop_svg.inc>
     0 };
 const unsigned char resumeSvg[] = {
-#include "resume_svg.inc"
+#include <resume_svg.inc>
     0 };
 const unsigned char stepOverSvg[] = {
-#include "stepOver_svg.inc"
+#include <stepOver_svg.inc>
     0 };
 const unsigned char asmFileSvg[] = {
-#include "asmFile_svg.inc"
+#include <asmFile_svg.inc>
     0 };
 const unsigned char consoleSvg[] = {
-#include "console_svg.inc"
+#include <console_svg.inc>
     0 };
 const unsigned char clearSvg[] = {
-#include "clear_svg.inc"
+#include <clear_svg.inc>
     0 };
 const unsigned char registersSvg[] = {
-#include "registers_svg.inc"
+#include <registers_svg.inc>
     0 };
 const unsigned char memorySvg[] = {
-#include "memory_svg.inc"
+#include <memory_svg.inc>
     0 };
 
 struct IconSource {

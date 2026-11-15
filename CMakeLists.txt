@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.25)
 project(arm_ide CXX)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -121,3 +121,10 @@ foreach(icon_file ${icon_files})
     embed_as_bytes(${icon_file} ${icon}_svg.inc)
 endforeach()
 target_include_directories(arm_ide PRIVATE ${CMAKE_BINARY_DIR}/generated)
+
+# Tests of the build and the debugger, run with ctest; the dev preset turns them on.
+option(BUILD_TESTING "Build the tests" OFF)
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

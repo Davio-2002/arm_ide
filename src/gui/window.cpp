@@ -33,7 +33,7 @@ bool windowEventPending = false;
 /// @brief Sets the embedded icon; Wayland ignores it and uses the .desktop file.
 void setWindowIcon( GLFWwindow *window ) {
     static unsigned char pixels[] = {
-#include "icon_rgba.inc"
+#include <icon_rgba.inc>
     };
     std::vector<GLFWimage> images;
     unsigned char *image = pixels;
