@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <string>
 
+#include <core/debugger.h>
 #include <core/toolchain.h>
 
 /// @brief A test with its own temporary folder, since a build writes next to its source.
@@ -31,14 +32,20 @@ class CTest : public ProgramTest {
     void SetUp() override;
 };
 
-/// @brief Skips when the assembler, the linker or QEMU is missing.
+/// @brief Skips when the assembler, the linker or QEMU is missing; stops QEMU at the end.
 class AssemblyDebugTest : public ProgramTest {
   protected:
     void SetUp() override;
+    void TearDown() override;
+
+    Debugger debugger;
 };
 
-/// @brief Skips when the C cross compiler or QEMU is missing.
+/// @brief Skips when the C cross compiler or QEMU is missing; stops QEMU at the end.
 class CDebugTest : public ProgramTest {
   protected:
     void SetUp() override;
+    void TearDown() override;
+
+    Debugger debugger;
 };

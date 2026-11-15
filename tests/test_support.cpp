@@ -67,3 +67,13 @@ void CDebugTest::SetUp() {
     ProgramTest::SetUp();
     skipWhenMissing( SourceLanguage::C, true );
 }
+
+void AssemblyDebugTest::TearDown() {
+    stopDebugger( debugger );
+    ProgramTest::TearDown();
+}
+
+void CDebugTest::TearDown() {
+    stopDebugger( debugger );
+    ProgramTest::TearDown();
+}
