@@ -15,7 +15,7 @@ namespace {
 
 /// @brief Reads the zoom shortcuts.
 void readViewShortcuts() {
-    ImGuiInputFlags global = ImGuiInputFlags_RouteGlobal;
+    ImGuiInputFlags const global = ImGuiInputFlags_RouteGlobal;
     if ( ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_Equal, global ) ||
          ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Equal, global ) ||
          ImGui::Shortcut( ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, global ) ) {
@@ -36,7 +36,8 @@ void pushMenuStyle() {
     ImGui::PushStyleVar( ImGuiStyleVar_FramePadding,
                          ImVec2( ImGui::GetStyle().FramePadding.x, toolbarFramePaddingY ) );
     ImGui::PushStyleVar( ImGuiStyleVar_SelectableRounding, ImGui::GetStyle().FrameRounding );
-    for ( ImGuiCol color : { ImGuiCol_Header, ImGuiCol_HeaderHovered, ImGuiCol_HeaderActive } ) {
+    for ( ImGuiCol const color :
+          { ImGuiCol_Header, ImGuiCol_HeaderHovered, ImGuiCol_HeaderActive } ) {
         ImGui::PushStyleColor( color, accentFillColor() );
     }
 }
@@ -48,7 +49,7 @@ void popMenuStyle() {
 
 /// @brief A menu outlined while hovered or open.
 void drawMenu( const char *label, const std::function<void()> &drawItems ) {
-    bool open = ImGui::BeginMenu( label );
+    bool const open = ImGui::BeginMenu( label );
     if ( open ) {
         drawItems();
         ImGui::EndMenu();

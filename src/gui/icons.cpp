@@ -17,6 +17,7 @@
 
 namespace {
 
+// NOLINTBEGIN(modernize-avoid-c-arrays): byte lists from embed_as_bytes, sized by their #include.
 const unsigned char buildSvg[] = {
 #include <build_svg.inc>
     0 };
@@ -50,6 +51,7 @@ const unsigned char registersSvg[] = {
 const unsigned char memorySvg[] = {
 #include <memory_svg.inc>
     0 };
+// NOLINTEND(modernize-avoid-c-arrays)
 
 struct IconSource {
     Icon icon;
@@ -57,23 +59,32 @@ struct IconSource {
 };
 
 /// A new icon: a row here, its SVG include above and a value in Icon.
-const IconSource iconSources[] = {
-    { Icon::Build, buildSvg },     { Icon::Run, runSvg },
-    { Icon::Debug, debugSvg },     { Icon::Stop, stopSvg },
-    { Icon::Resume, resumeSvg },   { Icon::StepOver, stepOverSvg },
-    { Icon::AsmFile, asmFileSvg }, { Icon::Console, consoleSvg },
-    { Icon::Clear, clearSvg },     { Icon::Registers, registersSvg },
+constexpr auto iconSources = std::to_array<IconSource>( {
+    { Icon::Build, buildSvg },
+    { Icon::Run, runSvg },
+    { Icon::Debug, debugSvg },
+    { Icon::Stop, stopSvg },
+    { Icon::Resume, resumeSvg },
+    { Icon::StepOver, stepOverSvg },
+    { Icon::AsmFile, asmFileSvg },
+    { Icon::Console, consoleSvg },
+    { Icon::Clear, clearSvg },
+    { Icon::Registers, registersSvg },
     { Icon::Memory, memorySvg },
-};
+} );
 std::array<GLuint, std::size( iconSources )> textures = {};
 bool loaded = false;
 bool loadedDark = false;
 
 /// @brief Dark icon colours and their JetBrains light variants.
-const std::pair<const char *, const char *> lightColors[] = {
-    { "#CED0D6", "#6C707E" }, { "#57965C", "#208A3C" }, { "#253627", "#F2FCF3" },
-    { "#DB5C5C", "#E55765" }, { "#5E3838", "#FFF7F7" }, { "#8C94F0", "#5E68D9" },
-};
+const auto lightColors = std::to_array<std::pair<const char *, const char *>>( {
+    { "#CED0D6", "#6C707E" },
+    { "#57965C", "#208A3C" },
+    { "#253627", "#F2FCF3" },
+    { "#DB5C5C", "#E55765" },
+    { "#5E3838", "#FFF7F7" },
+    { "#8C94F0", "#5E68D9" },
+} );
 
 /// @brief Renders an SVG to a square RGBA image.
 /// @param[in] light True to swap in the light icon colours.
@@ -89,8 +100,8 @@ std::vector<unsigned char> rasterizeSvg( const unsigned char *svg, int size, boo
     }
     NSVGimage *image = nsvgParse( text.data(), "px", 96.0f );
     NSVGrasterizer *rasterizer = nsvgCreateRasterizer();
-    std::vector<unsigned char> pixels( size * size * 4 );
-    float scale = size / image->width;
+    std::vector<unsigned char> pixels( static_cast<size_t>( size ) * size * 4 );
+    float const scale = static_cast<float>( size ) / image->width;
     nsvgRasterize( rasterizer, image, 0, 0, scale, pixels.data(), size, size, size * 4 );
     nsvgDeleteRasterizer( rasterizer );
     nsvgDelete( image );
@@ -113,16 +124,16 @@ GLuint createTexture( const std::vector<unsigned char> &pixels, int size ) {
 } // anonymous namespace
 
 void updateIcons() {
-    bool dark = currentScheme().dark;
+    bool const dark = currentScheme().dark;
     if ( loaded && dark == loadedDark ) {
         return;
     }
     if ( loaded ) {
         glDeleteTextures( static_cast<GLsizei>( textures.size() ), textures.data() );
     }
-    int size = static_cast<int>( iconSize );
+    int const size = static_cast<int>( iconSize );
     for ( const IconSource &source : iconSources ) {
-        std::vector<unsigned char> pixels = rasterizeSvg( source.svg, size, !dark );
+        std::vector<unsigned char> const pixels = rasterizeSvg( source.svg, size, !dark );
         textures[static_cast<size_t>( source.icon )] = createTexture( pixels, size );
     }
     loaded = true;

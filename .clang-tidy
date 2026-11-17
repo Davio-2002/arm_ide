@@ -1,0 +1,44 @@
+# Checks of the C++ guidelines (docs/ARCHITECTURE.md → Target architecture).
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  clang-analyzer-*,
+  cppcoreguidelines-avoid-non-const-global-variables,
+  cppcoreguidelines-macro-usage,
+  cppcoreguidelines-no-malloc,
+  cppcoreguidelines-owning-memory,
+  misc-const-correctness,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  -modernize-use-designated-initializers,
+  performance-*,
+  -performance-enum-size,
+  readability-braces-around-statements,
+  readability-const-return-type,
+  readability-container-*,
+  readability-else-after-return,
+  readability-function-size,
+  readability-identifier-naming,
+  readability-make-member-function-const,
+  readability-non-const-parameter,
+  readability-redundant-*,
+  readability-simplify-boolean-expr
+# Known violations removed by the restructuring (docs/PLAN.md steps 3-7) stay warnings until then.
+WarningsAsErrors: '*,-cppcoreguidelines-avoid-non-const-global-variables,-readability-function-size'
+HeaderFilterRegex: '/(src|tests)/'
+CheckOptions:
+  readability-function-size.LineThreshold: 40
+  readability-function-size.ParameterThreshold: 4
+  readability-function-size.NestingThreshold: 3
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: CamelCase
+  readability-identifier-naming.FunctionCase: camelBack
+  readability-identifier-naming.MethodCase: camelBack
+  readability-identifier-naming.VariableCase: camelBack
+  readability-identifier-naming.ParameterCase: camelBack
+  readability-identifier-naming.MemberCase: camelBack
+  readability-identifier-naming.NamespaceCase: lower_case

@@ -6,18 +6,15 @@
 #include <core/process.h>
 #include <gui/theme.h>
 
-// Defined in color_schemes.cpp; pointers into it are constant-initialized, so the defaults
-// below don't depend on static-init order.
-extern const ColorScheme colorSchemeTable[];
-
 namespace {
 
 ThemeMode mode = ThemeMode::System;
 ThemeMode desktopMode = ThemeMode::Dark;
 
-const ColorScheme *darkScheme = &colorSchemeTable[0];
-const ColorScheme *lightScheme = &colorSchemeTable[1];
-const ColorScheme *scheme = &colorSchemeTable[0];
+// constinit: the defaults must not depend on static-init order against color_schemes.cpp.
+constinit const ColorScheme *darkScheme = colorSchemeTable.data();
+constinit const ColorScheme *lightScheme = &colorSchemeTable[1];
+constinit const ColorScheme *scheme = colorSchemeTable.data();
 std::optional<ImU32> customAccent;
 
 ImVec4 toVec4( ImU32 color ) {
@@ -47,9 +44,9 @@ void applySizes( ImGuiStyle &style ) {
 
 void applyColors( ImGuiStyle &style ) {
     const ColorScheme &colorScheme = *scheme;
-    ImU32 scrollbarColor = colorScheme.border;
-    ImU32 accent = accentColor();
-    ImU32 pressedColor = withAlpha( accent, 80 );
+    ImU32 const scrollbarColor = colorScheme.border;
+    ImU32 const accent = accentColor();
+    ImU32 const pressedColor = withAlpha( accent, 80 );
 
     ImVec4 *colors = style.Colors;
     colors[ImGuiCol_Text] = toVec4( colorScheme.text );
@@ -106,24 +103,24 @@ std::optional<ThemeMode> desktopThemeMode() {
     if ( !isInPath( "gdbus" ) ) {
         return std::nullopt;
     }
-    CommandResult result = runCommand(
+    CommandResult const result = runCommand(
         { "gdbus", "call", "--session", "--dest", "org.freedesktop.portal.Desktop", "--object-path",
           "/org/freedesktop/portal/desktop", "--method", "org.freedesktop.portal.Settings.ReadOne",
           "org.freedesktop.appearance", "color-scheme" },
         "" );
     // Reply "(<uint32 N>,)": 1 dark, 2 light, 0 no preference (light on GNOME).
     const std::string valuePrefix = "uint32 ";
-    size_t at = result.output.find( valuePrefix );
+    size_t const at = result.output.find( valuePrefix );
     if ( result.exitCode != 0 || at == std::string::npos ) {
         return std::nullopt;
     }
-    bool dark = result.output.compare( at + valuePrefix.size(), 1, "1" ) == 0;
+    bool const dark = result.output.compare( at + valuePrefix.size(), 1, "1" ) == 0;
     return dark ? ThemeMode::Dark : ThemeMode::Light;
 }
 
 /// @brief Picks the scheme by mode (by the desktop for System) and updates the style.
 void selectScheme() {
-    ThemeMode effectiveMode = mode == ThemeMode::System ? desktopMode : mode;
+    ThemeMode const effectiveMode = mode == ThemeMode::System ? desktopMode : mode;
     scheme = effectiveMode == ThemeMode::Light ? lightScheme : darkScheme;
     applyColors( ImGui::GetStyle() );
 }

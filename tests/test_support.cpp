@@ -1,5 +1,5 @@
+#include <cstdlib>
 #include <fstream>
-#include <stdlib.h>
 #include <test_support.h>
 
 #include <core/process.h>

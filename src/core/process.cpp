@@ -1,3 +1,4 @@
+#include <array>
 #include <cstdlib>
 #include <fcntl.h>
 #include <filesystem>
@@ -15,11 +16,11 @@ namespace {
 ///        translation), a pipe and /dev/null for tools.
 /// @param[out] fds Parent end in fds[0], child end in fds[1]; both close-on-exec.
 /// @return True if opened.
-bool openOutput( bool isProgram, int ( &fds )[2] ) {
+bool openOutput( bool isProgram, std::array<int, 2> &fds ) {
     if ( !isProgram ) {
-        return pipe2( fds, O_CLOEXEC ) == 0;
+        return pipe2( fds.data(), O_CLOEXEC ) == 0;
     }
-    if ( openpty( &fds[0], &fds[1], nullptr, nullptr, nullptr ) != 0 ) {
+    if ( openpty( fds.data(), &fds[1], nullptr, nullptr, nullptr ) != 0 ) {
         return false;
     }
     termios settings;
@@ -36,12 +37,12 @@ bool openOutput( bool isProgram, int ( &fds )[2] ) {
 /// @return Child pid, or -1 on failure.
 pid_t spawnProcess( const std::vector<std::string> &args, const std::string &directory,
                     int &outputFd, bool isProgram ) {
-    int output[2];
+    std::array<int, 2> output{};
     if ( !openOutput( isProgram, output ) ) {
         return -1;
     }
 
-    pid_t pid = fork();
+    pid_t const pid = fork();
     if ( pid < 0 ) {
         close( output[0] );
         close( output[1] );
@@ -49,7 +50,10 @@ pid_t spawnProcess( const std::vector<std::string> &args, const std::string &dir
     }
 
     if ( pid == 0 ) {
-        int inputFd = isProgram ? output[1] : open( "/dev/null", O_RDONLY );
+        int const inputFd = isProgram ? output[1] : open( "/dev/null", O_RDONLY );
+        if ( inputFd < 0 ) {
+            _exit( 127 );
+        }
         dup2( inputFd, STDIN_FILENO );
         dup2( output[1], STDOUT_FILENO );
         dup2( output[1], STDERR_FILENO );
@@ -59,6 +63,7 @@ pid_t spawnProcess( const std::vector<std::string> &args, const std::string &dir
         }
 
         std::vector<char *> argv;
+        argv.reserve( args.size() + 1 );
         for ( const std::string &arg : args ) {
             argv.push_back( const_cast<char *>( arg.c_str() ) );
         }
@@ -87,7 +92,8 @@ Process startProcess( const std::vector<std::string> &args ) {
 bool writeToProcess( Process &process, const std::string &text ) {
     size_t written = 0;
     while ( isRunning( process ) && written < text.size() ) {
-        ssize_t count = write( process.outputFd, text.data() + written, text.size() - written );
+        ssize_t const count =
+            write( process.outputFd, text.data() + written, text.size() - written );
         if ( count <= 0 ) {
             return false;
         }
@@ -102,13 +108,13 @@ void endProcessInput( Process &process ) {
 
 std::string pollProcess( Process &process ) {
     int status;
-    bool exited = waitpid( process.pid, &status, WNOHANG ) == process.pid;
+    bool const exited = waitpid( process.pid, &status, WNOHANG ) == process.pid;
 
     std::string output;
-    char buffer[4096];
+    std::array<char, 4096> buffer{};
     ssize_t count;
-    while ( ( count = read( process.outputFd, buffer, sizeof( buffer ) ) ) > 0 ) {
-        output.append( buffer, count );
+    while ( ( count = read( process.outputFd, buffer.data(), buffer.size() ) ) > 0 ) {
+        output.append( buffer.data(), count );
     }
 
     if ( exited ) {
@@ -137,16 +143,16 @@ bool isRunning( const Process &process ) {
 
 CommandResult runCommand( const std::vector<std::string> &args, const std::string &directory ) {
     int outputFd;
-    pid_t pid = spawnProcess( args, directory, outputFd, false );
+    pid_t const pid = spawnProcess( args, directory, outputFd, false );
     if ( pid < 0 ) {
         return { -1, "Cannot start " + args[0] + "\n" };
     }
 
     CommandResult result;
-    char buffer[4096];
+    std::array<char, 4096> buffer{};
     ssize_t count;
-    while ( ( count = read( outputFd, buffer, sizeof( buffer ) ) ) > 0 ) {
-        result.output.append( buffer, count );
+    while ( ( count = read( outputFd, buffer.data(), buffer.size() ) ) > 0 ) {
+        result.output.append( buffer.data(), count );
     }
     close( outputFd );
 

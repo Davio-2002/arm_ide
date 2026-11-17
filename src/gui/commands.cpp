@@ -1,5 +1,6 @@
 #include <imgui.h>
 
+#include <array>
 #include <filesystem>
 #include <utility>
 #include <vector>
@@ -18,7 +19,7 @@ struct Shortcut {
     const char *text;
 };
 
-const Shortcut shortcuts[] = {
+const auto shortcuts = std::to_array<Shortcut>( {
     { Command::NewFile, ImGuiMod_Ctrl | ImGuiKey_N, "Ctrl+N" },
     { Command::Open, ImGuiMod_Ctrl | ImGuiKey_O, "Ctrl+O" },
     { Command::Save, ImGuiMod_Ctrl | ImGuiKey_S, "Ctrl+S" },
@@ -29,7 +30,7 @@ const Shortcut shortcuts[] = {
     { Command::DebugContinue, ImGuiKey_F8, "F8" },
     { Command::DebugStep, ImGuiKey_F10, "F10" },
     { Command::ToggleBreakpoint, ImGuiKey_F9, "F9" },
-};
+} );
 
 std::vector<std::function<void( Session & )>> requests;
 
@@ -57,7 +58,7 @@ void runCommand( Session &session, Command command ) {
 } // anonymous namespace
 
 void requestCommand( Command command ) {
-    requests.push_back( [command]( Session &session ) { runCommand( session, command ); } );
+    requests.emplace_back( [command]( Session &session ) { runCommand( session, command ); } );
 }
 
 void requestAction( std::function<void( Session & )> action ) {
@@ -90,7 +91,7 @@ const char *commandShortcut( Command command ) {
 }
 
 void commandMenuItem( const Session &session, Command command ) {
-    std::string label = session.commandLabel( command );
+    std::string const label = session.commandLabel( command );
     if ( ImGui::MenuItem( label.c_str(), commandShortcut( command ), false,
                           session.canRun( command ) ) ) {
         requestCommand( command );
@@ -98,7 +99,7 @@ void commandMenuItem( const Session &session, Command command ) {
 }
 
 void commandButton( const Session &session, const char *id, Command command, Icon icon ) {
-    std::string tooltip = session.commandLabel( command ) + "  " + commandShortcut( command );
+    std::string const tooltip = session.commandLabel( command ) + "  " + commandShortcut( command );
     if ( iconButton( id, icon, tooltip.c_str(), session.canRun( command ) ) ) {
         requestCommand( command );
     }
@@ -110,7 +111,7 @@ void whenChangesDiscarded( const Session &session, std::function<void()> action 
         action();
         return;
     }
-    std::string what =
+    std::string const what =
         unsaved.size() == 1 ? unsaved.front() : std::to_string( unsaved.size() ) + " files";
     askToDiscardChanges( what, std::move( action ) );
 }

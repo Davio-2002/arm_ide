@@ -20,7 +20,8 @@ bool drawIconButton( const char *id, Icon icon, const char *tooltip, bool enable
     ImGui::PushStyleColor( ImGuiCol_Border, accentColor() );
     ImGui::PushStyleVar( ImGuiStyleVar_FrameBorderSize, active ? 1.0f : 0.0f );
     ImGui::BeginDisabled( !enabled );
-    bool clicked = ImGui::ImageButton( id, iconTexture( icon ), ImVec2( iconSize, iconSize ) );
+    bool const clicked =
+        ImGui::ImageButton( id, iconTexture( icon ), ImVec2( iconSize, iconSize ) );
     ImGui::SetItemTooltip( "%s", tooltip );
     outlineLastItem( ImGui::IsItemHovered() );
     ImGui::EndDisabled();
@@ -42,7 +43,7 @@ float pillTabWidth( const PillTab &tab ) {
 }
 
 void drawCross( ImVec2 center, ImU32 color ) {
-    float half = closeSize * 0.22f;
+    float const half = closeSize * 0.22f;
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     drawList->AddLine( ImVec2( center.x - half, center.y - half ),
                        ImVec2( center.x + half, center.y + half ), color, 1.5f );
@@ -70,9 +71,9 @@ void iconToggle( const char *id, Icon icon, const char *tooltip, bool &on ) {
 }
 
 void drawVerticalSeparator() {
-    float height = ImGui::GetFrameHeight();
-    ImVec2 cursor = ImGui::GetCursorScreenPos();
-    float x = cursor.x + 6.0f;
+    float const height = ImGui::GetFrameHeight();
+    ImVec2 const cursor = ImGui::GetCursorScreenPos();
+    float const x = cursor.x + 6.0f;
     ImGui::GetWindowDrawList()->AddLine( ImVec2( x, cursor.y + height * 0.25f ),
                                          ImVec2( x, cursor.y + height * 0.75f ),
                                          currentScheme().border );
@@ -80,14 +81,14 @@ void drawVerticalSeparator() {
 }
 
 TabClick drawPillTab( const char *id, const PillTab &tab ) {
-    ImVec2 size( pillTabWidth( tab ), ImGui::GetFrameHeight() );
-    ImVec2 topLeft = ImGui::GetCursorScreenPos();
-    bool clicked = ImGui::InvisibleButton( id, size );
-    bool hovered = ImGui::IsItemHovered();
+    ImVec2 const size( pillTabWidth( tab ), ImGui::GetFrameHeight() );
+    ImVec2 const topLeft = ImGui::GetCursorScreenPos();
+    bool const clicked = ImGui::InvisibleButton( id, size );
+    bool const hovered = ImGui::IsItemHovered();
 
     ImDrawList *drawList = ImGui::GetWindowDrawList();
-    ImVec2 bottomRight( topLeft.x + size.x, topLeft.y + size.y );
-    float rounding = ImGui::GetStyle().FrameRounding;
+    ImVec2 const bottomRight( topLeft.x + size.x, topLeft.y + size.y );
+    float const rounding = ImGui::GetStyle().FrameRounding;
     if ( tab.selected ) {
         drawList->AddRectFilled( topLeft, bottomRight, accentFillColor(), rounding );
         drawList->AddRect( topLeft, bottomRight, accentColor(), rounding );
@@ -96,22 +97,22 @@ TabClick drawPillTab( const char *id, const PillTab &tab ) {
     }
 
     float x = topLeft.x + tabPadding;
-    float centerY = topLeft.y + size.y * 0.5f;
+    float const centerY = topLeft.y + size.y * 0.5f;
     if ( tab.hasIcon ) {
-        ImVec2 iconTopLeft( x, centerY - iconSize * 0.5f );
-        ImVec2 iconBottomRight( x + iconSize, centerY + iconSize * 0.5f );
+        ImVec2 const iconTopLeft( x, centerY - iconSize * 0.5f );
+        ImVec2 const iconBottomRight( x + iconSize, centerY + iconSize * 0.5f );
         drawList->AddImage( iconTexture( tab.icon ), iconTopLeft, iconBottomRight );
         x += iconSize + tabIconGap;
     }
-    ImU32 labelColor = tab.selected ? currentScheme().text : currentScheme().secondaryText;
+    ImU32 const labelColor = tab.selected ? currentScheme().text : currentScheme().secondaryText;
     drawList->AddText( ImVec2( x, centerY - ImGui::GetTextLineHeight() * 0.5f ), labelColor,
                        tab.label.c_str() );
     if ( !tab.closable ) {
         return clicked ? TabClick::Select : TabClick::None;
     }
 
-    ImVec2 closeCenter( bottomRight.x - tabPadding - closeSize * 0.5f, centerY );
-    bool overClose = hovered && ImGui::GetMousePos().x >= closeCenter.x - closeSize * 0.5f;
+    ImVec2 const closeCenter( bottomRight.x - tabPadding - closeSize * 0.5f, centerY );
+    bool const overClose = hovered && ImGui::GetMousePos().x >= closeCenter.x - closeSize * 0.5f;
     if ( tab.unsaved && !hovered ) {
         drawList->AddCircleFilled( closeCenter, 4.0f, accentColor() );
     } else if ( tab.selected || hovered ) {

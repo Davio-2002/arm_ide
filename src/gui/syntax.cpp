@@ -1,3 +1,4 @@
+#include <array>
 #include <iterator>
 #include <string>
 #include <utility>
@@ -47,7 +48,7 @@ TextEditor::Iterator getNumber( TextEditor::Iterator start, TextEditor::Iterator
 
     TextEditor::Iterator i = start;
     i++;
-    bool isHex = *start == '0' && i < end && ( *i == 'x' || *i == 'X' );
+    bool const isHex = *start == '0' && i < end && ( *i == 'x' || *i == 'X' );
     if ( isHex ) {
         i++;
         while ( i < end && isHexDigit( *i ) ) {
@@ -61,7 +62,7 @@ TextEditor::Iterator getNumber( TextEditor::Iterator start, TextEditor::Iterator
     return i;
 }
 
-const char *const libraryNames[] = {
+const std::array libraryNames = {
     "printf",
     "fprintf",
     "sprintf",
@@ -215,7 +216,7 @@ bool headerNameExpected = false;
 /// @return End of the token, or `start` if it is none of these.
 TextEditor::Iterator tokenizeC( TextEditor::Iterator start, TextEditor::Iterator end,
                                 TextEditor::Color &color ) {
-    bool isHeaderName = std::exchange( headerNameExpected, false ) && start.hasPrevious();
+    bool const isHeaderName = std::exchange( headerNameExpected, false ) && start.hasPrevious();
     TextEditor::Iterator token = start;
     if ( *start == '#' ) {
         token++;
@@ -231,7 +232,7 @@ TextEditor::Iterator tokenizeC( TextEditor::Iterator start, TextEditor::Iterator
         return token;
     }
     if ( *start == '"' || ( isHeaderName && *start == '<' ) ) {
-        ImWchar close = *start == '<' ? '>' : '"';
+        ImWchar const close = *start == '<' ? u'>' : u'"';
         token++;
         while ( token < end && *token != close ) {
             if ( *token == '\\' && close == '"' ) {
@@ -288,7 +289,7 @@ const TextEditor::Language *aarch64Language() {
 }
 
 const TextEditor::Language *cLanguage() {
-    static TextEditor::Language language = [] {
+    static TextEditor::Language const language = [] {
         TextEditor::Language c = *TextEditor::LookupLanguageByExtension( ".c" );
         c.preprocess = 0;
         c.hasDoubleQuotedStrings = false;

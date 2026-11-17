@@ -16,18 +16,18 @@ namespace {
 /// @return True if it declares a function.
 bool parseFunction( const std::string &line, Declaration &declaration ) {
     const char *marker = "*/ extern ";
-    size_t markerStart = line.find( marker );
+    size_t const markerStart = line.find( marker );
     if ( markerStart == std::string::npos ) {
         return false;
     }
-    size_t headStart = markerStart + std::strlen( marker );
-    size_t open = line.find( " (", headStart );
-    size_t close = line.rfind( ')' );
+    size_t const headStart = markerStart + std::strlen( marker );
+    size_t const open = line.find( " (", headStart );
+    size_t const close = line.rfind( ')' );
     if ( open == std::string::npos || close == std::string::npos || close < open ) {
         return false;
     }
-    std::string head = line.substr( headStart, open - headStart );
-    size_t nameStart = head.find_last_of( " *" ) + 1;
+    std::string const head = line.substr( headStart, open - headStart );
+    size_t const nameStart = head.find_last_of( " *" ) + 1;
     std::string returnType = head.substr( 0, nameStart );
     while ( returnType.ends_with( ' ' ) ) {
         returnType.pop_back();
@@ -44,8 +44,8 @@ bool parseMacro( const std::string &line, Declaration &declaration ) {
     if ( !line.starts_with( marker ) ) {
         return false;
     }
-    size_t nameStart = std::strlen( marker );
-    size_t nameEnd = std::min( line.find_first_of( " (", nameStart ), line.size() );
+    size_t const nameStart = std::strlen( marker );
+    size_t const nameEnd = std::min( line.find_first_of( " (", nameStart ), line.size() );
     declaration.name = line.substr( nameStart, nameEnd - nameStart );
     declaration.detail = line.substr( nameEnd );
     declaration.detail.erase( 0, declaration.detail.find_first_not_of( ' ' ) );
@@ -60,7 +60,7 @@ std::string preprocessorLines( const std::string &text ) {
     std::string line;
     bool continued = false;
     while ( std::getline( input, line ) ) {
-        size_t start = line.find_first_not_of( " \t" );
+        size_t const start = line.find_first_not_of( " \t" );
         if ( continued || ( start != std::string::npos && line[start] == '#' ) ) {
             directives += line + '\n';
             continued = line.ends_with( '\\' );
@@ -72,17 +72,17 @@ std::string preprocessorLines( const std::string &text ) {
 /// Functions from gcc -aux-info, macros from gcc -E -dM; each name listed once.
 std::vector<Declaration> headerDeclarations( const std::string &text,
                                              const std::string &directory ) {
-    std::filesystem::path temporary = std::filesystem::temp_directory_path() /
-                                      ( "arm_ide_headers_" + std::to_string( getpid() ) );
-    std::string source = temporary.string() + ".c";
-    std::string functionsFile = temporary.string() + ".aux";
+    std::filesystem::path const temporary = std::filesystem::temp_directory_path() /
+                                            ( "arm_ide_headers_" + std::to_string( getpid() ) );
+    std::string const source = temporary.string() + ".c";
+    std::string const functionsFile = temporary.string() + ".aux";
     std::ofstream( source ) << preprocessorLines( text );
 
-    std::string compiler = crossTool( "gcc" );
+    std::string const compiler = crossTool( "gcc" );
     runCommand(
         { compiler, "-fsyntax-only", "-iquote", directory, "-aux-info", functionsFile, source },
         directory );
-    CommandResult macros =
+    CommandResult const macros =
         runCommand( { compiler, "-E", "-dM", "-iquote", directory, source }, directory );
 
     std::vector<Declaration> declarations;
@@ -116,7 +116,7 @@ std::vector<Declaration> headerDeclarations( const std::string &text,
 /// gcc -v lists them between "search starts here:" and "End of search list.".
 const std::vector<std::string> &systemIncludeDirectories() {
     static const std::vector<std::string> directories = [] {
-        CommandResult command = runCommand(
+        CommandResult const command = runCommand(
             { crossTool( "gcc" ), "-E", "-v", "-x", "c", "/dev/null", "-o", "/dev/null" }, "/" );
         std::istringstream output( command.output );
         std::vector<std::string> found;

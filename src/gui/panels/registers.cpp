@@ -1,5 +1,6 @@
 #include <imgui.h>
 
+#include <array>
 #include <string>
 
 #include <app/session.h>
@@ -24,7 +25,7 @@ void drawValueTooltip( const std::string &name, const char *lowName, uint64_t va
     ImGui::TextDisabled( "  unsigned %llu", static_cast<unsigned long long>( value ) );
     ImGui::TextDisabled( "  signed   %lld", static_cast<long long>( value ) );
     if ( lowName != nullptr ) {
-        uint32_t low = static_cast<uint32_t>( value );
+        auto const low = static_cast<uint32_t>( value );
         ImGui::Text( "%s  0x%08x", lowName, low );
         ImGui::TextDisabled( "  unsigned %u", low );
         ImGui::TextDisabled( "  signed   %d", static_cast<int32_t>( low ) );
@@ -35,8 +36,8 @@ void drawValueTooltip( const std::string &name, const char *lowName, uint64_t va
 /// @brief Name, hex and signed value; highlighted if changed since the last pause.
 void drawRegisterRow( const std::string &name, const char *lowName, uint64_t value,
                       uint64_t previousValue ) {
-    bool changed = value != previousValue;
-    ImVec4 color = changeColor( changed );
+    bool const changed = value != previousValue;
+    ImVec4 const color = changeColor( changed );
     ImGui::TableNextRow();
     if ( changed ) {
         ImGui::TableSetBgColor( ImGuiTableBgTarget_RowBg1,
@@ -67,18 +68,18 @@ Flags readFlags( uint64_t nzcv ) {
 /// @param[in] rowRight Right edge of the row.
 void drawPill( const char *text, bool on, ImU32 textColor, const char *tooltip, float rowRight,
                bool first ) {
-    ImVec2 padding( 6.0f, 2.0f );
-    ImVec2 textSize = ImGui::CalcTextSize( text );
-    ImVec2 size( textSize.x + padding.x * 2, textSize.y + padding.y * 2 );
-    float spacing = 4.0f;
+    ImVec2 const padding( 6.0f, 2.0f );
+    ImVec2 const textSize = ImGui::CalcTextSize( text );
+    ImVec2 const size( textSize.x + padding.x * 2, textSize.y + padding.y * 2 );
+    float const spacing = 4.0f;
     if ( !first && ImGui::GetItemRectMax().x + spacing + size.x <= rowRight ) {
         ImGui::SameLine( 0.0f, spacing );
     }
     ImGui::InvisibleButton( text, size );
-    ImVec2 min = ImGui::GetItemRectMin();
-    ImVec2 max = ImGui::GetItemRectMax();
+    ImVec2 const min = ImGui::GetItemRectMin();
+    ImVec2 const max = ImGui::GetItemRectMax();
     ImDrawList *drawList = ImGui::GetWindowDrawList();
-    float rounding = ImGui::GetStyle().FrameRounding;
+    float const rounding = ImGui::GetStyle().FrameRounding;
     if ( on ) {
         drawList->AddRectFilled( min, max, accentFillColor(), rounding );
         drawList->AddRect( min, max, accentColor(), rounding );
@@ -94,21 +95,21 @@ void drawFlags( const Registers &registers, const Registers &previous ) {
         int bit;
         const char *meaning;
     };
-    const Flag flags[] = {
+    const auto flags = std::to_array<Flag>( {
         { "N", 31, "Negative: the top bit of the last flag-setting result is 1" },
         { "Z", 30, "Zero: the result was zero (after cmp a, b: a == b)" },
         { "C", 29,
           "Carry: an add overflowed as unsigned, or a subtract did not borrow\n"
           "(after cmp a, b: a >= b unsigned)" },
         { "V", 28, "Overflow: the result did not fit as a signed number" },
-    };
-    float rowRight = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
+    } );
+    float const rowRight = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
     bool first = true;
     for ( const Flag &flag : flags ) {
-        bool value = ( registers.nzcv >> flag.bit ) & 1;
-        bool previousValue = ( previous.nzcv >> flag.bit ) & 1;
-        std::string text = std::string( flag.label ) + "=" + ( value ? "1" : "0" );
-        ImU32 color =
+        bool const value = ( registers.nzcv >> flag.bit ) & 1;
+        bool const previousValue = ( previous.nzcv >> flag.bit ) & 1;
+        std::string const text = std::string( flag.label ) + "=" + ( value ? "1" : "0" );
+        ImU32 const color =
             value != previousValue ? currentScheme().changedValue : currentScheme().codeText;
         drawPill( text.c_str(), value, color, flag.meaning, rowRight, first );
         first = false;
@@ -123,13 +124,13 @@ void drawConditions( uint64_t nzcv ) {
         bool holds;
         const char *meaning;
     };
-    const Condition conditions[] = {
+    const auto conditions = std::to_array<Condition>( {
         { "eq", f.z, "equal: Z=1" },
         { "ne", !f.z, "not equal: Z=0" },
         { "hs", f.c, "unsigned higher or same (cs): C=1" },
         { "lo", !f.c, "unsigned lower (cc): C=0" },
         { "hi", f.c && !f.z, "unsigned higher: C=1 and Z=0" },
-        { "ls", !( f.c && !f.z ), "unsigned lower or same: C=0 or Z=1" },
+        { "ls", !f.c || f.z, "unsigned lower or same: C=0 or Z=1" },
         { "ge", f.n == f.v, "signed greater or equal: N=V" },
         { "lt", f.n != f.v, "signed less than: N!=V" },
         { "gt", !f.z && f.n == f.v, "signed greater than: Z=0 and N=V" },
@@ -138,11 +139,11 @@ void drawConditions( uint64_t nzcv ) {
         { "pl", !f.n, "plus, positive or zero: N=0" },
         { "vs", f.v, "signed overflow: V=1" },
         { "vc", !f.v, "no signed overflow: V=0" },
-    };
-    float rowRight = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
+    } );
+    float const rowRight = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
     bool first = true;
     for ( const Condition &condition : conditions ) {
-        ImU32 color = condition.holds ? currentScheme().codeText : currentScheme().mutedText;
+        ImU32 const color = condition.holds ? currentScheme().codeText : currentScheme().mutedText;
         drawPill( condition.name, condition.holds, color, condition.meaning, rowRight, first );
         first = false;
     }
@@ -164,11 +165,11 @@ void drawRegistersPanel( const Session &session ) {
     pushCodeFont();
     drawFlags( registers, previous );
     drawConditions( registers.nzcv );
-    ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
+    ImGuiTableFlags const flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
     if ( ImGui::BeginTable( "registers", 3, flags ) ) {
         for ( int i = 0; i < 31; i++ ) {
             std::string name = "x" + std::to_string( i );
-            std::string lowName = "w" + std::to_string( i );
+            std::string const lowName = "w" + std::to_string( i );
             if ( i == 29 ) {
                 name += " fp";
             } else if ( i == 30 ) {

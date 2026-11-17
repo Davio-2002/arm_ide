@@ -1,9 +1,11 @@
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
 #include <thread>
 #include <unistd.h>
+#include <utility>
 
 #include <core/debugger.h>
 #include <core/toolchain.h>
@@ -14,28 +16,30 @@ const int requestTimeoutMilliseconds = 2000;
 const int connectTimeoutMilliseconds = 3000;
 const int stepTimeoutMilliseconds = 200;
 const int gdbSignalTrap = 5;
-const int registerCount = 33;
+const size_t registerCount = 33;
+/// Hex digits of one 64-bit register in a `g` reply.
+const size_t registerDigits = 16;
 const uint64_t flagsMask = 0xf0000000;
 
 /// @brief Names a GDB signal; GDB's numbers differ from Linux's from 7 on.
 std::string signalName( int signal ) {
-    static const char *names[] = { "",
-                                   "Hangup",
-                                   "Interrupt",
-                                   "Quit",
-                                   "Illegal instruction",
-                                   "Trace trap",
-                                   "Aborted",
-                                   "Emulation trap",
-                                   "Floating point exception",
-                                   "Killed",
-                                   "Bus error",
-                                   "Segmentation fault",
-                                   "Bad system call",
-                                   "Broken pipe",
-                                   "Alarm clock",
-                                   "Terminated" };
-    if ( signal > 0 && signal < static_cast<int>( std::size( names ) ) ) {
+    static const std::array names = { "",
+                                      "Hangup",
+                                      "Interrupt",
+                                      "Quit",
+                                      "Illegal instruction",
+                                      "Trace trap",
+                                      "Aborted",
+                                      "Emulation trap",
+                                      "Floating point exception",
+                                      "Killed",
+                                      "Bus error",
+                                      "Segmentation fault",
+                                      "Bad system call",
+                                      "Broken pipe",
+                                      "Alarm clock",
+                                      "Terminated" };
+    if ( signal > 0 && std::cmp_less( signal, names.size() ) ) {
         return names[signal];
     }
     return "Signal " + std::to_string( signal );
@@ -53,7 +57,7 @@ bool request( Debugger &debugger, const std::string &payload, std::string &reply
 
 /// @brief Waits for a stop reply; a lost connection marks the debugger crashed.
 bool receiveStopReply( Debugger &debugger, std::string &reply, int timeoutMilliseconds ) {
-    GdbReceive received = receiveGdbPacket( debugger.gdb, reply, timeoutMilliseconds );
+    GdbReceive const received = receiveGdbPacket( debugger.gdb, reply, timeoutMilliseconds );
     if ( received == GdbReceive::Closed ) {
         debugger.state = DebuggerState::Crashed;
         debugger.error = "Lost connection to QEMU";
@@ -102,14 +106,15 @@ bool isSystemCall( Debugger &debugger, uint64_t address ) {
     if ( !readMemory( debugger, address, 4, code ) ) {
         return false;
     }
-    uint32_t word = code[0] | code[1] << 8 | code[2] << 16 | static_cast<uint32_t>( code[3] ) << 24;
+    uint32_t const word =
+        code[0] | code[1] << 8 | code[2] << 16 | static_cast<uint32_t>( code[3] ) << 24;
     return ( word & svcMask ) == svcBits;
 }
 
 /// @brief Continues to a temporary breakpoint, lifting one under the PC meanwhile, as QEMU
 ///        would stop on it at once.
 void runTo( Debugger &debugger, uint64_t address ) {
-    uint64_t pc = programCounter( debugger );
+    uint64_t const pc = programCounter( debugger );
     std::string reply;
     if ( debugger.breakpoints.contains( pc ) ) {
         request( debugger, "z0," + toHex( pc ) + ",4", reply );
@@ -125,7 +130,7 @@ void runTo( Debugger &debugger, uint64_t address ) {
 /// @brief Steps one instruction. An svc runs to PC+4 instead: QEMU's single step runs one
 ///        instruction too many after it.
 void stepInstruction( Debugger &debugger ) {
-    uint64_t pc = programCounter( debugger );
+    uint64_t const pc = programCounter( debugger );
     if ( isSystemCall( debugger, pc ) ) {
         runTo( debugger, pc + 4 );
     } else {
@@ -135,10 +140,10 @@ void stepInstruction( Debugger &debugger ) {
 
 /// @brief Steps again, or ends the line step at a new line or a breakpoint.
 void continueLineStep( Debugger &debugger ) {
-    uint64_t pc = programCounter( debugger );
-    int line = sourceLineAt( debugger, pc );
+    uint64_t const pc = programCounter( debugger );
+    int const line = sourceLineAt( debugger, pc );
     if ( line == 0 ) {
-        uint64_t returnAddress = readRegister( debugger, 30 );
+        uint64_t const returnAddress = readRegister( debugger, 30 );
         if ( returnAddress != pc && sourceLineAt( debugger, returnAddress ) != 0 ) {
             runTo( debugger, returnAddress );
         } else {
@@ -147,8 +152,8 @@ void continueLineStep( Debugger &debugger ) {
         }
         return;
     }
-    bool atLineStart = debugger.sourceLines.contains( pc );
-    bool newLine = line != debugger.stepLine || pc == debugger.stepStart;
+    bool const atLineStart = debugger.sourceLines.contains( pc );
+    bool const newLine = line != debugger.stepLine || pc == debugger.stepStart;
     if ( ( atLineStart && newLine ) || debugger.breakpoints.contains( pc ) ) {
         debugger.pendingStop = PendingStop::None;
     } else {
@@ -160,11 +165,11 @@ void continueLineStep( Debugger &debugger ) {
 ///        changed them meanwhile.
 void restoreStepBreakpoints( Debugger &debugger ) {
     std::string reply;
-    uint64_t temporary = debugger.temporaryBreakpoint;
+    uint64_t const temporary = debugger.temporaryBreakpoint;
     if ( temporary != 0 && !debugger.breakpoints.contains( temporary ) ) {
         request( debugger, "z0," + toHex( temporary ) + ",4", reply );
     }
-    uint64_t lifted = debugger.liftedBreakpoint;
+    uint64_t const lifted = debugger.liftedBreakpoint;
     if ( lifted != 0 && debugger.breakpoints.contains( lifted ) ) {
         request( debugger, "Z0," + toHex( lifted ) + ",4", reply );
     }
@@ -175,7 +180,7 @@ void restoreStepBreakpoints( Debugger &debugger ) {
 /// @brief Handles exit, kill, signal or trap; a trap continues a pending step.
 /// @param[in] reply Stop reply, e.g. "W00" or "T05...".
 void handleStopReply( Debugger &debugger, const std::string &reply ) {
-    char kind = reply.empty() ? '\0' : reply[0];
+    char const kind = reply.empty() ? '\0' : reply[0];
     if ( kind == 'W' ) {
         debugger.state = DebuggerState::Exited;
         debugger.exitCode = static_cast<int>( parseHex( reply.substr( 1 ) ) );
@@ -184,7 +189,7 @@ void handleStopReply( Debugger &debugger, const std::string &reply ) {
         debugger.error =
             "Killed: " + signalName( static_cast<int>( parseHex( reply.substr( 1, 2 ) ) ) );
     } else if ( kind == 'T' || kind == 'S' ) {
-        int signal = static_cast<int>( parseHex( reply.substr( 1, 2 ) ) );
+        int const signal = static_cast<int>( parseHex( reply.substr( 1, 2 ) ) );
         if ( signal != gdbSignalTrap ) {
             debugger.state = DebuggerState::Crashed;
             debugger.error = signalName( signal );
@@ -206,7 +211,7 @@ void handleStopReply( Debugger &debugger, const std::string &reply ) {
 /// @return Socket path unique to this IDE process.
 std::string socketPath() {
     const char *runtime = std::getenv( "XDG_RUNTIME_DIR" );
-    std::string directory = runtime ? runtime : "/tmp";
+    std::string const directory = runtime ? runtime : "/tmp";
     return directory + "/arm_ide-" + std::to_string( getpid() ) + ".sock";
 }
 
@@ -220,7 +225,7 @@ bool connectToQemu( Debugger &debugger, const std::string &path ) {
     auto deadline =
         std::chrono::steady_clock::now() + std::chrono::milliseconds( connectTimeoutMilliseconds );
     while ( std::chrono::steady_clock::now() < deadline ) {
-        std::string output = pollProcess( debugger.qemu );
+        std::string const output = pollProcess( debugger.qemu );
         if ( !isRunning( debugger.qemu ) ) {
             debugger.error = "QEMU stopped: " + output;
             return false;
@@ -237,12 +242,12 @@ bool connectToQemu( Debugger &debugger, const std::string &path ) {
 /// @brief Inserts and removes breakpoints in QEMU to match the addresses.
 void applyBreakpoints( Debugger &debugger, const std::set<uint64_t> &addresses ) {
     std::string reply;
-    for ( uint64_t address : debugger.breakpoints ) {
+    for ( uint64_t const address : debugger.breakpoints ) {
         if ( !addresses.contains( address ) ) {
             request( debugger, "z0," + toHex( address ) + ",4", reply );
         }
     }
-    for ( uint64_t address : addresses ) {
+    for ( uint64_t const address : addresses ) {
         if ( !debugger.breakpoints.contains( address ) ) {
             request( debugger, "Z0," + toHex( address ) + ",4", reply );
         }
@@ -258,9 +263,9 @@ bool startDebugger( Debugger &debugger, const std::string &executablePath,
     debugger.sourceLines = readSourceLines( executablePath, sourcePath );
     debugger.mainAddress = symbolAddress( executablePath, "main" );
 
-    std::string path = socketPath();
+    std::string const path = socketPath();
     unlink( path.c_str() );
-    std::string qemu = qemuProgram();
+    std::string const qemu = qemuProgram();
     if ( qemu.empty() ) {
         debugger.error = qemuNotFound;
         return false;
@@ -270,12 +275,12 @@ bool startDebugger( Debugger &debugger, const std::string &executablePath,
         debugger.error = "Cannot start " + qemu;
         return false;
     }
-    bool connected = connectToQemu( debugger, path );
+    bool const connected = connectToQemu( debugger, path );
     unlink( path.c_str() );
 
     std::string reply;
     if ( !connected || !request( debugger, "?", reply ) || reply.empty() || reply[0] != 'T' ) {
-        std::string error =
+        std::string const error =
             connected && debugger.error.empty() ? "QEMU did not stop at entry" : debugger.error;
         stopDebugger( debugger );
         debugger.error = error;
@@ -328,7 +333,7 @@ void continueDebugger( Debugger &debugger ) {
     if ( debugger.state != DebuggerState::Paused ) {
         return;
     }
-    bool onBreakpoint = debugger.breakpoints.contains( programCounter( debugger ) );
+    bool const onBreakpoint = debugger.breakpoints.contains( programCounter( debugger ) );
     debugger.pendingStop = onBreakpoint ? PendingStop::StepOverBreakpoint : PendingStop::None;
     if ( onBreakpoint ) {
         stepInstruction( debugger );
@@ -341,8 +346,8 @@ void stepDebugger( Debugger &debugger ) {
     if ( debugger.state != DebuggerState::Paused ) {
         return;
     }
-    uint64_t pc = programCounter( debugger );
-    int line = sourceLineAt( debugger, pc );
+    uint64_t const pc = programCounter( debugger );
+    int const line = sourceLineAt( debugger, pc );
     if ( line == 0 && debugger.mainAddress != 0 && pc != debugger.mainAddress ) {
         debugger.pendingStop = PendingStop::None;
         runTo( debugger, debugger.mainAddress );
@@ -362,7 +367,8 @@ void pollDebugger( Debugger &debugger, int timeoutMilliseconds ) {
     while ( debugger.state == DebuggerState::Running ) {
         auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
             deadline - std::chrono::steady_clock::now() );
-        if ( !receiveStopReply( debugger, reply, std::max<int>( 0, left.count() ) ) ) {
+        if ( !receiveStopReply( debugger, reply,
+                                static_cast<int>( std::max<int64_t>( 0, left.count() ) ) ) ) {
             return;
         }
         handleStopReply( debugger, reply );
@@ -372,22 +378,22 @@ void pollDebugger( Debugger &debugger, int timeoutMilliseconds ) {
 Registers readRegisters( Debugger &debugger ) {
     Registers registers;
     std::string reply;
-    size_t size = registerCount * 16 + 8;
+    size_t const size = ( registerCount * registerDigits ) + 8;
     if ( !request( debugger, "g", reply ) || reply.size() < size ) {
         return registers;
     }
-    for ( int i = 0; i < 31; i++ ) {
-        registers.x[i] = littleEndian( reply, i * 16, 8 );
+    for ( size_t i = 0; i < registers.x.size(); i++ ) {
+        registers.x[i] = littleEndian( reply, i * registerDigits, 8 );
     }
-    registers.sp = littleEndian( reply, 31 * 16, 8 );
-    registers.pc = littleEndian( reply, 32 * 16, 8 );
-    registers.nzcv = littleEndian( reply, registerCount * 16, 4 ) & flagsMask;
+    registers.sp = littleEndian( reply, 31 * registerDigits, 8 );
+    registers.pc = littleEndian( reply, 32 * registerDigits, 8 );
+    registers.nzcv = littleEndian( reply, registerCount * registerDigits, 4 ) & flagsMask;
     return registers;
 }
 
 bool readMemory( Debugger &debugger, uint64_t address, size_t size, std::vector<uint8_t> &bytes ) {
     std::string reply;
-    std::string command = "m" + toHex( address ) + "," + toHex( size );
+    std::string const command = "m" + toHex( address ) + "," + toHex( size );
     if ( !request( debugger, command, reply ) || reply.size() != size * 2 ) {
         return false;
     }
@@ -417,12 +423,12 @@ bool parseAddress( const std::string &text, const Registers &registers, uint64_t
     }
 
     const char *start = text.c_str();
-    bool isRegister = text.starts_with( 'x' );
+    bool const isRegister = text.starts_with( 'x' );
     if ( isRegister ) {
         start++;
     }
-    char *end = nullptr;
-    uint64_t value = std::strtoull( start, &end, isRegister ? 10 : 0 );
+    char *end = nullptr; // NOLINT(misc-const-correctness): strtoull writes through &end
+    uint64_t const value = std::strtoull( start, &end, isRegister ? 10 : 0 );
     if ( end == start || *end != '\0' ) {
         return false;
     }

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstring>
 #include <filesystem>
@@ -35,8 +36,8 @@ std::vector<std::string> completeWord( const std::string &term,
                                        const std::set<std::string> &languageWords,
                                        const std::vector<std::string> &documentWords,
                                        bool caseSensitive ) {
-    bool upper = !caseSensitive && term == withCase( term, std::toupper ) &&
-                 term != withCase( term, std::tolower );
+    bool const upper = !caseSensitive && term == withCase( term, std::toupper ) &&
+                       term != withCase( term, std::tolower );
     std::set<std::string> words;
     for ( const std::string &word : languageWords ) {
         words.insert( upper ? withCase( word, std::toupper ) : word );
@@ -77,7 +78,7 @@ const std::set<std::string> &assemblyWords() {
 }
 
 /// @brief C keywords, as in the editor's C language.
-const char *const cKeywords[] = {
+const std::array cKeywords = {
     "auto",       "break",     "case",           "char",
     "const",      "continue",  "default",        "do",
     "double",     "else",      "enum",           "extern",
@@ -92,7 +93,7 @@ const char *const cKeywords[] = {
 };
 
 /// @brief Directives, most used first, with the space before their argument.
-const char *const cDirectives[] = {
+const std::array cDirectives = {
     "include ", "define ",       "ifdef ",   "ifndef ",   "if ",    "else",
     "elif ",    "endif",         "undef ",   "pragma ",   "error ", "warning ",
     "line ",    "include_next ", "elifdef ", "elifndef ", "embed ",
@@ -124,15 +125,15 @@ std::optional<size_t> headerNameStart( const std::string &line ) {
 /// @return Matching paths, folders ending in '/'.
 std::set<std::string> headerPaths( const std::vector<std::string> &searchFolders,
                                    const std::string &typed ) {
-    size_t slash = typed.rfind( '/' );
-    std::string folder = slash == std::string::npos ? "" : typed.substr( 0, slash + 1 );
-    std::string namePrefix = typed.substr( folder.size() );
+    size_t const slash = typed.rfind( '/' );
+    std::string const folder = slash == std::string::npos ? "" : typed.substr( 0, slash + 1 );
+    std::string const namePrefix = typed.substr( folder.size() );
     std::set<std::string> paths;
     for ( const std::string &searchFolder : searchFolders ) {
         std::error_code error;
-        for ( const auto &entry :
-              std::filesystem::directory_iterator( searchFolder + "/" + folder, error ) ) {
-            std::string name = entry.path().filename();
+        for ( const auto &entry : std::filesystem::directory_iterator(
+                  std::filesystem::path( searchFolder ) / folder, error ) ) {
+            std::string const name = entry.path().filename();
             if ( !name.starts_with( namePrefix ) || name.starts_with( '.' ) ) {
                 continue;
             }
@@ -169,14 +170,14 @@ std::optional<IncludeCompletion> completeInclude( const std::string &line, size_
     if ( !open || column <= *open || column > line.size() ) {
         return std::nullopt;
     }
-    char close = line[*open] == '<' ? '>' : '"';
-    std::string typed = line.substr( *open + 1, column - *open - 1 );
+    char const close = line[*open] == '<' ? '>' : '"';
+    std::string const typed = line.substr( *open + 1, column - *open - 1 );
     if ( typed.contains( close ) ) {
         return std::nullopt;
     }
     const std::vector<std::string> &searchFolders =
         close == '>' ? systemIncludeDirectories() : std::vector<std::string>{ directory };
-    std::set<std::string> paths = headerPaths( searchFolders, typed );
+    std::set<std::string> const paths = headerPaths( searchFolders, typed );
 
     IncludeCompletion completion;
     completion.start = *open + 1;
@@ -190,12 +191,12 @@ std::optional<IncludeCompletion> completeInclude( const std::string &line, size_
 
 std::optional<std::vector<std::string>> completeDirective( const std::string &line,
                                                            size_t column ) {
-    size_t hash = line.find_first_not_of( " \t" );
+    size_t const hash = line.find_first_not_of( " \t" );
     if ( hash == std::string::npos || line[hash] != '#' || column <= hash ||
          column > line.size() ) {
         return std::nullopt;
     }
-    size_t wordStart = std::min( line.find_first_not_of( " \t", hash + 1 ), column );
+    size_t const wordStart = std::min( line.find_first_not_of( " \t", hash + 1 ), column );
     std::string typed = line.substr( wordStart, column - wordStart );
     if ( !std::ranges::all_of( typed, []( char c ) { return std::islower( c ) || c == '_'; } ) ) {
         return std::nullopt;
@@ -203,7 +204,7 @@ std::optional<std::vector<std::string>> completeDirective( const std::string &li
     std::vector<std::string> directives;
     for ( const char *directive : cDirectives ) {
         std::string word = directive;
-        bool complete = word.size() > typed.size() && word[typed.size()] == ' ';
+        bool const complete = word.size() > typed.size() && word[typed.size()] == ' ';
         if ( word.size() > typed.size() && word.starts_with( typed ) && !complete ) {
             directives.push_back( word );
         }

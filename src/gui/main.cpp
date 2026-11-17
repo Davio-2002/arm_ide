@@ -33,7 +33,7 @@ void handleCloseRequest( GLFWwindow *window ) {
 /// @return File path, "*" if unsaved, and the app name.
 std::string windowTitle() {
     const Document &document = session.activeDocument();
-    std::string name = document.path.empty() ? "untitled" : document.path;
+    std::string const name = document.path.empty() ? "untitled" : document.path;
     return name + ( isModified( document ) ? " *" : "" ) + " - ARM IDE";
 }
 
@@ -61,7 +61,7 @@ int main( int argc, char **argv ) {
         waitForNextFrame( session.isProgramBusy() || isTerminalBusy() );
         session.update();
         updateTerminalView();
-        std::string droppedFile = takeDroppedFile();
+        std::string const droppedFile = takeDroppedFile();
         if ( !droppedFile.empty() ) {
             requestAction( [droppedFile]( Session &session ) { session.openFile( droppedFile ); } );
         }

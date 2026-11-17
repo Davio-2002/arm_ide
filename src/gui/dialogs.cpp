@@ -2,6 +2,7 @@
 #include <imgui_internal.h>
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <vector>
 
@@ -23,7 +24,7 @@ struct Dialog {
     bool needsOpening = false;
     std::filesystem::path directory;
     std::vector<DirectoryEntry> entries;
-    char fileName[256] = "";
+    std::array<char, 256> fileName{};
     std::string message;
     std::function<void( const std::string & )> onChosen;
     std::function<void()> onDiscard;
@@ -43,7 +44,7 @@ std::filesystem::path cleanPath( const std::filesystem::path &path ) {
 
 /// @return True for .s, .S, .asm, .c and .h.
 bool isSourceFile( const std::filesystem::path &path ) {
-    std::string extension = path.extension().string();
+    std::string const extension = path.extension().string();
     return extension == ".s" || extension == ".S" || extension == ".asm" || extension == ".c" ||
            extension == ".h";
 }
@@ -54,11 +55,11 @@ void enterDirectory( const std::filesystem::path &directory ) {
     dialog.entries.clear();
 
     std::error_code error;
-    std::filesystem::directory_iterator end;
+    std::filesystem::directory_iterator const end;
     for ( std::filesystem::directory_iterator it( dialog.directory, error ); !error && it != end;
           it.increment( error ) ) {
-        std::string name = it->path().filename().string();
-        bool isDirectory = it->is_directory( error );
+        std::string const name = it->path().filename().string();
+        bool const isDirectory = it->is_directory( error );
         if ( !name.starts_with( '.' ) && ( isDirectory || isSourceFile( it->path() ) ) ) {
             dialog.entries.push_back( { name, isDirectory } );
         }
@@ -74,8 +75,8 @@ void enterDirectory( const std::filesystem::path &directory ) {
 
 /// @brief Fills the name field, truncating a name that doesn't fit.
 void setFileName( const std::string &name ) {
-    name.copy( dialog.fileName, sizeof( dialog.fileName ) - 1 );
-    dialog.fileName[std::min( name.size(), sizeof( dialog.fileName ) - 1 )] = '\0';
+    dialog.fileName = {};
+    name.copy( dialog.fileName.data(), dialog.fileName.size() - 1 );
 }
 
 void openDialog( DialogKind kind ) {
@@ -121,7 +122,7 @@ bool drawDiscardDialog( std::function<void()> &finish ) {
 /// @return True if a file was double-clicked.
 bool drawFileList( std::filesystem::path &nextDirectory ) {
     bool chosen = false;
-    float height = ImGui::GetTextLineHeightWithSpacing() * 16;
+    float const height = ImGui::GetTextLineHeightWithSpacing() * 16;
     if ( !ImGui::BeginListBox( "##files", ImVec2( -FLT_MIN, height ) ) ) {
         return false;
     }
@@ -129,8 +130,8 @@ bool drawFileList( std::filesystem::path &nextDirectory ) {
         nextDirectory = dialog.directory.parent_path();
     }
     for ( const DirectoryEntry &entry : dialog.entries ) {
-        std::string label = entry.isDirectory ? entry.name + "/" : entry.name;
-        bool selected = !entry.isDirectory && entry.name == dialog.fileName;
+        std::string const label = entry.isDirectory ? entry.name + "/" : entry.name;
+        bool const selected = !entry.isDirectory && entry.name == dialog.fileName.data();
         if ( !ImGui::Selectable( label.c_str(), selected,
                                  ImGuiSelectableFlags_AllowDoubleClick ) ) {
             continue;
@@ -150,7 +151,7 @@ bool drawFileList( std::filesystem::path &nextDirectory ) {
 /// @param[out] finish Chosen-file callback, set when a file is accepted.
 /// @return True when the dialog should close.
 bool drawFileDialog( std::function<void()> &finish ) {
-    bool isSave = dialog.kind == DialogKind::Save;
+    bool const isSave = dialog.kind == DialogKind::Save;
     ImGui::TextDisabled( "%s", dialog.directory.c_str() );
 
     std::filesystem::path nextDirectory;
@@ -159,21 +160,21 @@ bool drawFileDialog( std::function<void()> &finish ) {
     if ( ImGui::IsWindowAppearing() ) {
         ImGui::SetKeyboardFocusHere();
     }
-    chosen |= ImGui::InputText( "##name", dialog.fileName, sizeof( dialog.fileName ),
+    chosen |= ImGui::InputText( "##name", dialog.fileName.data(), dialog.fileName.size(),
                                 ImGuiInputTextFlags_EnterReturnsTrue );
     outlineLastItem( ImGui::IsItemActive() );
     ImGui::PopItemWidth();
 
-    std::filesystem::path target = cleanPath( dialog.directory / dialog.fileName );
+    std::filesystem::path const target = cleanPath( dialog.directory / dialog.fileName.data() );
     std::error_code error;
-    bool exists = std::filesystem::exists( target, error );
+    bool const exists = std::filesystem::exists( target, error );
     const char *acceptLabel = isSave ? ( exists ? "Replace" : "Save" ) : "Open";
-    bool canAccept = dialog.fileName[0] != '\0' && ( isSave || exists );
+    bool const canAccept = dialog.fileName[0] != '\0' && ( isSave || exists );
     ImGui::BeginDisabled( !canAccept );
     chosen |= ImGui::Button( acceptLabel );
     ImGui::EndDisabled();
     ImGui::SameLine();
-    bool cancelled = cancelPressed();
+    bool const cancelled = cancelPressed();
 
     if ( chosen && canAccept && std::filesystem::is_directory( target, error ) ) {
         enterDirectory( target );
@@ -205,7 +206,7 @@ void askForFileToOpen( const std::string &directory,
 
 void askForFileToSave( const std::string &suggestedPath,
                        std::function<void( const std::string & )> onChosen ) {
-    std::filesystem::path path = cleanPath( suggestedPath );
+    std::filesystem::path const path = cleanPath( suggestedPath );
     dialog = Dialog();
     dialog.kind = DialogKind::Save;
     dialog.needsOpening = true;

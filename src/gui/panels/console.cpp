@@ -1,5 +1,7 @@
 #include <imgui.h>
 
+#include <array>
+
 #include <app/session.h>
 #include <gui/commands.h>
 #include <gui/fonts.h>
@@ -55,7 +57,7 @@ void drawOutputTab( const char *id, const char *label, OutputTab tab, bool hasIc
 
 /// @brief Resume, Step and Stop; they only resume a paused program, the toolbar starts it.
 void drawDebugButtons( const Session &session ) {
-    bool paused = session.isPaused();
+    bool const paused = session.isPaused();
     if ( iconButton( "##resume", Icon::Resume, "Resume  F8", paused ) ) {
         requestCommand( Command::DebugContinue );
     }
@@ -80,7 +82,7 @@ void drawConsoleHeader( const Session &session ) {
     drawVerticalSeparator();
     ImGui::SameLine();
 
-    bool showsTerminal = shownOutputTab == OutputTab::Terminal;
+    bool const showsTerminal = shownOutputTab == OutputTab::Terminal;
     pushHeaderButtonPadding();
     if ( showsTerminal ) {
         if ( iconButton( "##stopShell", Icon::Stop, "Kill the shell and start a new one",
@@ -153,12 +155,12 @@ void drawMessages( const std::vector<Message> &messages, MessageSelection &selec
     ImGui::BeginChild( "##messages", ImVec2( 0.0f, height ), ImGuiChildFlags_None,
                        ImGuiWindowFlags_HorizontalScrollbar );
     pushCodeFont();
-    bool wasAtBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
+    bool const wasAtBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
 
-    ImGuiMultiSelectFlags selectFlags = ImGuiMultiSelectFlags_ClearOnEscape |
-                                        ImGuiMultiSelectFlags_ClearOnClickVoid |
-                                        ImGuiMultiSelectFlags_BoxSelect1d;
-    int count = static_cast<int>( messages.size() );
+    ImGuiMultiSelectFlags const selectFlags = ImGuiMultiSelectFlags_ClearOnEscape |
+                                              ImGuiMultiSelectFlags_ClearOnClickVoid |
+                                              ImGuiMultiSelectFlags_BoxSelect1d;
+    int const count = static_cast<int>( messages.size() );
     ImGuiMultiSelectIO *request =
         ImGui::BeginMultiSelect( selectFlags, selection.lines.Size, count );
     selection.lines.ApplyRequests( request );
@@ -174,13 +176,13 @@ void drawMessages( const std::vector<Message> &messages, MessageSelection &selec
             ImGui::PushID( i );
             ImGui::PushStyleColor( ImGuiCol_Text, messageColor( message.kind ) );
             ImGui::SetNextItemSelectionUserData( i );
-            bool selected = selection.lines.Contains( static_cast<ImGuiID>( i ) );
-            bool clicked = ImGui::Selectable( message.text.c_str(), selected );
+            bool const selected = selection.lines.Contains( static_cast<ImGuiID>( i ) );
+            bool const clicked = ImGui::Selectable( message.text.c_str(), selected );
             ImGui::PopStyleColor();
             ImGui::PopID();
 
             if ( clicked && message.sourceLine > 0 ) {
-                int line = message.sourceLine;
+                int const line = message.sourceLine;
                 requestAction( [line]( Session &session ) { session.showProgramLine( line ); } );
                 ImGui::SetWindowFocus( "Editor" );
             }
@@ -196,20 +198,20 @@ void drawMessages( const std::vector<Message> &messages, MessageSelection &selec
     ImGui::EndChild();
 }
 
-char programInput[1024];
+std::array<char, 1024> programInput{};
 
 /// @brief Program stdin line: Enter sends, Ctrl+D ends input.
 void drawProgramInput( const Session &session ) {
-    bool enabled = session.acceptsInput();
+    bool const enabled = session.acceptsInput();
     const char *hint = enabled ? "Input for the program: Enter sends a line, Ctrl+D ends input"
                                : "Input for the program, while it runs";
     ImGui::BeginDisabled( !enabled );
     ImGui::SetNextItemWidth( -FLT_MIN );
-    bool entered =
-        ImGui::InputTextWithHint( "##programInput", hint, programInput, sizeof( programInput ),
+    bool const entered =
+        ImGui::InputTextWithHint( "##programInput", hint, programInput.data(), programInput.size(),
                                   ImGuiInputTextFlags_EnterReturnsTrue );
     if ( entered ) {
-        std::string line = programInput;
+        std::string const line = programInput.data();
         requestAction( [line]( Session &session ) { session.sendProgramInput( line ); } );
         programInput[0] = '\0';
         ImGui::SetKeyboardFocusHere( -1 );
@@ -222,7 +224,7 @@ void drawProgramInput( const Session &session ) {
 
 void drawConsoleTab( const Session &session ) {
     pushCodeFont();
-    float inputHeight = ImGui::GetFrameHeightWithSpacing();
+    float const inputHeight = ImGui::GetFrameHeightWithSpacing();
     drawMessages( session.console, consoleSelection, -inputHeight );
     drawProgramInput( session );
     ImGui::PopFont();

@@ -2,6 +2,7 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -69,41 +70,41 @@ void addLineMarker( TextEditor &editor, const LineMark &mark ) {
 }
 
 void drawPausedArrow( ImDrawList *drawList, ImVec2 center, float size ) {
-    float half = size * 0.26f;
-    float left = center.x - size * 0.3f;
-    float neck = center.x + size * 0.02f;
-    float tip = center.x + size * 0.34f;
-    float body = half * 0.55f;
-    ImVec2 points[] = {
+    float const half = size * 0.26f;
+    float const left = center.x - size * 0.3f;
+    float const neck = center.x + size * 0.02f;
+    float const tip = center.x + size * 0.34f;
+    float const body = half * 0.55f;
+    std::array const points = {
         ImVec2( left, center.y - body ), ImVec2( neck, center.y - body ),
         ImVec2( neck, center.y - half ), ImVec2( tip, center.y ),
         ImVec2( neck, center.y + half ), ImVec2( neck, center.y + body ),
         ImVec2( left, center.y + body ),
     };
     drawList->PathClear();
-    for ( ImVec2 point : points ) {
+    for ( ImVec2 const point : points ) {
         drawList->PathLineTo( point );
     }
     drawList->PathStroke( currentScheme().background, ImDrawFlags_Closed, 2.0f );
-    drawList->AddConcavePolyFilled( points, IM_ARRAYSIZE( points ), accentColor() );
+    drawList->AddConcavePolyFilled( points.data(), points.size(), accentColor() );
 }
 
 /// @brief Line decorator: breakpoint dot and paused arrow; a click toggles the breakpoint.
 void drawLineDecoration( TextEditor::Decorator &decorator ) {
     const Session &session = *drawingSession;
     const EditorBuffer &buffer = *drawingBuffer;
-    int line = static_cast<int>( decorator.line ) + 1;
-    ImVec2 topLeft = ImGui::GetCursorScreenPos();
+    int const line = static_cast<int>( decorator.line ) + 1;
+    ImVec2 const topLeft = ImGui::GetCursorScreenPos();
     if ( ImGui::InvisibleButton( "##breakpoint", ImVec2( decorator.width, decorator.height ) ) ) {
-        std::string path = buffer.path;
+        std::string const path = buffer.path;
         requestAction(
             [path, line]( Session &session ) { session.toggleBreakpoint( path, line ); } );
     }
 
     ImDrawList *drawList = ImGui::GetWindowDrawList();
-    float size = decorator.height;
-    ImVec2 center( topLeft.x + size * 0.5f, topLeft.y + size * 0.5f );
-    float radius = size * 0.3f;
+    float const size = decorator.height;
+    ImVec2 const center( topLeft.x + size * 0.5f, topLeft.y + size * 0.5f );
+    float const radius = size * 0.3f;
     if ( session.hasBreakpoint( buffer.path, line ) ) {
         drawList->AddCircleFilled( center, radius, currentScheme().breakpoint );
     } else if ( ImGui::IsItemHovered() ) {
@@ -123,8 +124,8 @@ void suggestCompletions( TextEditor::AutoCompleteState &state ) {
         state.suggestions = completeAssembly( state.searchTerm, documentWords );
         return;
     }
-    std::string line = drawingBuffer->editor.GetLineText( state.searchTermEnd.line );
-    std::string folder = std::filesystem::path( drawingBuffer->path ).parent_path();
+    std::string const line = drawingBuffer->editor.GetLineText( state.searchTermEnd.line );
+    std::string const folder = std::filesystem::path( drawingBuffer->path ).parent_path();
     if ( std::optional<IncludeCompletion> include =
              completeInclude( line, state.searchTermEnd.index, folder ) ) {
         state.suggestions = include->names;
@@ -151,7 +152,7 @@ void suggestCompletions( TextEditor::AutoCompleteState &state ) {
 /// @brief Picks the language by path. Assembly: '.' is a word character and triggers
 ///        autocomplete; C: '#' triggers it.
 void setLanguage( EditorBuffer &buffer ) {
-    bool isC = sourceLanguage( buffer.path ) == SourceLanguage::C;
+    bool const isC = sourceLanguage( buffer.path ) == SourceLanguage::C;
     buffer.editor.SetLanguage( isC ? cLanguage() : aarch64Language() );
 
     TextEditor::AutoCompleteConfig autoComplete;
@@ -179,7 +180,7 @@ EditorBuffer *addBuffer( const Document &document ) {
 
 /// @brief Rebuilds markers when the line marks changed; only the built file shows them.
 void showLineMarks( EditorBuffer &buffer, const Session &session ) {
-    bool marksVisible = showsProgram( buffer, session );
+    bool const marksVisible = showsProgram( buffer, session );
     if ( buffer.shownLineMarksVersion == session.lineMarksVersion &&
          buffer.shownLineMarksOfProgram == marksVisible ) {
         return;
@@ -218,14 +219,14 @@ void drawDocumentTabs( const Session &session ) {
         tab.unsaved = isModified( document );
 
         ImGui::PushID( document.id );
-        TabClick click = drawPillTab( "##tab", tab );
+        TabClick const click = drawPillTab( "##tab", tab );
         if ( !document.path.empty() ) {
             ImGui::SetItemTooltip( "%s", document.path.c_str() );
         }
         ImGui::PopID();
         ImGui::SameLine( 0.0f, 2.0f );
 
-        int id = document.id;
+        int const id = document.id;
         if ( click == TabClick::Select ) {
             requestAction( [id]( Session &session ) { session.activateDocument( id ); } );
         } else if ( click == TabClick::Close ) {
@@ -238,14 +239,14 @@ void drawDocumentTabs( const Session &session ) {
 /// @return True if the cursor line starts with '#'.
 bool onPreprocessorLine( const EditorBuffer &buffer ) {
     std::string line = buffer.editor.GetLineText( buffer.editor.GetMainCursorPosition().line );
-    size_t start = line.find_first_not_of( " \t" );
+    size_t const start = line.find_first_not_of( " \t" );
     return start != std::string::npos && line[start] == '#';
 }
 
 /// @brief Passes an edited C buffer to the session for its header declarations, once the
 ///        cursor is off a '#' line, so #include isn't compiled at every keystroke.
 void updateDeclarations( Session &session, EditorBuffer &buffer ) {
-    size_t version = buffer.editor.GetUndoIndex();
+    size_t const version = buffer.editor.GetUndoIndex();
     if ( version == buffer.declarationsCheckedVersion ||
          sourceLanguage( buffer.path ) != SourceLanguage::C || onPreprocessorLine( buffer ) ) {
         return;
@@ -267,15 +268,15 @@ void openHeaderNames( EditorBuffer &buffer ) {
         io.AddKeyEvent( ImGuiMod_Ctrl, false );
     }
 
-    size_t version = buffer.editor.GetUndoIndex();
+    size_t const version = buffer.editor.GetUndoIndex();
     if ( version == buffer.headerNamesCheckedVersion ||
          sourceLanguage( buffer.path ) != SourceLanguage::C ) {
         return;
     }
     buffer.headerNamesCheckedVersion = version;
-    TextEditor::DocPos cursor = buffer.editor.GetMainCursorPosition();
-    std::string line = buffer.editor.GetLineText( cursor.line );
-    std::string folder = std::filesystem::path( buffer.path ).parent_path();
+    TextEditor::DocPos const cursor = buffer.editor.GetMainCursorPosition();
+    std::string const line = buffer.editor.GetLineText( cursor.line );
+    std::string const folder = std::filesystem::path( buffer.path ).parent_path();
     std::optional<IncludeCompletion> include = completeInclude( line, cursor.index, folder );
     if ( include && include->start == cursor.index ) {
         buffer.headerNamesFrame = ImGui::GetFrameCount();
@@ -305,7 +306,7 @@ void syncEditorWithSession( Session &session ) {
         showLineMarks( *buffer, session );
     }
 
-    int line = session.takeLineToReveal();
+    int const line = session.takeLineToReveal();
     EditorBuffer *active = findBuffer( session.activeDocument().id );
     if ( line > 0 && active ) {
         active->editor.SetCursor( TextEditor::DocPos( line - 1, 0 ) );
@@ -333,7 +334,7 @@ void drawEditorPanel( const Session &session ) {
 
 CommandInput editorCommandInput( const Session &session ) {
     CommandInput input;
-    if ( EditorBuffer *buffer = findBuffer( session.activeDocument().id ) ) {
+    if ( EditorBuffer const *buffer = findBuffer( session.activeDocument().id ) ) {
         input.text = buffer->editor.GetText();
         input.version = buffer->editor.GetUndoIndex();
         input.line = static_cast<int>( buffer->editor.GetCurrentCursorPosition().line ) + 1;
@@ -344,8 +345,8 @@ CommandInput editorCommandInput( const Session &session ) {
 void editorCursor( const Session &session, int &line, int &column ) {
     line = 1;
     column = 1;
-    if ( EditorBuffer *buffer = findBuffer( session.activeDocument().id ) ) {
-        TextEditor::DocPos position = buffer->editor.GetCurrentCursorPosition();
+    if ( EditorBuffer const *buffer = findBuffer( session.activeDocument().id ) ) {
+        TextEditor::DocPos const position = buffer->editor.GetCurrentCursorPosition();
         line = static_cast<int>( position.line ) + 1;
         column = static_cast<int>( position.index ) + 1;
     }

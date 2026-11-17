@@ -1,8 +1,10 @@
+#include <array>
+
 #include <app/aarch64_words.h>
 
 namespace {
 
-const char *const mnemonics[] = {
+const std::array mnemonics = {
     "abs",       "adc",       "adcs",      "add",     "addhn",     "addhn2",    "addp",
     "adds",      "addv",      "adr",       "adrp",    "and",       "ands",      "asr",
     "asrv",      "at",        "autia1716", "autiasp", "autiaz",    "autib1716", "autibsp",
@@ -72,12 +74,12 @@ const char *const mnemonics[] = {
     "wfi",       "xpaclri",   "xtn",       "xtn2",    "yield",     "zip1",      "zip2",
 };
 
-const char *const conditions[] = {
+const std::array conditions = {
     "eq", "ne", "cs", "hs", "cc", "lo", "mi", "pl", "vs",
     "vc", "hi", "ls", "ge", "lt", "gt", "le", "al", "nv",
 };
 
-const char *const directives[] = {
+const std::array directives = {
     ".abort",
     ".aeabi_attribute",
     ".aeabi_subsection",
@@ -287,7 +289,7 @@ const char *const directives[] = {
     ".zero",
 };
 
-const char *const operandKeywords[] = {
+const std::array operandKeywords = {
     "alle1",      "alle1is",   "alle2",     "alle2is",    "alle3",        "alle3is",   "aside1",
     "aside1is",   "asr",       "cigdpapa",  "cipapa",     "cisw",         "civac",     "csw",
     "cvac",       "cvau",      "iallu",     "ialluis",    "ipas2e1",      "ipas2e1is", "ipas2le1",
@@ -305,7 +307,7 @@ const char *const operandKeywords[] = {
     "vale3is",    "vmalle1",   "vmalle1is", "vmalls12e1", "vmalls12e1is", "zva",
 };
 
-const char *const systemRegisters[] = {
+const std::array systemRegisters = {
     "accdata_el1",
     "actlr_el1",
     "actlr_el12",
@@ -1948,7 +1950,7 @@ const std::vector<std::string> &aarch64Registers() {
     static const std::vector<std::string> registers = [] {
         std::vector<std::string> names = { "sp", "wsp", "xzr", "wzr", "lr", "fp" };
         for ( int i = 0; i <= 31; i++ ) {
-            std::string number = std::to_string( i );
+            std::string const number = std::to_string( i );
             for ( const char *prefix : { "v", "q", "d", "s", "h", "b" } ) {
                 names.push_back( prefix + number );
             }

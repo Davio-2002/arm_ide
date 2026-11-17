@@ -2,6 +2,7 @@
 #include <imgui_internal.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -51,7 +52,7 @@ struct KeyMapping {
     TerminalKey terminalKey;
 };
 
-const KeyMapping specialKeys[] = {
+const auto specialKeys = std::to_array<KeyMapping>( {
     { ImGuiKey_Enter, TerminalKey::Enter },
     { ImGuiKey_KeypadEnter, TerminalKey::Enter },
     { ImGuiKey_Tab, TerminalKey::Tab },
@@ -79,7 +80,7 @@ const KeyMapping specialKeys[] = {
     { ImGuiKey_F10, TerminalKey::F10 },
     { ImGuiKey_F11, TerminalKey::F11 },
     { ImGuiKey_F12, TerminalKey::F12 },
-};
+} );
 
 void pasteClipboard( TypedInput &typed ) {
     const char *clipboard = ImGui::GetClipboardText();
@@ -116,7 +117,7 @@ void readKeyboard( ImGuiID owner, TypedInput &typed ) {
             if ( !ImGui::IsKeyPressed( static_cast<ImGuiKey>( key ) ) ) {
                 continue;
             }
-            char32_t letter = U'a' + ( key - ImGuiKey_A );
+            char32_t const letter = U'a' + ( key - ImGuiKey_A );
             if ( io.KeyShift && letter == U'v' ) {
                 pasteClipboard( typed );
             } else if ( !io.KeyShift ) {
@@ -125,7 +126,7 @@ void readKeyboard( ImGuiID owner, TypedInput &typed ) {
         }
         return;
     }
-    for ( ImWchar character : io.InputQueueCharacters ) {
+    for ( ImWchar const character : io.InputQueueCharacters ) {
         if ( character >= U' ' ) {
             TerminalInput input = makeInput( TerminalKey::None, character );
             input.shift = false;
@@ -146,7 +147,8 @@ void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 topLeft, I
         cell.defaultForeground ? currentScheme().codeText : cellColor( cell.foreground );
     ImU32 background = cell.defaultBackground ? transparentColor : cellColor( cell.background );
     if ( cell.reverse ) {
-        ImU32 reversedForeground = cell.defaultBackground ? currentScheme().background : background;
+        ImU32 const reversedForeground =
+            cell.defaultBackground ? currentScheme().background : background;
         background = foreground;
         foreground = reversedForeground;
     }
@@ -154,15 +156,16 @@ void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 topLeft, I
         background = currentScheme().textSelection;
     }
 
-    ImVec2 bottomRight( topLeft.x + cellSize.x * std::max( cell.width, 1 ),
-                        topLeft.y + cellSize.y );
+    ImVec2 const bottomRight( topLeft.x +
+                                  cellSize.x * static_cast<float>( std::max( cell.width, 1 ) ),
+                              topLeft.y + cellSize.y );
     if ( background != transparentColor ) {
         drawList->AddRectFilled( topLeft, bottomRight, background );
     }
     if ( cell.character > U' ' ) {
-        char text[5] = {};
-        ImTextCharToUtf8( text, cell.character );
-        drawList->AddText( topLeft, foreground, text );
+        std::array<char, 5> text{};
+        ImTextCharToUtf8( text.data(), cell.character );
+        drawList->AddText( topLeft, foreground, text.data() );
     }
     if ( cell.underline ) {
         drawList->AddLine( ImVec2( topLeft.x, bottomRight.y - 1.0f ),
@@ -174,18 +177,19 @@ void drawCell( ImDrawList *drawList, const TerminalCell &cell, ImVec2 topLeft, I
 void drawCursor( ImDrawList *drawList, const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
     int row, column;
     terminalCursor( terminal, row, column );
-    ImVec2 topLeft( origin.x + column * cellSize.x, origin.y + row * cellSize.y );
-    ImVec2 bottomRight( topLeft.x + cellSize.x, topLeft.y + cellSize.y );
+    ImVec2 const topLeft( origin.x + ( static_cast<float>( column ) * cellSize.x ),
+                          origin.y + ( static_cast<float>( row ) * cellSize.y ) );
+    ImVec2 const bottomRight( topLeft.x + cellSize.x, topLeft.y + cellSize.y );
     if ( !focused ) {
         drawList->AddRect( topLeft, bottomRight, currentScheme().text );
         return;
     }
     drawList->AddRectFilled( topLeft, bottomRight, currentScheme().text );
-    TerminalCell cell = terminalCell( terminal, row, column );
+    TerminalCell const cell = terminalCell( terminal, row, column );
     if ( cell.character > U' ' ) {
-        char text[5] = {};
-        ImTextCharToUtf8( text, cell.character );
-        drawList->AddText( topLeft, currentScheme().background, text );
+        std::array<char, 5> text{};
+        ImTextCharToUtf8( text.data(), cell.character );
+        drawList->AddText( topLeft, currentScheme().background, text.data() );
     }
 }
 
@@ -202,29 +206,29 @@ bool isSelected( int line, int column ) {
     }
     CellPosition start, end;
     selectionRange( start, end );
-    CellPosition cell = { line, column };
+    CellPosition const cell = { line, column };
     return cell >= start && cell < end;
 }
 
 /// @return Place between cells nearest the mouse, clamped to the text, scroll applied.
 CellPosition positionAt( const Terminal &terminal, ImVec2 origin, ImVec2 cellSize ) {
-    ImVec2 mouse = ImGui::GetMousePos();
-    int row = static_cast<int>( std::floor( ( mouse.y - origin.y ) / cellSize.y ) );
-    int column = static_cast<int>( std::round( ( mouse.x - origin.x ) / cellSize.x ) );
-    int firstLine = -static_cast<int>( terminal.scrollback.size() );
+    ImVec2 const mouse = ImGui::GetMousePos();
+    int const row = static_cast<int>( std::floor( ( mouse.y - origin.y ) / cellSize.y ) );
+    int const column = static_cast<int>( std::round( ( mouse.x - origin.x ) / cellSize.x ) );
+    int const firstLine = -static_cast<int>( terminal.scrollback.size() );
     return { std::clamp( row - scrollOffset, firstLine, terminal.rows - 1 ),
              std::clamp( column, 0, terminal.columns ) };
 }
 
 /// @return True if the cell holds a visible character.
 bool isWordCell( const Terminal &terminal, int line, int column ) {
-    char32_t character = terminalCell( terminal, line, column ).character;
+    char32_t const character = terminalCell( terminal, line, column ).character;
     return character > U' ';
 }
 
 /// @brief Selects the word at a position, or clears on a blank.
 void selectWord( const Terminal &terminal, CellPosition position ) {
-    int column = std::min( position.column, terminal.columns - 1 );
+    int const column = std::min( position.column, terminal.columns - 1 );
     if ( !isWordCell( terminal, position.line, column ) ) {
         hasSelection = false;
         return;
@@ -248,13 +252,14 @@ void updateSelection( const Terminal &terminal, ImVec2 origin, ImVec2 cellSize )
     if ( terminal.scrollback.size() < selectionScrollbackSize ) {
         hasSelection = false;
     } else if ( hasSelection ) {
-        int pushedLines = static_cast<int>( terminal.scrollback.size() - selectionScrollbackSize );
+        int const pushedLines =
+            static_cast<int>( terminal.scrollback.size() - selectionScrollbackSize );
         selectionAnchor.line -= pushedLines;
         selectionEnd.line -= pushedLines;
     }
     selectionScrollbackSize = terminal.scrollback.size();
 
-    CellPosition position = positionAt( terminal, origin, cellSize );
+    CellPosition const position = positionAt( terminal, origin, cellSize );
     if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) ) {
         selecting = false;
         selectWord( terminal, position );
@@ -277,18 +282,18 @@ std::string selectedText( const Terminal &terminal ) {
     selectionRange( start, end );
     std::string text;
     for ( int line = start.line; line <= end.line; line++ ) {
-        int first = line == start.line ? start.column : 0;
-        int last = line == end.line ? end.column : terminal.columns;
+        int const first = line == start.line ? start.column : 0;
+        int const last = line == end.line ? end.column : terminal.columns;
         std::string lineText;
         for ( int column = first; column < last; column++ ) {
-            char32_t character = terminalCell( terminal, line, column ).character;
+            char32_t const character = terminalCell( terminal, line, column ).character;
             if ( character == 0 && column > first &&
                  terminalCell( terminal, line, column - 1 ).width > 1 ) {
                 continue;
             }
-            char utf8[5] = {};
-            ImTextCharToUtf8( utf8, character ? character : U' ' );
-            lineText += utf8;
+            std::array<char, 5> utf8{};
+            ImTextCharToUtf8( utf8.data(), character ? character : U' ' );
+            lineText += utf8.data();
         }
         lineText.erase( lineText.find_last_not_of( ' ' ) + 1 );
         text += lineText;
@@ -321,7 +326,8 @@ void drawContextMenu( const Terminal &terminal, TypedInput &typed ) {
 
 /// @return Active document's folder, or $HOME for an untitled one.
 std::string startDirectory( const Session &session ) {
-    std::string directory = std::filesystem::path( session.activeDocument().path ).parent_path();
+    std::string const directory =
+        std::filesystem::path( session.activeDocument().path ).parent_path();
     const char *home = std::getenv( "HOME" );
     return directory.empty() && home ? home : directory;
 }
@@ -386,8 +392,8 @@ void clearTerminalView() {
 
 void drawTerminalView( const Session &session ) {
     pushCodeFont();
-    ImVec2 cellSize( ImGui::CalcTextSize( "M" ).x, ImGui::GetTextLineHeight() );
-    ImVec2 origin = ImGui::GetCursorScreenPos();
+    ImVec2 const cellSize( ImGui::CalcTextSize( "M" ).x, ImGui::GetTextLineHeight() );
+    ImVec2 const origin = ImGui::GetCursorScreenPos();
     ImVec2 area = ImGui::GetContentRegionAvail();
     area.x = std::max( area.x, cellSize.x );
     area.y = std::max( area.y, cellSize.y );
@@ -396,8 +402,8 @@ void drawTerminalView( const Session &session ) {
     TypedInput typed;
 
     ImGui::InvisibleButton( "##terminal", area );
-    ImGuiID viewId = ImGui::GetItemID();
-    bool hovered = ImGui::IsItemHovered();
+    ImGuiID const viewId = ImGui::GetItemID();
+    bool const hovered = ImGui::IsItemHovered();
     if ( ImGui::IsItemClicked() ) {
         focused = true;
     } else if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) && !hovered ) {
@@ -425,8 +431,9 @@ void drawTerminalView( const Session &session ) {
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     for ( int row = 0; row < terminal.rows; row++ ) {
         for ( int column = 0; column < terminal.columns; column++ ) {
-            ImVec2 topLeft( origin.x + column * cellSize.x, origin.y + row * cellSize.y );
-            int line = row - scrollOffset;
+            ImVec2 const topLeft( origin.x + ( static_cast<float>( column ) * cellSize.x ),
+                                  origin.y + ( static_cast<float>( row ) * cellSize.y ) );
+            int const line = row - scrollOffset;
             drawCell( drawList, terminalCell( terminal, line, column ), topLeft, cellSize,
                       isSelected( line, column ) );
         }
@@ -435,9 +442,9 @@ void drawTerminalView( const Session &session ) {
         drawCursor( drawList, terminal, origin, cellSize );
     }
     if ( terminal.exited ) {
-        std::string text = "Shell exited with code " + std::to_string( terminal.exitCode ) +
-                           ". Press any key to start a new one.";
-        ImVec2 bottomLeft( origin.x, origin.y + area.y - cellSize.y );
+        std::string const text = "Shell exited with code " + std::to_string( terminal.exitCode ) +
+                                 ". Press any key to start a new one.";
+        ImVec2 const bottomLeft( origin.x, origin.y + area.y - cellSize.y );
         drawList->AddText( bottomLeft, currentScheme().mutedText, text.c_str() );
     }
     ImGui::PopFont();

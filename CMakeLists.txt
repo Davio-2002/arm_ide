@@ -102,7 +102,7 @@ add_executable(arm_ide
     src/gui/panels/terminal_view.cpp
     src/gui/panels/registers.cpp
     src/gui/panels/memory.cpp)
-target_include_directories(arm_ide PRIVATE ${nanosvg_SOURCE_DIR}/src)
+target_include_directories(arm_ide SYSTEM PRIVATE ${nanosvg_SOURCE_DIR}/src)
 target_link_libraries(arm_ide PRIVATE arm_ide_app imgui)
 
 # Embedded files as byte lists for #include (#embed needs clang 19; Ubuntu 24.04 has 18).

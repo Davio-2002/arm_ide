@@ -1,7 +1,9 @@
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <format>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -15,7 +17,7 @@ namespace {
 bool sendRaw( GdbConnection &connection, const std::string &data ) {
     size_t sent = 0;
     while ( sent < data.size() ) {
-        ssize_t count =
+        ssize_t const count =
             send( connection.socket, data.data() + sent, data.size() - sent, MSG_NOSIGNAL );
         if ( count <= 0 ) {
             return false;
@@ -28,12 +30,12 @@ bool sendRaw( GdbConnection &connection, const std::string &data ) {
 /// @brief Takes one complete packet from the received bytes and acknowledges it.
 /// @return True if a packet was taken.
 bool takePacket( GdbConnection &connection, std::string &payload ) {
-    size_t start = connection.received.find( '$' );
+    size_t const start = connection.received.find( '$' );
     if ( start == std::string::npos ) {
         connection.received.clear();
         return false;
     }
-    size_t end = connection.received.find( '#', start );
+    size_t const end = connection.received.find( '#', start );
     if ( end == std::string::npos || end + 2 >= connection.received.size() ) {
         connection.received.erase( 0, start );
         return false;
@@ -47,9 +49,7 @@ bool takePacket( GdbConnection &connection, std::string &payload ) {
 } // anonymous namespace
 
 std::string toHex( uint64_t value ) {
-    char text[17];
-    std::snprintf( text, sizeof( text ), "%llx", static_cast<unsigned long long>( value ) );
-    return text;
+    return std::format( "{:x}", value );
 }
 
 uint64_t parseHex( const std::string &text ) {
@@ -71,9 +71,12 @@ bool isValidSocketPath( const std::string &path ) {
 bool connectGdb( GdbConnection &connection, const std::string &path ) {
     sockaddr_un address = {};
     address.sun_family = AF_UNIX;
-    std::copy( path.begin(), path.end(), address.sun_path );
+    std::ranges::copy( path, address.sun_path );
 
     connection.socket = socket( AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0 );
+    if ( connection.socket < 0 ) {
+        return false;
+    }
     if ( connect( connection.socket, reinterpret_cast<sockaddr *>( &address ),
                   sizeof( address ) ) == 0 ) {
         return true;
@@ -91,12 +94,10 @@ void closeGdb( GdbConnection &connection ) {
 
 bool sendGdbPacket( GdbConnection &connection, const std::string &payload ) {
     unsigned checksum = 0;
-    for ( char c : payload ) {
+    for ( char const c : payload ) {
         checksum += static_cast<unsigned char>( c );
     }
-    char end[4];
-    std::snprintf( end, sizeof( end ), "#%02x", checksum & 0xff );
-    return sendRaw( connection, "$" + payload + end );
+    return sendRaw( connection, std::format( "${}#{:02x}", payload, checksum & 0xff ) );
 }
 
 GdbReceive receiveGdbPacket( GdbConnection &connection, std::string &payload,
@@ -107,15 +108,16 @@ GdbReceive receiveGdbPacket( GdbConnection &connection, std::string &payload,
         auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
             deadline - std::chrono::steady_clock::now() );
         pollfd descriptor = { connection.socket, POLLIN, 0 };
-        if ( poll( &descriptor, 1, std::max<int>( 0, left.count() ) ) <= 0 ) {
+        if ( poll( &descriptor, 1, static_cast<int>( std::max<int64_t>( 0, left.count() ) ) ) <=
+             0 ) {
             return GdbReceive::TimedOut;
         }
-        char buffer[4096];
-        ssize_t count = recv( connection.socket, buffer, sizeof( buffer ), 0 );
+        std::array<char, 4096> buffer{};
+        ssize_t const count = recv( connection.socket, buffer.data(), buffer.size(), 0 );
         if ( count <= 0 ) {
             return GdbReceive::Closed;
         }
-        connection.received.append( buffer, count );
+        connection.received.append( buffer.data(), count );
     }
     return GdbReceive::Packet;
 }

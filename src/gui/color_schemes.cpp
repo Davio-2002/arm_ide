@@ -1,10 +1,6 @@
 #include <gui/theme.h>
 
-// Extern here and in theme.cpp, so theme.cpp's defaults are constant-initialized,
-// independent of static-init order.
-extern const ColorScheme colorSchemeTable[];
-
-const ColorScheme colorSchemeTable[] = {
+constinit const std::array<ColorScheme, 6> colorSchemeTable = std::to_array<ColorScheme>( {
     {
         .name = "Islands Dark",
         .dark = true,
@@ -199,7 +195,7 @@ const ColorScheme colorSchemeTable[] = {
         .comment = IM_COL32( 146, 131, 116, 255 ),
         .headerName = IM_COL32( 177, 28, 86, 255 ),
     },
-};
+} );
 
 std::span<const ColorScheme> colorSchemes() {
     return colorSchemeTable;
