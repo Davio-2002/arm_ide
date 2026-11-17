@@ -6,14 +6,15 @@ You write a `.s` file, press **F5**, and see the output. You can also step throu
 
 ## Download
 
-Each [release](https://github.com/Davio-2002/arm_ide/releases) has an AppImage: one file that runs without installing. It needs glibc 2.39 or newer (Ubuntu 24.04, Debian 13, Fedora 40 or newer).
+One command installs the latest release for your user, with the AArch64 tools it runs (it asks for your `sudo` password to install those):
 
 ```bash
-chmod +x ARM_IDE-*-x86_64.AppImage
-./ARM_IDE-*-x86_64.AppImage examples/hello.s
+curl -fsSL https://raw.githubusercontent.com/Davio-2002/arm_ide/main/install.sh | bash
 ```
 
-The AppImage contains the IDE only. The tools it runs come from your distribution; on Ubuntu or Debian:
+It puts the IDE in `~/.local/bin/arm_ide` and adds it to the applications menu; run it again to update. It needs an x86_64 Linux with glibc 2.39 or newer (Ubuntu 24.04, Debian 13, Fedora 40 or newer).
+
+The IDE itself is an AppImage, one file that runs without installing; you can also download it from the [releases](https://github.com/Davio-2002/arm_ide/releases) and start it directly. The tools it runs come from your distribution; on Ubuntu or Debian:
 
 ```bash
 sudo apt install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user
