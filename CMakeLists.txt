@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(arm_ide CXX)
+project(arm_ide VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -121,6 +121,19 @@ foreach(icon_file ${icon_files})
     embed_as_bytes(${icon_file} ${icon}_svg.inc)
 endforeach()
 target_include_directories(arm_ide PRIVATE ${CMAKE_BINARY_DIR}/generated)
+
+# Installed layout, also the AppDir of the AppImage: the program, its .desktop file and icons.
+include(GNUInstallDirs)
+install(TARGETS arm_ide RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES assets/app_icon/arm_ide.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+foreach(size 32 64 128 256 512)
+    install(FILES assets/app_icon/icon_${size}.png
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${size}x${size}/apps
+        RENAME arm_ide.png)
+endforeach()
+install(FILES assets/app_icon/icon.svg
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+    RENAME arm_ide.svg)
 
 # Tests of the build and the debugger, run with ctest; the dev preset turns them on.
 option(BUILD_TESTING "Build the tests" OFF)

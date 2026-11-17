@@ -4,7 +4,24 @@ A small desktop IDE for writing, running and debugging **AArch64 (ARM64) assembl
 
 You write a `.s` file, press **F5**, and see the output. You can also step through it instruction by instruction while watching the registers and memory.
 
-## Quick start
+## Download
+
+Each [release](https://github.com/Davio-2002/arm_ide/releases) has an AppImage: one file that runs without installing. It needs glibc 2.39 or newer (Ubuntu 24.04, Debian 13, Fedora 40 or newer).
+
+```bash
+chmod +x ARM_IDE-*-x86_64.AppImage
+./ARM_IDE-*-x86_64.AppImage examples/hello.s
+```
+
+The AppImage contains the IDE only. The tools it runs come from your distribution; on Ubuntu or Debian:
+
+```bash
+sudo apt install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user
+```
+
+If your system has no FUSE, start it with `--appimage-extract-and-run`.
+
+## Build from source
 
 On Ubuntu or Debian:
 

@@ -329,3 +329,28 @@ cmake --build --preset release
 ./build/arm_ide examples/hello.s
 clang-format -i src/*/*.cpp src/*/*.h src/gui/panels/*.cpp src/gui/panels/*.h
 ```
+
+Tests and clang-tidy, as the Check workflow runs them on every push:
+
+```bash
+cmake --preset dev && cmake --build --preset dev
+ctest --preset dev
+run-clang-tidy -p build-dev -quiet "$PWD/(src|tests)/"
+```
+
+## Release
+
+`packaging/appimage.sh` builds `build/appimage/ARM_IDE-<version>-x86_64.AppImage`: a release
+build installed into an AppDir (`cmake --install`: the program, `.desktop` file, icons), packed
+by a pinned linuxdeploy. Bundled libraries are found through the program's `RUNPATH`, not
+`LD_LIBRARY_PATH`, so the shell, the cross tools and QEMU that the IDE starts use the system's
+libraries. The cross tools, QEMU, `fc-list`/`fc-match` and `gdbus` are not bundled.
+
+To release, raise `VERSION` in `project()` of `CMakeLists.txt`, merge to `main`, then push the
+matching tag; the Release workflow checks that the tag matches, builds the AppImage on Ubuntu
+24.04 (so glibc 2.39 or newer is needed) and attaches it to a GitHub release:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
