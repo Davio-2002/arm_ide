@@ -1,5 +1,6 @@
 #include <imgui.h>
 
+#include <array>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -22,11 +23,12 @@ const float badgeFontSize = 11.0f;
 const float toolbarRightMargin = 32.0f;
 
 void drawChevronDown( ImVec2 center, ImU32 color ) {
-    float half = chevronSize * 0.5f;
-    ImVec2 points[] = { ImVec2( center.x - half, center.y - half * 0.5f ),
-                        ImVec2( center.x, center.y + half * 0.5f ),
-                        ImVec2( center.x + half, center.y - half * 0.5f ) };
-    ImGui::GetWindowDrawList()->AddPolyline( points, 3, color, ImDrawFlags_None, 1.5f );
+    float const half = chevronSize * 0.5f;
+    std::array const points = { ImVec2( center.x - half, center.y - half * 0.5f ),
+                                ImVec2( center.x, center.y + half * 0.5f ),
+                                ImVec2( center.x + half, center.y - half * 0.5f ) };
+    ImGui::GetWindowDrawList()->AddPolyline( points.data(), points.size(), color, ImDrawFlags_None,
+                                             1.5f );
 }
 
 /// @return Dropdown width, arrow included.
@@ -38,23 +40,23 @@ float dropdownWidth( const std::string &label ) {
 /// @param[in] background Fill when not hovered.
 /// @return True while open; the caller then draws items and calls ImGui::EndPopup.
 bool beginDropdown( const char *id, const std::string &label, ImU32 background ) {
-    ImVec2 size( dropdownWidth( label ), ImGui::GetFrameHeight() );
-    ImVec2 topLeft = ImGui::GetCursorScreenPos();
+    ImVec2 const size( dropdownWidth( label ), ImGui::GetFrameHeight() );
+    ImVec2 const topLeft = ImGui::GetCursorScreenPos();
     if ( ImGui::InvisibleButton( id, size ) ) {
         ImGui::OpenPopup( id );
     }
 
-    bool highlighted = ImGui::IsItemHovered() || ImGui::IsPopupOpen( id );
-    ImU32 fill = highlighted ? accentFillColor() : background;
-    ImVec2 bottomRight( topLeft.x + size.x, topLeft.y + size.y );
+    bool const highlighted = ImGui::IsItemHovered() || ImGui::IsPopupOpen( id );
+    ImU32 const fill = highlighted ? accentFillColor() : background;
+    ImVec2 const bottomRight( topLeft.x + size.x, topLeft.y + size.y );
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled( topLeft, bottomRight, fill, ImGui::GetStyle().FrameRounding );
     outlineLastItem( highlighted );
-    float textY = topLeft.y + ( size.y - ImGui::GetTextLineHeight() ) * 0.5f;
+    float const textY = topLeft.y + ( size.y - ImGui::GetTextLineHeight() ) * 0.5f;
     drawList->AddText( ImVec2( topLeft.x + dropdownPadding, textY ), currentScheme().text,
                        label.c_str() );
-    ImVec2 chevronCenter( bottomRight.x - dropdownPadding - chevronSize * 0.5f,
-                          topLeft.y + size.y * 0.5f );
+    ImVec2 const chevronCenter( bottomRight.x - dropdownPadding - chevronSize * 0.5f,
+                                topLeft.y + size.y * 0.5f );
     drawChevronDown( chevronCenter, currentScheme().mutedText );
 
     ImGui::SetNextWindowPos( ImVec2( topLeft.x, bottomRight.y + 4.0f ) );
@@ -62,18 +64,18 @@ bool beginDropdown( const char *id, const std::string &label, ImU32 background )
 }
 
 void drawAppBadge() {
-    float margin = ( ImGui::GetFrameHeight() - badgeSize ) * 0.5f;
-    ImVec2 cursor = ImGui::GetCursorScreenPos();
-    ImVec2 topLeft( cursor.x, cursor.y + margin );
-    ImVec2 bottomRight( topLeft.x + badgeSize, topLeft.y + badgeSize );
+    float const margin = ( ImGui::GetFrameHeight() - badgeSize ) * 0.5f;
+    ImVec2 const cursor = ImGui::GetCursorScreenPos();
+    ImVec2 const topLeft( cursor.x, cursor.y + margin );
+    ImVec2 const bottomRight( topLeft.x + badgeSize, topLeft.y + badgeSize );
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled( topLeft, bottomRight, accentColor(), 6.0f );
 
     ImGui::PushFont( nullptr, badgeFontSize );
     const char *name = "A64";
-    ImVec2 textSize = ImGui::CalcTextSize( name );
-    ImVec2 textPosition( topLeft.x + ( badgeSize - textSize.x ) * 0.5f,
-                         topLeft.y + ( badgeSize - textSize.y ) * 0.5f );
+    ImVec2 const textSize = ImGui::CalcTextSize( name );
+    ImVec2 const textPosition( topLeft.x + ( badgeSize - textSize.x ) * 0.5f,
+                               topLeft.y + ( badgeSize - textSize.y ) * 0.5f );
     drawList->AddText( textPosition, IM_COL32_WHITE, name );
     ImGui::PopFont();
     ImGui::Dummy( ImVec2( badgeSize, ImGui::GetFrameHeight() ) );
@@ -91,7 +93,7 @@ std::string folderName( const std::string &path ) {
 /// @return True if clicked.
 bool fileItem( const std::string &path ) {
     ImGui::PushID( path.c_str() );
-    bool clicked = ImGui::Selectable( documentName( path ).c_str() );
+    bool const clicked = ImGui::Selectable( documentName( path ).c_str() );
     ImGui::SetItemTooltip( "%s", displayPath( path ).c_str() );
     ImGui::PopID();
     return clicked;
@@ -101,7 +103,7 @@ bool fileItem( const std::string &path ) {
 
 void drawToolbarStart( const Session &session ) {
     drawAppBadge();
-    std::string folder = folderName( session.activeDocument().path );
+    std::string const folder = folderName( session.activeDocument().path );
     if ( beginDropdown( "##recentFiles", folder, transparentColor ) ) {
         if ( session.recentFiles.empty() ) {
             ImGui::TextDisabled( "No recent files" );
@@ -117,16 +119,16 @@ void drawToolbarStart( const Session &session ) {
 }
 
 void drawToolbarEnd( const Session &session ) {
-    float padding = ( ImGui::GetFrameHeight() - iconSize ) * 0.5f;
-    float buttonWidth = iconSize + padding * 2.0f;
-    float buttonsWidth = buttonCount * buttonWidth + ( buttonCount - 1 ) * buttonSpacing;
-    std::string runFile = documentName( session.activeDocument().path );
-    float toolbarWidth = dropdownWidth( runFile ) + buttonSpacing * 4.0f + buttonsWidth;
+    float const padding = ( ImGui::GetFrameHeight() - iconSize ) * 0.5f;
+    float const buttonWidth = iconSize + padding * 2.0f;
+    float const buttonsWidth = buttonCount * buttonWidth + ( buttonCount - 1 ) * buttonSpacing;
+    std::string const runFile = documentName( session.activeDocument().path );
+    float const toolbarWidth = dropdownWidth( runFile ) + buttonSpacing * 4.0f + buttonsWidth;
     ImGui::SetCursorPosX( ImGui::GetWindowWidth() - toolbarWidth - toolbarRightMargin );
 
     if ( beginDropdown( "##openFiles", runFile, currentScheme().background ) ) {
         for ( const Document &document : session.documents() ) {
-            int id = document.id;
+            int const id = document.id;
             if ( !document.path.empty() && fileItem( document.path ) ) {
                 requestAction( [id]( Session &session ) { session.activateDocument( id ); } );
             }

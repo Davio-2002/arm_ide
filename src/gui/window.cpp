@@ -32,24 +32,25 @@ bool windowEventPending = false;
 
 /// @brief Sets the embedded icon; Wayland ignores it and uses the .desktop file.
 void setWindowIcon( GLFWwindow *window ) {
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays): byte list from embed_as_bytes.
     static unsigned char pixels[] = {
-#include "icon_rgba.inc"
+#include <icon_rgba.inc>
     };
     std::vector<GLFWimage> images;
     unsigned char *image = pixels;
-    for ( int size : { 32, 64, 128, 256 } ) {
+    for ( int const size : { 32, 64, 128, 256 } ) {
         images.push_back( { size, size, image } );
-        image += size * size * 4;
+        image += static_cast<ptrdiff_t>( size ) * size * 4;
     }
     glfwSetWindowIcon( window, static_cast<int>( images.size() ), images.data() );
 }
 
 /// @brief Ctrl+wheel zooms the code; other scrolling goes to ImGui.
 void scrollCallback( GLFWwindow *window, double xOffset, double yOffset ) {
-    bool ctrlDown = glfwGetKey( window, GLFW_KEY_LEFT_CONTROL ) == GLFW_PRESS ||
-                    glfwGetKey( window, GLFW_KEY_RIGHT_CONTROL ) == GLFW_PRESS;
+    bool const ctrlDown = glfwGetKey( window, GLFW_KEY_LEFT_CONTROL ) == GLFW_PRESS ||
+                          glfwGetKey( window, GLFW_KEY_RIGHT_CONTROL ) == GLFW_PRESS;
     if ( ctrlDown ) {
-        zoomCode( yOffset );
+        zoomCode( static_cast<float>( yOffset ) );
         return;
     }
     ImGui_ImplGlfw_ScrollCallback( window, xOffset, yOffset );
@@ -152,7 +153,7 @@ void waitForNextFrame( bool busy ) {
     if ( busy || now - lastInput < inputSettleTime ) {
         glfwWaitEventsTimeout( 0.001 );
     } else {
-        Clock::time_point deadline = now + idleWait;
+        Clock::time_point const deadline = now + idleWait;
         while ( now < deadline && context.InputEventsQueue.empty() && !windowEventPending ) {
             glfwWaitEventsTimeout( std::chrono::duration<double>( deadline - now ).count() );
             now = Clock::now();
@@ -176,7 +177,7 @@ void endFrame( GLFWwindow *window ) {
     int width, height;
     glfwGetFramebufferSize( window, &width, &height );
     glViewport( 0, 0, width, height );
-    ImVec4 ground = ImGui::ColorConvertU32ToFloat4( currentScheme().ground );
+    ImVec4 const ground = ImGui::ColorConvertU32ToFloat4( currentScheme().ground );
     glClearColor( ground.x, ground.y, ground.z, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
     ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );

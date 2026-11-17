@@ -3,6 +3,7 @@
 #include <TextEditor.h>
 #include <imgui.h>
 
+#include <array>
 #include <span>
 #include <string_view>
 
@@ -22,10 +23,14 @@ struct ColorScheme {
 enum class ThemeMode { System, Dark, Light };
 
 /// @brief ThemeMode names in order, for settings and UI.
-inline constexpr const char *themeModeNames[] = { "System", "Dark", "Light" };
+inline constexpr std::array themeModeNames = { "System", "Dark", "Light" };
 
 /// @return The scheme in use.
 const ColorScheme &currentScheme();
+
+/// @brief Every scheme, dark and light; read it through colorSchemes(). Declared here so
+///        theme.cpp's default scheme pointers into it are constant-initialized.
+extern const std::array<ColorScheme, 6> colorSchemeTable;
 
 /// @return All schemes, dark and light.
 std::span<const ColorScheme> colorSchemes();

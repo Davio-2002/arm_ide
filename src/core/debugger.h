@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -37,7 +38,7 @@ struct Debugger {
 };
 
 struct Registers {
-    uint64_t x[31] = {};
+    std::array<uint64_t, 31> x = {};
     uint64_t sp = 0;
     uint64_t pc = 0;
     uint64_t nzcv = 0;

@@ -19,7 +19,7 @@ void *openSettingsEntry( ImGuiContext *, ImGuiSettingsHandler *, const char * ) 
 
 /// @brief Applies one "Key=value" line: zoom, fonts or theme.
 void readSettingsLine( ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line ) {
-    std::string text = line;
+    std::string const text = line;
     if ( text.starts_with( "Zoom=" ) ) {
         setCodeFontSize( std::strtof( line + 5, nullptr ) );
     } else if ( text.starts_with( "UiFont=" ) ) {

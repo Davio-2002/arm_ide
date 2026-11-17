@@ -9,12 +9,35 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_CXX_COMPILER": "clang++"
             }
+        },
+        {
+            "name": "dev",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-dev",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "BUILD_TESTING": "ON"
+            }
         }
     ],
     "buildPresets": [
         {
             "name": "release",
             "configurePreset": "release"
+        },
+        {
+            "name": "dev",
+            "configurePreset": "dev"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "dev",
+            "configurePreset": "dev",
+            "output": {
+                "outputOnFailure": true
+            }
         }
     ]
 }

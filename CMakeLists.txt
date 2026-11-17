@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.25)
 project(arm_ide CXX)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -27,16 +27,17 @@ if(NOT HAS_CXX23_LIBRARY)
         "rm -rf build && cmake --preset release -DCMAKE_CXX_COMPILER=g++")
 endif()
 
+# Commit archives instead of git clones: a clone fetches the whole history (~25 s, 161 MB).
 include(FetchContent)
 FetchContent_Declare(imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG cf53467ab0db7a783f04b32dd9160e6aa5b720ef)
+    URL https://github.com/ocornut/imgui/archive/cf53467ab0db7a783f04b32dd9160e6aa5b720ef.tar.gz
+    URL_HASH SHA256=d4ee73f3f993f9ddf2fafd86c1b86ecba3eebe5146c432925118bc53cba5c63a)
 FetchContent_Declare(text_editor
-    GIT_REPOSITORY https://github.com/goossens/ImGuiColorTextEdit.git
-    GIT_TAG 0a489da863f22f7493049f5c6eb85355f405b02e)
+    URL https://github.com/goossens/ImGuiColorTextEdit/archive/0a489da863f22f7493049f5c6eb85355f405b02e.tar.gz
+    URL_HASH SHA256=a8622bfbb205e48fed5b7b50701b255bb919523b798403d220ea51792a908a8d)
 FetchContent_Declare(nanosvg
-    GIT_REPOSITORY https://github.com/memononen/nanosvg.git
-    GIT_TAG 239e102ec2c691f2902e20ace2ed36ee4a35cfe6
+    URL https://github.com/memononen/nanosvg/archive/239e102ec2c691f2902e20ace2ed36ee4a35cfe6.tar.gz
+    URL_HASH SHA256=2bc68bdb518d7800252042e5cad50a0ab321596f0cbf49ef2a752926329063d2
     SOURCE_SUBDIR no-cmake)
 FetchContent_MakeAvailable(imgui text_editor nanosvg)
 
@@ -101,7 +102,7 @@ add_executable(arm_ide
     src/gui/panels/terminal_view.cpp
     src/gui/panels/registers.cpp
     src/gui/panels/memory.cpp)
-target_include_directories(arm_ide PRIVATE ${nanosvg_SOURCE_DIR}/src)
+target_include_directories(arm_ide SYSTEM PRIVATE ${nanosvg_SOURCE_DIR}/src)
 target_link_libraries(arm_ide PRIVATE arm_ide_app imgui)
 
 # Embedded files as byte lists for #include (#embed needs clang 19; Ubuntu 24.04 has 18).
@@ -120,3 +121,10 @@ foreach(icon_file ${icon_files})
     embed_as_bytes(${icon_file} ${icon}_svg.inc)
 endforeach()
 target_include_directories(arm_ide PRIVATE ${CMAKE_BINARY_DIR}/generated)
+
+# Tests of the build and the debugger, run with ctest; the dev preset turns them on.
+option(BUILD_TESTING "Build the tests" OFF)
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

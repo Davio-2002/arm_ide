@@ -1,8 +1,10 @@
+#include <array>
+
 #include <app/aarch64_words.h>
 
 namespace {
 
-const char *const mnemonics[] = {
+const auto mnemonics = std::to_array<const char *>( {
     "abs",       "adc",       "adcs",      "add",     "addhn",     "addhn2",    "addp",
     "adds",      "addv",      "adr",       "adrp",    "and",       "ands",      "asr",
     "asrv",      "at",        "autia1716", "autiasp", "autiaz",    "autib1716", "autibsp",
@@ -70,14 +72,30 @@ const char *const mnemonics[] = {
     "usqadd",    "usra",      "usubl",     "usubl2",  "usubw",     "usubw2",    "uxtb",
     "uxth",      "uxtl",      "uxtl2",     "uxtw",    "uzp1",      "uzp2",      "wfe",
     "wfi",       "xpaclri",   "xtn",       "xtn2",    "yield",     "zip1",      "zip2",
-};
+} );
 
-const char *const conditions[] = {
-    "eq", "ne", "cs", "hs", "cc", "lo", "mi", "pl", "vs",
-    "vc", "hi", "ls", "ge", "lt", "gt", "le", "al", "nv",
-};
+const auto conditions = std::to_array<const char *>( {
+    "eq",
+    "ne",
+    "cs",
+    "hs",
+    "cc",
+    "lo",
+    "mi",
+    "pl",
+    "vs",
+    "vc",
+    "hi",
+    "ls",
+    "ge",
+    "lt",
+    "gt",
+    "le",
+    "al",
+    "nv",
+} );
 
-const char *const directives[] = {
+const auto directives = std::to_array<const char *>( {
     ".abort",
     ".aeabi_attribute",
     ".aeabi_subsection",
@@ -285,9 +303,9 @@ const char *const directives[] = {
     ".xstabs",
     ".xword",
     ".zero",
-};
+} );
 
-const char *const operandKeywords[] = {
+const auto operandKeywords = std::to_array<const char *>( {
     "alle1",      "alle1is",   "alle2",     "alle2is",    "alle3",        "alle3is",   "aside1",
     "aside1is",   "asr",       "cigdpapa",  "cipapa",     "cisw",         "civac",     "csw",
     "cvac",       "cvau",      "iallu",     "ialluis",    "ipas2e1",      "ipas2e1is", "ipas2le1",
@@ -303,9 +321,9 @@ const char *const operandKeywords[] = {
     "vaae1is",    "vaale1",    "vaale1is",  "vae1",       "vae1is",       "vae2",      "vae2is",
     "vae3",       "vae3is",    "vale1",     "vale1is",    "vale2",        "vale2is",   "vale3",
     "vale3is",    "vmalle1",   "vmalle1is", "vmalls12e1", "vmalls12e1is", "zva",
-};
+} );
 
-const char *const systemRegisters[] = {
+const auto systemRegisters = std::to_array<const char *>( {
     "accdata_el1",
     "actlr_el1",
     "actlr_el12",
@@ -1934,7 +1952,7 @@ const char *const systemRegisters[] = {
     "zcr_el12",
     "zcr_el2",
     "zcr_el3",
-};
+} );
 
 } // anonymous namespace
 
@@ -1948,7 +1966,7 @@ const std::vector<std::string> &aarch64Registers() {
     static const std::vector<std::string> registers = [] {
         std::vector<std::string> names = { "sp", "wsp", "xzr", "wzr", "lr", "fp" };
         for ( int i = 0; i <= 31; i++ ) {
-            std::string number = std::to_string( i );
+            std::string const number = std::to_string( i );
             for ( const char *prefix : { "v", "q", "d", "s", "h", "b" } ) {
                 names.push_back( prefix + number );
             }

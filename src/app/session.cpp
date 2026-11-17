@@ -57,7 +57,7 @@ bool Session::canRun( Command command ) const {
 }
 
 PathRequest Session::pathNeeded( Command command ) const {
-    bool untitled = activeDocument().path.empty();
+    bool const untitled = activeDocument().path.empty();
     switch ( command ) {
     case Command::Open:
         return PathRequest::FileToOpen;
@@ -132,7 +132,7 @@ void Session::toggleBreakpoint( const std::string &path, int line ) {
         lines.insert( line );
     }
     if ( isDebugging() && path == programFilePath ) {
-        bool wasRunning = debugger.state == DebuggerState::Running;
+        bool const wasRunning = debugger.state == DebuggerState::Running;
         setBreakpointLines( debugger, lines );
         if ( wasRunning ) {
             handleDebuggerState();
@@ -217,13 +217,13 @@ bool Session::build() {
     executablePath.clear();
     programFilePath = activeDocument().path;
 
-    BuildResult build = buildProgram( programFilePath );
+    BuildResult const build = buildProgram( programFilePath );
     std::vector<LineMark> marks;
     for ( const Message &message : build.messages ) {
         buildLog.push_back( message );
         if ( message.sourceLine > 0 ) {
-            bool isWarning = message.kind == MessageKind::Warning;
-            LineMarkKind kind = isWarning ? LineMarkKind::Warning : LineMarkKind::Error;
+            bool const isWarning = message.kind == MessageKind::Warning;
+            LineMarkKind const kind = isWarning ? LineMarkKind::Warning : LineMarkKind::Error;
             marks.push_back( { message.sourceLine, kind, message.text } );
         }
     }
@@ -248,7 +248,7 @@ void Session::runProgram() {
     }
 
     console.clear();
-    std::string qemu = qemuProgram();
+    std::string const qemu = qemuProgram();
     if ( qemu.empty() ) {
         printResult( qemuNotFound, MessageKind::Error );
         return;
@@ -296,7 +296,7 @@ void Session::setLineMarks( const std::vector<LineMark> &marks ) {
 
 /// @brief Splits output into console lines; it may end mid-line.
 void Session::appendProgramOutput( const std::string &output ) {
-    for ( char c : output ) {
+    for ( char const c : output ) {
         if ( !programLineOpen ) {
             console.push_back( {} );
             programLineOpen = true;
@@ -317,7 +317,7 @@ void Session::printResult( const std::string &text, MessageKind kind, int source
 }
 
 void Session::printExitCode( int exitCode ) {
-    std::string text = "Program exited with code " + std::to_string( exitCode );
+    std::string const text = "Program exited with code " + std::to_string( exitCode );
     printResult( text, exitCode == 0 ? MessageKind::Success : MessageKind::Error );
 }
 
@@ -383,7 +383,7 @@ void Session::handleDebuggerState() {
     } else if ( debugger.state == DebuggerState::Running ) {
         showRunning();
     } else if ( debugger.state == DebuggerState::Exited ) {
-        int exitCode = debugger.exitCode;
+        int const exitCode = debugger.exitCode;
         endDebugSession();
         printExitCode( exitCode );
     } else if ( debugger.state == DebuggerState::Crashed ) {
@@ -422,7 +422,7 @@ void Session::showCrash() {
     int line = sourceLineAt( debugger, readRegisters( debugger ).pc );
     endDebugSession();
 
-    std::string location = line > 0 ? " at line " + std::to_string( line ) : "";
+    std::string const location = line > 0 ? " at line " + std::to_string( line ) : "";
     printResult( "Program crashed" + location + ": " + error, MessageKind::Error, line );
     if ( line > 0 ) {
         setLineMarks( { { line, LineMarkKind::Error, error } } );
@@ -440,7 +440,7 @@ void Session::updateRunningProgram() {
     }
 
     if ( runningProgram.signal != 0 ) {
-        std::string signalName = strsignal( runningProgram.signal );
+        std::string const signalName = strsignal( runningProgram.signal );
         printResult( "Program crashed: " + signalName, MessageKind::Error );
     } else {
         printExitCode( runningProgram.exitCode );

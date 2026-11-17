@@ -32,7 +32,7 @@ bool drawFontCombo( const char *label, const std::vector<std::string> &families,
     }
     bool clicked = false;
     for ( const std::string &family : families ) {
-        bool isCurrent = family == current;
+        bool const isCurrent = family == current;
         if ( ImGui::Selectable( family.c_str(), isCurrent ) ) {
             picked = family;
             clicked = true;
@@ -73,7 +73,7 @@ bool drawSchemeCombo( const char *label, bool dark ) {
         if ( scheme.dark != dark ) {
             continue;
         }
-        bool isCurrent = &scheme == &current;
+        bool const isCurrent = &scheme == &current;
         if ( ImGui::Selectable( scheme.name, isCurrent ) ) {
             setColorScheme( scheme );
             clicked = true;

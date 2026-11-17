@@ -59,7 +59,7 @@ C works too: a `.c` file is built with `aarch64-linux-gnu-gcc -g -O0 -static` in
 
 `run.sh` only knows how to install packages with `apt`. On other distributions, install these yourself:
 
-- clang 18 or newer, CMake 3.24 or newer, Ninja, pkg-config, git
+- clang 18 or newer, CMake 3.25 or newer, Ninja, pkg-config, git
 - GNU binutils and GCC for `aarch64-linux-gnu` (assembler, linker and C compiler)
 - QEMU user mode (`qemu-aarch64`)
 - development packages for GLFW 3, OpenGL, FreeType and libvterm

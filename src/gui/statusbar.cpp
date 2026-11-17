@@ -25,7 +25,7 @@ std::string breadcrumb( const std::string &path ) {
     for ( const std::filesystem::path &part : std::filesystem::path( path ) ) {
         parts.push_back( part.string() );
     }
-    size_t first = parts.size() > breadcrumbDepth ? parts.size() - breadcrumbDepth : 0;
+    size_t const first = parts.size() > breadcrumbDepth ? parts.size() - breadcrumbDepth : 0;
     std::string text;
     for ( size_t i = first; i < parts.size(); i++ ) {
         text += ( i == first ? "" : "  ›  " ) + parts[i];
@@ -46,9 +46,9 @@ ImU32 programStateColor( const Session &session ) {
 
 /// @brief A dot one text line high.
 void drawStateDot( ImU32 color ) {
-    float size = ImGui::GetTextLineHeight();
-    ImVec2 topLeft = ImGui::GetCursorScreenPos();
-    ImVec2 center( topLeft.x + size * 0.5f, topLeft.y + size * 0.5f );
+    float const size = ImGui::GetTextLineHeight();
+    ImVec2 const topLeft = ImGui::GetCursorScreenPos();
+    ImVec2 const center( topLeft.x + size * 0.5f, topLeft.y + size * 0.5f );
     ImGui::GetWindowDrawList()->AddCircleFilled( center, size * 0.2f, color );
     ImGui::Dummy( ImVec2( size, size ) );
 }
@@ -56,12 +56,12 @@ void drawStateDot( ImU32 color ) {
 } // anonymous namespace
 
 void drawStatusBar( const Session &session ) {
-    float height = ImGui::GetFrameHeight();
-    float verticalPadding = ( height - ImGui::GetTextLineHeight() ) * 0.5f;
+    float const height = ImGui::GetFrameHeight();
+    float const verticalPadding = ( height - ImGui::GetTextLineHeight() ) * 0.5f;
     ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( sidePadding, verticalPadding ) );
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4.0f, 0.0f ) );
     ImGui::PushStyleColor( ImGuiCol_WindowBg, currentScheme().ground );
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
+    ImGuiWindowFlags const flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
     if ( ImGui::BeginViewportSideBar( "##StatusBar", ImGui::GetMainViewport(), ImGuiDir_Down,
                                       height, flags ) ) {
         ImGui::PushStyleColor( ImGuiCol_Text, currentScheme().secondaryText );
@@ -71,9 +71,9 @@ void drawStatusBar( const Session &session ) {
         int line = 1;
         int column = 1;
         editorCursor( session, line, column );
-        bool isC = sourceLanguage( path ) == SourceLanguage::C;
-        std::vector<std::string> facts = { std::to_string( line ) + ":" + std::to_string( column ),
-                                           isC ? "C" : "AArch64" };
+        bool const isC = sourceLanguage( path ) == SourceLanguage::C;
+        std::vector<std::string> const facts = {
+            std::to_string( line ) + ":" + std::to_string( column ), isC ? "C" : "AArch64" };
 
         float rightWidth = ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.x +
                            ImGui::CalcTextSize( session.status.c_str() ).x;

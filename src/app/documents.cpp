@@ -21,9 +21,9 @@ std::filesystem::path recentFilesPath() {
 /// @brief Rereads a C document's header declarations unless its path and preprocessor lines
 ///        are unchanged; other documents get none.
 void readDeclarations( Document &document, const std::string &text ) {
-    bool isC = !document.path.empty() && sourceLanguage( document.path ) == SourceLanguage::C;
-    std::string directives = isC ? preprocessorLines( text ) : "";
-    std::string source = isC ? document.path + '\n' + directives : "";
+    bool const isC = !document.path.empty() && sourceLanguage( document.path ) == SourceLanguage::C;
+    std::string const directives = isC ? preprocessorLines( text ) : "";
+    std::string const source = isC ? document.path + '\n' + directives : "";
     if ( source == document.declarationsSource ) {
         return;
     }
@@ -103,7 +103,7 @@ const Document &Session::activeDocument() const {
 }
 
 bool Session::openFile( const std::string &path ) {
-    std::string fullPath = absolutePath( path );
+    std::string const fullPath = absolutePath( path );
     for ( const Document &document : openDocuments ) {
         if ( document.path == fullPath ) {
             activeDocumentId = document.id;
@@ -116,7 +116,7 @@ bool Session::openFile( const std::string &path ) {
         removeRecentFile( fullPath );
         return false;
     }
-    std::ifstream file( fullPath );
+    std::ifstream const file( fullPath );
     if ( !file ) {
         status = "Cannot open " + path;
         return false;
@@ -125,8 +125,8 @@ bool Session::openFile( const std::string &path ) {
     content << file.rdbuf();
 
     const Document &active = activeDocument();
-    bool replacesEmptyUntitled = active.path.empty() && !isModified( active );
-    int replacedId = active.id;
+    bool const replacesEmptyUntitled = active.path.empty() && !isModified( active );
+    int const replacedId = active.id;
     activeDocumentId = addDocument( fullPath, content.str() );
     if ( replacesEmptyUntitled ) {
         closeDocument( replacedId );
@@ -147,7 +147,7 @@ void Session::closeDocument( int id ) {
     if ( position == openDocuments.end() ) {
         return;
     }
-    size_t index = position - openDocuments.begin();
+    size_t const index = position - openDocuments.begin();
     openDocuments.erase( position );
     if ( openDocuments.empty() ) {
         addDocument( "", "" );
@@ -227,7 +227,7 @@ bool Session::saveActiveDocument( const std::string &path, const CommandInput &i
     }
 
     Document &document = activeDocumentForEdit();
-    std::string savedPath = absolutePath( path );
+    std::string const savedPath = absolutePath( path );
     if ( savedPath != document.path ) {
         breakpoints[savedPath] = std::move( breakpoints[document.path] );
         breakpoints.erase( document.path );

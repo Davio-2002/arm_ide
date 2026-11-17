@@ -1,3 +1,4 @@
+#include <array>
 #include <cctype>
 #include <filesystem>
 #include <regex>
@@ -30,9 +31,9 @@ Message parseToolOutputLine( const std::string &text, const std::string &sourceN
         message.sourceLine = std::stoi( match[2] );
     }
 
-    bool isError = text.contains( "Error" ) || text.contains( "error" ) ||
-                   text.contains( "undefined reference" );
-    bool isWarning = text.contains( "Warning" ) || text.contains( "warning" );
+    bool const isError = text.contains( "Error" ) || text.contains( "error" ) ||
+                         text.contains( "undefined reference" );
+    bool const isWarning = text.contains( "Warning" ) || text.contains( "warning" );
     if ( isError ) {
         message.kind = MessageKind::Error;
     } else if ( isWarning ) {
@@ -44,12 +45,12 @@ Message parseToolOutputLine( const std::string &text, const std::string &sourceN
 } // anonymous namespace
 
 SourceLanguage sourceLanguage( const std::string &path ) {
-    std::string extension = std::filesystem::path( path ).extension();
+    std::string const extension = std::filesystem::path( path ).extension();
     return extension == ".c" || extension == ".h" ? SourceLanguage::C : SourceLanguage::Assembly;
 }
 
 std::string crossTool( const std::string &name ) {
-    static const char *const prefixes[] = {
+    static const std::array prefixes = {
         "aarch64-linux-gnu-",      "aarch64-unknown-linux-gnu-", "aarch64-suse-linux-",
         "aarch64-none-linux-gnu-", "aarch64-linux-musl-",        "aarch64-alpine-linux-musl-",
     };
@@ -87,7 +88,7 @@ BuildResult buildProgram( const std::string &sourcePath ) {
     std::string objectPath = std::filesystem::path( source ).replace_extension( ".o" );
     std::string executablePath = std::filesystem::path( source ).replace_extension( "" );
 
-    bool isC = sourceLanguage( source ) == SourceLanguage::C;
+    bool const isC = sourceLanguage( source ) == SourceLanguage::C;
     std::vector<std::vector<std::string>> steps;
     if ( isC ) {
         steps = { { crossTool( "gcc" ), "-g", "-O0", "-static", source, "-o", executablePath } };
@@ -105,7 +106,7 @@ BuildResult buildProgram( const std::string &sourcePath ) {
                   MessageKind::Error } );
             return build;
         }
-        CommandResult command = runCommand( step, source.parent_path() );
+        CommandResult const command = runCommand( step, source.parent_path() );
 
         std::istringstream output( command.output );
         std::string line;
@@ -124,12 +125,12 @@ BuildResult buildProgram( const std::string &sourcePath ) {
 
 std::map<uint64_t, int> readSourceLines( const std::string &executablePath,
                                          const std::string &sourcePath ) {
-    static const std::regex lineRow( "^(.*\\S)\\s+([0-9]+|-)\\s+0x([0-9a-f]+)" );
-    std::string directory = std::filesystem::path( executablePath ).parent_path();
-    CommandResult command = runCommand(
+    static const std::regex lineRow( R"(^(.*\S)\s+([0-9]+|-)\s+0x([0-9a-f]+))" );
+    std::string const directory = std::filesystem::path( executablePath ).parent_path();
+    CommandResult const command = runCommand(
         { crossTool( "objdump" ), "--dwarf=decodedline", "--wide", executablePath }, directory );
 
-    std::string sourceName = std::filesystem::path( sourcePath ).filename();
+    std::string const sourceName = std::filesystem::path( sourcePath ).filename();
     std::map<uint64_t, int> sourceLines;
     std::istringstream output( command.output );
     std::string row;
@@ -138,15 +139,15 @@ std::map<uint64_t, int> readSourceLines( const std::string &executablePath,
         if ( !std::regex_search( row, match, lineRow ) ) {
             continue;
         }
-        bool isSourceRow = match[1] == sourceName && match[2] != "-";
+        bool const isSourceRow = match[1] == sourceName && match[2] != "-";
         sourceLines[std::stoull( match[3], nullptr, 16 )] = isSourceRow ? std::stoi( match[2] ) : 0;
     }
     return sourceLines;
 }
 
 uint64_t symbolAddress( const std::string &executablePath, const std::string &name ) {
-    std::string directory = std::filesystem::path( executablePath ).parent_path();
-    CommandResult command =
+    std::string const directory = std::filesystem::path( executablePath ).parent_path();
+    CommandResult const command =
         runCommand( { crossTool( "nm" ), "--defined-only", executablePath }, directory );
     std::istringstream output( command.output );
     std::string address, type, symbol;

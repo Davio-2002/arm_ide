@@ -1,9 +1,11 @@
+#include <array>
 #include <cstdlib>
 #include <fcntl.h>
 #include <pty.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <utility>
 #include <vterm.h>
 
 #include <core/terminal.h>
@@ -21,7 +23,7 @@ uint32_t packColor( const VTermColor &color ) {
 TerminalCell convertCell( const VTermScreen *screen, VTermScreenCell cell ) {
     TerminalCell result;
     result.character = cell.chars[0] == 0xffffffff ? 0 : cell.chars[0];
-    result.width = cell.width;
+    result.width = static_cast<unsigned char>( cell.width );
     result.defaultForeground = VTERM_COLOR_IS_DEFAULT_FG( &cell.fg );
     result.defaultBackground = VTERM_COLOR_IS_DEFAULT_BG( &cell.bg );
     vterm_screen_convert_color_to_rgb( screen, &cell.fg );
@@ -36,9 +38,9 @@ TerminalCell convertCell( const VTermScreen *screen, VTermScreenCell cell ) {
 
 /// @brief libvterm callback: writes encoded keys and pastes to the shell.
 void writeToShell( const char *bytes, size_t length, void *user ) {
-    Terminal &terminal = *static_cast<Terminal *>( user );
+    Terminal const &terminal = *static_cast<Terminal *>( user );
     while ( length > 0 && terminal.masterFd >= 0 ) {
-        ssize_t written = write( terminal.masterFd, bytes, length );
+        ssize_t const written = write( terminal.masterFd, bytes, length );
         if ( written <= 0 ) {
             return;
         }
@@ -150,7 +152,7 @@ bool startTerminal( Terminal &terminal, const std::string &directory, int rows, 
     winsize size = {};
     size.ws_row = rows;
     size.ws_col = columns;
-    pid_t pid = forkpty( &terminal.masterFd, nullptr, nullptr, &size );
+    pid_t const pid = forkpty( &terminal.masterFd, nullptr, nullptr, &size );
     if ( pid < 0 ) {
         terminal.masterFd = -1;
         return false;
@@ -165,7 +167,7 @@ bool startTerminal( Terminal &terminal, const std::string &directory, int rows, 
         if ( !shell || !*shell ) {
             shell = "/bin/bash";
         }
-        execl( shell, shell, nullptr );
+        execl( shell, shell, nullptr ); // NOLINT(clang-analyzer-optin.taint.GenericTaint)
         dprintf( STDERR_FILENO, "Cannot run %s\n", shell );
         _exit( 127 );
     }
@@ -188,10 +190,10 @@ bool updateTerminal( Terminal &terminal ) {
     }
 
     bool changed = false;
-    char buffer[16384];
+    std::array<char, 16384> buffer{};
     ssize_t count;
-    while ( ( count = read( terminal.masterFd, buffer, sizeof( buffer ) ) ) > 0 ) {
-        vterm_input_write( terminal.vterm, buffer, count );
+    while ( ( count = read( terminal.masterFd, buffer.data(), buffer.size() ) ) > 0 ) {
+        vterm_input_write( terminal.vterm, buffer.data(), count );
         changed = true;
     }
     if ( changed ) {
@@ -236,7 +238,8 @@ void sendTerminalInput( Terminal &terminal, const TerminalInput &input ) {
     if ( input.alt ) {
         modifiers |= VTERM_MOD_ALT;
     }
-    VTermModifier modifier = static_cast<VTermModifier>( modifiers );
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange): VTermModifier is a set of flags
+    auto const modifier = static_cast<VTermModifier>( modifiers );
     if ( input.key != TerminalKey::None ) {
         vterm_keyboard_key( terminal.vterm, vtermKey( input.key ), modifier );
     } else {
@@ -257,7 +260,7 @@ void stopTerminal( Terminal &terminal ) {
     if ( !isRunning( terminal ) ) {
         return;
     }
-    pid_t pid = terminal.pid;
+    pid_t const pid = terminal.pid;
     closeShell( terminal );
     kill( pid, SIGKILL );
     waitpid( pid, nullptr, 0 );
@@ -270,8 +273,8 @@ bool isRunning( const Terminal &terminal ) {
 
 TerminalCell terminalCell( const Terminal &terminal, int row, int column ) {
     if ( row < 0 ) {
-        int index = static_cast<int>( terminal.scrollback.size() ) + row;
-        if ( index < 0 || column >= static_cast<int>( terminal.scrollback[index].size() ) ) {
+        int const index = static_cast<int>( terminal.scrollback.size() ) + row;
+        if ( index < 0 || std::cmp_greater_equal( column, terminal.scrollback[index].size() ) ) {
             return {};
         }
         return terminal.scrollback[index][column];

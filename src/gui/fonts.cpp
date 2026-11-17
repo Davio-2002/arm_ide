@@ -110,10 +110,10 @@ std::vector<std::string> fontFamilies( bool monospaceOnly ) {
     if ( !isInPath( "fc-list" ) ) {
         return {};
     }
-    std::string pattern =
+    std::string const pattern =
         monospaceOnly ? ":lang=en:color=false:spacing=mono" : ":lang=en:color=false";
-    std::vector<std::string> args = { "fc-list", pattern, "--format",
-                                      "%{fontformat}\t%{family[0]}\n" };
+    std::vector<std::string> const args = { "fc-list", pattern, "--format",
+                                            "%{fontformat}\t%{family[0]}\n" };
     std::vector<std::string> families;
     std::istringstream lines( runCommand( args, "" ).output );
     std::string line;
@@ -134,9 +134,9 @@ std::optional<FontFace> findFont( const std::string &family ) {
     if ( family.empty() || !isInPath( "fc-match" ) ) {
         return std::nullopt;
     }
-    CommandResult result = runCommand( { "fc-match", family + ":style=Regular", "--format",
-                                         "%{fontformat}\t%{index}\t%{family}\t%{file}\n" },
-                                       "" );
+    CommandResult const result = runCommand( { "fc-match", family + ":style=Regular", "--format",
+                                               "%{fontformat}\t%{index}\t%{family}\t%{file}\n" },
+                                             "" );
     std::istringstream lines( result.output );
     std::string line;
     while ( std::getline( lines, line ) ) {
