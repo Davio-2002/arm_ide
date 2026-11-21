@@ -64,6 +64,14 @@ uint64_t littleEndian( const std::string &hex, size_t offset, size_t byteCount )
     return value;
 }
 
+std::string littleEndianHex( uint64_t value ) {
+    std::string hex;
+    for ( size_t i = 0; i < sizeof( value ); i++ ) {
+        hex += std::format( "{:02x}", ( value >> ( i * 8 ) ) & 0xff );
+    }
+    return hex;
+}
+
 bool isValidSocketPath( const std::string &path ) {
     return path.size() < sizeof( sockaddr_un::sun_path );
 }

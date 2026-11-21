@@ -26,6 +26,10 @@ uint64_t parseHex( const std::string &text );
 /// @return Decoded number.
 uint64_t littleEndian( const std::string &hex, size_t offset, size_t byteCount );
 
+/// @brief Encodes a 64-bit register value as a `P` packet expects it.
+/// @return 16 hex digits, least significant byte first.
+std::string littleEndianHex( uint64_t value );
+
 /// @return True if the path fits in a Unix socket address.
 bool isValidSocketPath( const std::string &path );
 
