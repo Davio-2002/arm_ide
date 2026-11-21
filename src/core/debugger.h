@@ -52,7 +52,8 @@ struct Registers {
 bool startDebugger( Debugger &debugger, const std::string &executablePath,
                     const std::string &sourcePath );
 
-/// @brief Sets breakpoints, stopping a running program briefly to apply them.
+/// @brief Sets breakpoints, stopping a running program briefly to apply them. A line's
+///        breakpoint is at its first address, so Continue doesn't stop again on the same line.
 /// @param[in,out] debugger Active debugger.
 /// @param[in]     lines    1-based source lines; lines without code are ignored.
 void setBreakpointLines( Debugger &debugger, const std::set<int> &lines );

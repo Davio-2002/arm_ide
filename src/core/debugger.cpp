@@ -1,8 +1,12 @@
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <format>
+#include <fstream>
+#include <optional>
 #include <thread>
 #include <unistd.h>
 #include <utility>
@@ -20,6 +24,12 @@ const size_t registerCount = 33;
 /// Hex digits of one 64-bit register in a `g` reply.
 const size_t registerDigits = 16;
 const uint64_t flagsMask = 0xf0000000;
+const auto interruptedResult = static_cast<uint64_t>( -EINTR );
+/// AArch64 Linux system calls whose first argument QEMU passes to the host unchanged (an fd, a
+/// pid, an id type or a clock): epoll_pwait, read, write, readv, writev, pread64, pwrite64,
+/// pselect6, waitid, clock_nanosleep, accept, sendto, recvfrom, sendmsg, recvmsg, accept4, wait4.
+constexpr auto restartableSystemCalls = std::to_array<uint64_t>(
+    { 22, 63, 64, 65, 66, 67, 68, 72, 95, 115, 202, 206, 207, 211, 212, 242, 260 } );
 
 /// @brief Names a GDB signal; GDB's numbers differ from Linux's from 7 on.
 std::string signalName( int signal ) {
@@ -125,6 +135,71 @@ void runTo( Debugger &debugger, uint64_t address ) {
         debugger.temporaryBreakpoint = address;
     }
     resume( debugger, "c" );
+}
+
+void writeRegister( Debugger &debugger, int number, uint64_t value ) {
+    std::string reply;
+    request( debugger, "P" + toHex( number ) + "=" + littleEndianHex( value ), reply );
+}
+
+/// @brief Waits until a SIGSTOP has stopped the process.
+/// @return False if it did not stop in time.
+bool waitUntilStopped( pid_t pid ) {
+    std::string const path = std::format( "/proc/{}/stat", pid );
+    auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds( requestTimeoutMilliseconds );
+    while ( std::chrono::steady_clock::now() < deadline ) {
+        std::string stat;
+        std::getline( std::ifstream( path ), stat );
+        size_t const nameEnd = stat.rfind( ')' );
+        if ( nameEnd != std::string::npos && stat.substr( nameEnd + 1, 3 ) == " T " ) {
+            return true;
+        }
+        std::this_thread::sleep_for( std::chrono::milliseconds( 1 ) );
+    }
+    return false;
+}
+
+/// @return First argument of the host system call the stopped process is blocked in, or
+///         nothing when it is not in one.
+std::optional<uint64_t> blockedSystemCallArgument( pid_t pid ) {
+    std::ifstream file( std::format( "/proc/{}/syscall", pid ) );
+    int64_t number = -1;
+    std::string argument;
+    if ( !( file >> number >> argument ) || number < 0 ) {
+        return std::nullopt;
+    }
+    return parseHex( argument );
+}
+
+/// @brief Stops the running program with a SIGTRAP, which QEMU reports as a stop.
+/// @param[out] reply           Stop reply.
+/// @param[out] blockedArgument First argument of the system call the program was blocked in.
+/// @return True if a stop reply arrived.
+bool interruptProgram( Debugger &debugger, std::string &reply,
+                       std::optional<uint64_t> &blockedArgument ) {
+    pid_t const pid = debugger.qemu.pid;
+    if ( kill( pid, SIGSTOP ) != 0 || !waitUntilStopped( pid ) ) {
+        kill( pid, SIGCONT );
+        return false;
+    }
+    blockedArgument = blockedSystemCallArgument( pid );
+    bool const sent = kill( pid, SIGTRAP ) == 0;
+    kill( pid, SIGCONT );
+    return sent && receiveStopReply( debugger, reply, requestTimeoutMilliseconds );
+}
+
+/// @brief Restarts the system call that interrupting the program ended. The kernel restarts a
+///        call for a signal the debugger drops, but QEMU returns EINTR to the program instead.
+/// @param[in] firstArgument The call's first argument, read before the interrupt.
+void restartInterruptedSystemCall( Debugger &debugger, uint64_t firstArgument ) {
+    uint64_t const call = programCounter( debugger ) - 4;
+    if ( readRegister( debugger, 0 ) != interruptedResult || !isSystemCall( debugger, call ) ||
+         !std::ranges::contains( restartableSystemCalls, readRegister( debugger, 8 ) ) ) {
+        return;
+    }
+    writeRegister( debugger, 0, firstArgument );
+    writeRegister( debugger, 32, call );
 }
 
 /// @brief Steps one instruction. An svc runs to PC+4 instead: QEMU's single step runs one
@@ -292,8 +367,9 @@ bool startDebugger( Debugger &debugger, const std::string &executablePath,
 
 void setBreakpointLines( Debugger &debugger, const std::set<int> &lines ) {
     std::set<uint64_t> addresses;
+    std::set<int> placed;
     for ( const auto &[address, line] : debugger.sourceLines ) {
-        if ( lines.contains( line ) ) {
+        if ( lines.contains( line ) && placed.insert( line ).second ) {
             addresses.insert( address );
         }
     }
@@ -302,8 +378,8 @@ void setBreakpointLines( Debugger &debugger, const std::set<int> &lines ) {
         applyBreakpoints( debugger, addresses );
     } else if ( debugger.state == DebuggerState::Running ) {
         std::string reply;
-        if ( kill( debugger.qemu.pid, SIGTRAP ) != 0 ||
-             !receiveStopReply( debugger, reply, requestTimeoutMilliseconds ) ) {
+        std::optional<uint64_t> blockedArgument;
+        if ( !interruptProgram( debugger, reply, blockedArgument ) ) {
             debugger.state = DebuggerState::Crashed;
             debugger.error = "QEMU did not stop";
             return;
@@ -313,6 +389,9 @@ void setBreakpointLines( Debugger &debugger, const std::set<int> &lines ) {
             return;
         }
         debugger.state = DebuggerState::Paused;
+        if ( blockedArgument ) {
+            restartInterruptedSystemCall( debugger, *blockedArgument );
+        }
         applyBreakpoints( debugger, addresses );
         if ( addresses.contains( programCounter( debugger ) ) ) {
             restoreStepBreakpoints( debugger );

@@ -136,7 +136,13 @@ to `Icon` in `gui/icons.h`, and in `gui/icons.cpp` an array including `name_svg.
 - **QEMU's single step over `svc` runs one instruction too many**, so a step over `svc` runs to
   a temporary breakpoint at PC+4 instead.
 - **QEMU ignores the `0x03` interrupt byte** while the program runs. Breakpoints of a running
-  program are changed by sending SIGTRAP to QEMU (SIGINT would kill it).
+  program are changed by sending SIGTRAP to QEMU (SIGINT would kill it). QEMU returns EINTR
+  to a system call the signal interrupts (a `read` waiting for input), so QEMU is first held
+  with SIGSTOP, the call's first argument read from `/proc/<pid>/syscall`, and after the stop
+  `x0` and the PC are set back so the `svc` runs again.
+- **A line's breakpoint is at its first address only.** A C line has several rows in the
+  line table (one after each call), and a breakpoint on each made Continue stop on the same
+  line again.
 - **Programs run on a pseudo-terminal**, so glibc flushes `printf` per line and input arrives
   in lines; Ctrl+D in the Console input sends end of file.
 - **`Session`, the terminal and the dialogs keep fixed addresses**: requests, libvterm and

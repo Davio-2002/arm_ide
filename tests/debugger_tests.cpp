@@ -39,6 +39,18 @@ const std::string loopProgram = "int main( void ) {\n"       // 1
                                 "    return 0;\n"            // 6
                                 "}\n";                       // 7
 
+const std::string sumProgram = "int square( int x ) {\n"                   // 1
+                               "    return x * x;\n"                       // 2
+                               "}\n"                                       // 3
+                               "\n"                                        // 4
+                               "int main( void ) {\n"                      // 5
+                               "    int s = 0;\n"                          // 6
+                               "    for ( int i = 0; i < 3; i++ ) {\n"     // 7
+                               "        s += square( i ) + square( s );\n" // 8
+                               "    }\n"                                   // 9
+                               "    return s;\n"                           // 10
+                               "}\n";                                      // 11
+
 /// @brief Builds the source and starts it under the debugger, paused at its entry point.
 /// @return Empty on success, otherwise what went wrong.
 std::string startProgram( Debugger &debugger, const std::string &source ) {
@@ -99,6 +111,25 @@ TEST_F( AssemblyDebugTest, ContinuesFromBreakpoint ) {
     EXPECT_EQ( debugger.exitCode, 3 );
 }
 
+TEST_F( CDebugTest, ContinueStopsOncePerRunOfALine ) {
+    ASSERT_EQ( startProgram( debugger, writeSource( "sum.c", sumProgram ) ), "" );
+    setBreakpointLines( debugger, { 8 } );
+    runDebugger( debugger );
+    pollDebugger( debugger, stopTimeoutMilliseconds );
+
+    int stops = 0;
+    while ( debugger.state == DebuggerState::Paused && stops < 10 ) {
+        EXPECT_EQ( pausedLine( debugger ), 8 );
+        stops++;
+        continueDebugger( debugger );
+        pollDebugger( debugger, stopTimeoutMilliseconds );
+    }
+
+    EXPECT_EQ( stops, 3 );
+    EXPECT_EQ( debugger.state, DebuggerState::Exited );
+    EXPECT_EQ( debugger.exitCode, 6 );
+}
+
 TEST_F( AssemblyDebugTest, LineStepRunsOneInstruction ) {
     ASSERT_EQ( startProgram( debugger, writeSource( "calls.s", systemCallProgram ) ), "" );
 
@@ -156,9 +187,7 @@ TEST_F( CDebugTest, SetsBreakpointsWhileRunning ) {
     EXPECT_EQ( pausedLine( debugger ), 4 );
 }
 
-// Bug: the SIGTRAP that stops QEMU to change breakpoints also ends the program's blocked read,
-// so scanf fails and the input typed afterwards is lost.
-TEST_F( CDebugTest, DISABLED_KeepsWaitingForInputWhenBreakpointsChange ) {
+TEST_F( CDebugTest, KeepsWaitingForInputWhenBreakpointsChange ) {
     ASSERT_EQ( startProgram( debugger, writeSource( "input.c", inputProgram ) ), "" );
     runDebugger( debugger );
     pollDebugger( debugger, 200 );
