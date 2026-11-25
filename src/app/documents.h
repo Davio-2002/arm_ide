@@ -2,20 +2,20 @@
 
 #include <cstddef>
 #include <filesystem>
-#include <optional>
 #include <string>
 #include <vector>
 
 #include <core/header_declarations.h>
 
-/// @brief An open or untitled file. It is modified while the frontend's edit version differs
-///        from the one at the last open or save.
+/// @brief An open or untitled file. The session owns its text; frontends show it and report
+///        edits. It is modified while its text differs from the one at the last open or save.
 struct Document {
     int id = 0;
     std::string path;
-    std::string diskText;
+    std::string text;
+    std::string savedText;
+    /// Grows with every change of the text, so a frontend can tell its copy is old.
     size_t version = 0;
-    std::optional<size_t> savedVersion;
     std::vector<Declaration> declarations;
     std::string declarationsSource;
 };

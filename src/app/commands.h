@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <string>
 
 /// @brief A user command, run by Session::run(). A new one needs its cases in the switches
@@ -21,10 +20,9 @@ enum class Command {
 
 enum class PathRequest { None, FileToOpen, FileToSave };
 
-/// @brief What a command needs from the frontend, which owns the text buffers.
+/// @brief What a command needs from the frontend besides the documents' text: the cursor line
+///        and a path the user chose.
 struct CommandInput {
-    std::string text;
-    size_t version = 0;
     int line = 0;
     std::string path;
 };

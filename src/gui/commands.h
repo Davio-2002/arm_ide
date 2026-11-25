@@ -14,8 +14,8 @@ void requestCommand( Command command );
 /// @brief Queues any Session change to run after drawing.
 void requestAction( std::function<void( Session & )> action );
 
-/// @brief Runs this frame's requests in order, asking for a file first when a command needs
-///        one. Dropped while a dialog is open.
+/// @brief Passes the editor's edits to the session, then runs this frame's requests in order,
+///        asking for a file first when a command needs one. Dropped while a dialog is open.
 void runRequests( Session &session );
 
 /// @brief Requests the commands whose shortcut was pressed.
