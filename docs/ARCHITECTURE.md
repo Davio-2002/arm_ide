@@ -43,7 +43,7 @@ To decide where code goes, ask: *would another frontend need this?* If yes, it i
 
 | File | Job |
 |---|---|
-| `main.cpp` | The frame loop. |
+| `main.cpp` | The frame loop; owns the `Session` and the `TerminalView`. |
 | `window`, `settings`, `fonts`, `theme`, `color_schemes`, `icons` | Window, `imgui.ini`, fonts, colours, icons. |
 | `commands` | Shortcuts table, menu items and buttons for commands, the request queue. |
 | `menu`, `toolbar`, `statusbar` | The top bar and the bottom bar. |
@@ -57,7 +57,7 @@ To decide where code goes, ask: *would another frontend need this?* If yes, it i
 ```
 waitForNextFrame( busy )    input, a window event, or the next frame is due
 session.update()            program output, debugger stop replies
-updateTerminalView()        shell output
+updateTerminalView( view )  shell output
 drawMenuBar / drawStatusBar / drawPanels
     syncEditorWithSession   a text buffer per document, edit versions reported, line marks
     every panel draws       reads the Session, never changes it; user actions are *requested*
@@ -318,9 +318,7 @@ Binding for all code. C++23 (the project already uses it), errors through `std::
 - clang-format and clang-tidy are mandatory.
 - A newcomer understands the structure in 10 minutes.
 
-Known violations to remove during the restructuring: the `static Session` in `gui/main.cpp`, the
-`static Terminal` in `gui/panels/terminal_view.cpp`, the `drawingSession`/`drawingBuffer`
-globals in `gui/panels/editor.cpp`, and the mix of `bool`, status strings and
+Known violations to remove during the restructuring: the mix of `bool`, status strings and
 `std::optional` for errors.
 
 ### Restructuring order
