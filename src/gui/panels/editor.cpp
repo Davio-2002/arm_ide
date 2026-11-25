@@ -36,10 +36,6 @@ struct EditorBuffer {
 
 std::vector<std::unique_ptr<EditorBuffer>> buffers;
 
-/// For the editor's callbacks, which get no user data.
-const Session *drawingSession = nullptr;
-EditorBuffer *drawingBuffer = nullptr;
-
 /// @return The buffer, or nullptr before the next sync.
 EditorBuffer *findBuffer( int documentId ) {
     for ( const std::unique_ptr<EditorBuffer> &buffer : buffers ) {
@@ -90,9 +86,8 @@ void drawPausedArrow( ImDrawList *drawList, ImVec2 center, float size ) {
 }
 
 /// @brief Line decorator: breakpoint dot and paused arrow; a click toggles the breakpoint.
-void drawLineDecoration( TextEditor::Decorator &decorator ) {
-    const Session &session = *drawingSession;
-    const EditorBuffer &buffer = *drawingBuffer;
+void drawLineDecoration( const Session &session, const EditorBuffer &buffer,
+                         TextEditor::Decorator &decorator ) {
     int const line = static_cast<int>( decorator.line ) + 1;
     ImVec2 const topLeft = ImGui::GetCursorScreenPos();
     if ( ImGui::InvisibleButton( "##breakpoint", ImVec2( decorator.width, decorator.height ) ) ) {
@@ -116,16 +111,17 @@ void drawLineDecoration( TextEditor::Decorator &decorator ) {
 }
 
 /// @brief Autocomplete callback: language words and document identifiers starting with the term.
-void suggestCompletions( TextEditor::AutoCompleteState &state ) {
+void suggestCompletions( const Session &session, const EditorBuffer &buffer,
+                         TextEditor::AutoCompleteState &state ) {
     std::vector<std::string> documentWords;
-    drawingBuffer->editor.IterateIdentifiers(
+    buffer.editor.IterateIdentifiers(
         [&documentWords]( const std::string &word ) { documentWords.push_back( word ); } );
-    if ( sourceLanguage( drawingBuffer->path ) != SourceLanguage::C ) {
+    if ( sourceLanguage( buffer.path ) != SourceLanguage::C ) {
         state.suggestions = completeAssembly( state.searchTerm, documentWords );
         return;
     }
-    std::string const line = drawingBuffer->editor.GetLineText( state.searchTermEnd.line );
-    std::string const folder = std::filesystem::path( drawingBuffer->path ).parent_path();
+    std::string const line = buffer.editor.GetLineText( state.searchTermEnd.line );
+    std::string const folder = std::filesystem::path( buffer.path ).parent_path();
     if ( std::optional<IncludeCompletion> include =
              completeInclude( line, state.searchTermEnd.index, folder ) ) {
         state.suggestions = include->names;
@@ -142,8 +138,8 @@ void suggestCompletions( TextEditor::AutoCompleteState &state ) {
         state.suggestions.clear();
         return;
     }
-    for ( const Document &document : drawingSession->documents() ) {
-        if ( document.id == drawingBuffer->documentId ) {
+    for ( const Document &document : session.documents() ) {
+        if ( document.id == buffer.documentId ) {
             state.suggestions = completeC( state.searchTerm, document.declarations, documentWords );
         }
     }
@@ -151,26 +147,33 @@ void suggestCompletions( TextEditor::AutoCompleteState &state ) {
 
 /// @brief Picks the language by path. Assembly: '.' is a word character and triggers
 ///        autocomplete; C: '#' triggers it.
-void setLanguage( EditorBuffer &buffer ) {
+/// @param[in] session Read by the completion callback; must outlive the buffer.
+void setLanguage( EditorBuffer &buffer, const Session &session ) {
     bool const isC = sourceLanguage( buffer.path ) == SourceLanguage::C;
     buffer.editor.SetLanguage( isC ? cLanguage() : aarch64Language() );
 
     TextEditor::AutoCompleteConfig autoComplete;
     autoComplete.triggerCharacters = isC ? "#" : ".";
     autoComplete.wordCharacters = isC ? "" : ".";
-    autoComplete.callback = suggestCompletions;
+    autoComplete.callback = [&session, &buffer]( TextEditor::AutoCompleteState &state ) {
+        suggestCompletions( session, buffer, state );
+    };
     buffer.editor.SetAutoCompleteConfig( &autoComplete );
 }
 
-EditorBuffer *addBuffer( const Document &document ) {
+/// @param[in] session Read by the editor's callbacks; must outlive the buffer.
+EditorBuffer *addBuffer( const Document &document, const Session &session ) {
     auto buffer = std::make_unique<EditorBuffer>();
     buffer->documentId = document.id;
     buffer->path = document.path;
     buffer->editor.SetTabSize( 5 );
     buffer->editor.SetInsertSpacesOnTabs( true );
     buffer->editor.SetShowWhitespacesEnabled( false );
-    buffer->editor.SetLineDecorator( 2, drawLineDecoration );
-    setLanguage( *buffer );
+    buffer->editor.SetLineDecorator(
+        2, [&session, &buffer = *buffer]( TextEditor::Decorator &decorator ) {
+            drawLineDecoration( session, buffer, decorator );
+        } );
+    setLanguage( *buffer, session );
     buffer->editor.SetText( document.diskText );
     buffer->headerNamesCheckedVersion = buffer->editor.GetUndoIndex();
     buffer->declarationsCheckedVersion = buffer->editor.GetUndoIndex();
@@ -294,11 +297,11 @@ void syncEditorWithSession( Session &session ) {
     for ( const Document &document : session.documents() ) {
         EditorBuffer *buffer = findBuffer( document.id );
         if ( !buffer ) {
-            buffer = addBuffer( document );
+            buffer = addBuffer( document, session );
         }
         if ( buffer->path != document.path ) {
             buffer->path = document.path;
-            setLanguage( *buffer );
+            setLanguage( *buffer, session );
         }
         session.setDocumentVersion( document.id, buffer->editor.GetUndoIndex() );
         updateDeclarations( session, *buffer );
@@ -318,14 +321,12 @@ void drawEditorPanel( const Session &session ) {
     beginPanel( "Editor" );
     drawDocumentTabs( session );
     ImGui::SetCursorPosY( ImGui::GetCursorPosY() + editorTabsGap );
-    drawingSession = &session;
-    drawingBuffer = findBuffer( session.activeDocument().id );
-    if ( drawingBuffer ) {
+    if ( EditorBuffer *buffer = findBuffer( session.activeDocument().id ) ) {
         pushCodeFont();
-        ImGui::PushID( drawingBuffer );
-        drawingBuffer->editor.SetPalette( editorPalette() );
-        drawingBuffer->editor.Render( "##code" );
-        openHeaderNames( *drawingBuffer );
+        ImGui::PushID( buffer );
+        buffer->editor.SetPalette( editorPalette() );
+        buffer->editor.Render( "##code" );
+        openHeaderNames( *buffer );
         ImGui::PopID();
         ImGui::PopFont();
     }

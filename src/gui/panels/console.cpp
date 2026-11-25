@@ -6,6 +6,7 @@
 #include <gui/commands.h>
 #include <gui/fonts.h>
 #include <gui/panels/panels.h>
+#include <gui/panels/terminal_view.h>
 #include <gui/theme.h>
 #include <gui/widgets.h>
 
@@ -41,18 +42,19 @@ void followLatestBuild( const Session &session ) {
     shownOutputTab = session.buildSucceeded ? OutputTab::Console : OutputTab::Build;
 }
 
-void drawOutputTab( const char *id, const char *label, OutputTab tab, bool hasIcon ) {
+/// @brief Draw output tab
+/// @return True when the tab was selected this frame.
+bool drawOutputTab( const char *id, const char *label, OutputTab tab, bool hasIcon ) {
     PillTab pill;
     pill.label = label;
     pill.icon = Icon::Console;
     pill.hasIcon = hasIcon;
     pill.selected = shownOutputTab == tab;
-    if ( drawPillTab( id, pill ) == TabClick::Select ) {
-        shownOutputTab = tab;
-        if ( tab == OutputTab::Terminal ) {
-            focusTerminalView();
-        }
+    if ( drawPillTab( id, pill ) != TabClick::Select ) {
+        return false;
     }
+    shownOutputTab = tab;
+    return true;
 }
 
 /// @brief Resume, Step and Stop; they only resume a paused program, the toolbar starts it.
@@ -70,14 +72,16 @@ void drawDebugButtons( const Session &session ) {
 }
 
 /// @brief Tabs, debug or shell buttons, and Clear on the right.
-void drawConsoleHeader( const Session &session ) {
+void drawConsoleHeader( const Session &session, TerminalView &terminalView ) {
     ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing,
                          ImVec2( 2.0f, ImGui::GetStyle().ItemSpacing.y ) );
     drawOutputTab( "##consoleTab", "Console", OutputTab::Console, true );
     ImGui::SameLine();
     drawOutputTab( "##buildTab", "Build", OutputTab::Build, false );
     ImGui::SameLine();
-    drawOutputTab( "##terminalTab", "Terminal", OutputTab::Terminal, false );
+    if ( drawOutputTab( "##terminalTab", "Terminal", OutputTab::Terminal, false ) ) {
+        focusTerminalView( terminalView );
+    }
     ImGui::SameLine();
     drawVerticalSeparator();
     ImGui::SameLine();
@@ -86,8 +90,8 @@ void drawConsoleHeader( const Session &session ) {
     pushHeaderButtonPadding();
     if ( showsTerminal ) {
         if ( iconButton( "##stopShell", Icon::Stop, "Kill the shell and start a new one",
-                         isTerminalRunning() ) ) {
-            stopTerminalShell();
+                         isTerminalRunning( terminalView ) ) ) {
+            stopTerminalShell( terminalView );
         }
     } else {
         drawDebugButtons( session );
@@ -96,7 +100,7 @@ void drawConsoleHeader( const Session &session ) {
                      ImGui::GetStyle().WindowPadding.x );
     if ( iconButton( "##clear", Icon::Clear, "Clear" ) ) {
         if ( showsTerminal ) {
-            clearTerminalView();
+            clearTerminalView( terminalView );
         } else {
             requestCommand( Command::ClearOutput );
         }
@@ -232,10 +236,10 @@ void drawConsoleTab( const Session &session ) {
 
 } // anonymous namespace
 
-void drawConsolePanel( const Session &session ) {
+void drawConsolePanel( const Session &session, TerminalView &terminalView ) {
     followLatestBuild( session );
     beginPanel( "Console" );
-    drawConsoleHeader( session );
+    drawConsoleHeader( session, terminalView );
     switch ( shownOutputTab ) {
     case OutputTab::Console:
         drawConsoleTab( session );
@@ -244,7 +248,7 @@ void drawConsolePanel( const Session &session ) {
         drawMessages( session.buildLog, buildSelection );
         break;
     case OutputTab::Terminal:
-        drawTerminalView( session );
+        drawTerminalView( terminalView, session );
         break;
     }
     ImGui::End();

@@ -24,19 +24,21 @@ struct Panel {
     bool canHide;
     Icon icon;
     bool visible;
-    void ( *draw )( Session &session );
+    void ( *draw )( Session &session, TerminalView &terminalView );
 };
 
 /// Drawn in this order; a new panel adds a row.
 auto panels = std::to_array<Panel>( {
     { "Editor", DockArea::Main, false, Icon::AsmFile, true,
-      []( Session &session ) { drawEditorPanel( session ); } },
+      []( Session &session, TerminalView & ) { drawEditorPanel( session ); } },
     { "Console", DockArea::Bottom, false, Icon::Console, true,
-      []( Session &session ) { drawConsolePanel( session ); } },
+      []( Session &session, TerminalView &terminalView ) {
+          drawConsolePanel( session, terminalView );
+      } },
     { "Registers", DockArea::Right, true, Icon::Registers, true,
-      []( Session &session ) { drawRegistersPanel( session ); } },
+      []( Session &session, TerminalView & ) { drawRegistersPanel( session ); } },
     { "Memory", DockArea::RightBottom, true, Icon::Memory, true,
-      []( Session &session ) { drawMemoryPanel( session ); } },
+      []( Session &session, TerminalView & ) { drawMemoryPanel( session ); } },
 } );
 
 /// @brief Main and bottom on the left, right and right-bottom on the right.
@@ -150,13 +152,13 @@ float headerButtonWidth() {
     return ImGui::GetFrameHeight();
 }
 
-void drawPanels( Session &session ) {
+void drawPanels( Session &session, TerminalView &terminalView ) {
     syncEditorWithSession( session );
     drawToolStrip();
     drawDockSpace();
     for ( const Panel &panel : panels ) {
         if ( panel.visible ) {
-            panel.draw( session );
+            panel.draw( session, terminalView );
         }
     }
 }
