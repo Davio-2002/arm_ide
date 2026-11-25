@@ -10,6 +10,7 @@ add_executable(arm_ide_tests
     test_support.cpp
     build_tests.cpp
     debugger_tests.cpp
+    documents_tests.cpp
 )
 target_include_directories(arm_ide_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(arm_ide_tests PRIVATE arm_ide_app GTest::gtest_main)
