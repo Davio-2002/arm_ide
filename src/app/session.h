@@ -69,12 +69,12 @@ class Session {
     /// @brief Closes without asking; the last one is replaced by an untitled one.
     void closeDocument( int id );
 
-    /// @brief Records the frontend's edit version; equal versions mean equal text.
-    void setDocumentVersion( int id, size_t version );
+    /// @brief Replaces a document's text with the frontend's edited one; a different text gets
+    ///        a new version.
+    void editDocument( int id, std::string text );
 
     /// @brief Rereads a C document's header declarations if its preprocessor lines changed.
-    /// @param[in] text Edited text.
-    void updateDeclarations( int id, const std::string &text );
+    void updateDeclarations( int id );
 
     /// @return Names of documents with unsaved changes.
     std::vector<std::string> unsavedDocumentNames() const;
@@ -141,7 +141,7 @@ class Session {
     Document *findDocument( int id );
     Document &activeDocumentForEdit();
     int addDocument( const std::string &path, const std::string &text );
-    bool saveActiveDocument( const std::string &path, const CommandInput &input );
+    bool saveActiveDocument( const std::string &path );
     bool saveBeforeBuild( const CommandInput &input );
     void addRecentFile( const std::string &path );
     void removeRecentFile( const std::string &path );

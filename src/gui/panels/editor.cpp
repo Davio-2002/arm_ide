@@ -27,6 +27,8 @@ struct EditorBuffer {
     int documentId = 0;
     std::string path;
     TextEditor editor;
+    size_t shownVersion = 0;
+    size_t reportedUndoIndex = 0;
     int shownLineMarksVersion = -1;
     bool shownLineMarksOfProgram = false;
     size_t headerNamesCheckedVersion = 0;
@@ -174,9 +176,11 @@ EditorBuffer *addBuffer( const Document &document, const Session &session ) {
             drawLineDecoration( session, buffer, decorator );
         } );
     setLanguage( *buffer, session );
-    buffer->editor.SetText( document.diskText );
+    buffer->editor.SetText( document.text );
+    buffer->shownVersion = document.version;
+    buffer->reportedUndoIndex = buffer->editor.GetUndoIndex();
     buffer->headerNamesCheckedVersion = buffer->editor.GetUndoIndex();
-    buffer->declarationsCheckedVersion = buffer->editor.GetUndoIndex();
+    buffer->declarationsCheckedVersion = document.version;
     buffers.push_back( std::move( buffer ) );
     return buffers.back().get();
 }
@@ -246,16 +250,28 @@ bool onPreprocessorLine( const EditorBuffer &buffer ) {
     return start != std::string::npos && line[start] == '#';
 }
 
-/// @brief Passes an edited C buffer to the session for its header declarations, once the
+/// @brief Asks the session to reread an edited C document's header declarations, once the
 ///        cursor is off a '#' line, so #include isn't compiled at every keystroke.
-void updateDeclarations( Session &session, EditorBuffer &buffer ) {
-    size_t const version = buffer.editor.GetUndoIndex();
-    if ( version == buffer.declarationsCheckedVersion ||
+void updateDeclarations( Session &session, EditorBuffer &buffer, const Document &document ) {
+    if ( document.version == buffer.declarationsCheckedVersion ||
          sourceLanguage( buffer.path ) != SourceLanguage::C || onPreprocessorLine( buffer ) ) {
         return;
     }
-    buffer.declarationsCheckedVersion = version;
-    session.updateDeclarations( buffer.documentId, buffer.editor.GetText() );
+    buffer.declarationsCheckedVersion = document.version;
+    session.updateDeclarations( buffer.documentId );
+}
+
+/// @brief Shows the document's text when the session changed it; the buffer's own edits
+///        were reported first, so a newer version here comes from the session.
+void showDocumentText( EditorBuffer &buffer, const Document &document ) {
+    if ( buffer.shownVersion == document.version ) {
+        return;
+    }
+    TextEditor::DocPos const cursor = buffer.editor.GetMainCursorPosition();
+    buffer.editor.SetText( document.text );
+    buffer.editor.SetCursor( cursor );
+    buffer.shownVersion = document.version;
+    buffer.reportedUndoIndex = buffer.editor.GetUndoIndex();
 }
 
 /// @brief Opens autocomplete after an edit leaves the cursor just after an #include's '<' or
@@ -303,8 +319,8 @@ void syncEditorWithSession( Session &session ) {
             buffer->path = document.path;
             setLanguage( *buffer, session );
         }
-        session.setDocumentVersion( document.id, buffer->editor.GetUndoIndex() );
-        updateDeclarations( session, *buffer );
+        showDocumentText( *buffer, document );
+        updateDeclarations( session, *buffer, document );
         buffer->editor.SetReadOnlyEnabled( session.isDebugging() );
         showLineMarks( *buffer, session );
     }
@@ -333,11 +349,25 @@ void drawEditorPanel( const Session &session ) {
     ImGui::End();
 }
 
+void reportEditorEdits( Session &session ) {
+    for ( const std::unique_ptr<EditorBuffer> &buffer : buffers ) {
+        size_t const undoIndex = buffer->editor.GetUndoIndex();
+        if ( undoIndex == buffer->reportedUndoIndex ) {
+            continue;
+        }
+        buffer->reportedUndoIndex = undoIndex;
+        session.editDocument( buffer->documentId, buffer->editor.GetText() );
+        for ( const Document &document : session.documents() ) {
+            if ( document.id == buffer->documentId ) {
+                buffer->shownVersion = document.version;
+            }
+        }
+    }
+}
+
 CommandInput editorCommandInput( const Session &session ) {
     CommandInput input;
     if ( EditorBuffer const *buffer = findBuffer( session.activeDocument().id ) ) {
-        input.text = buffer->editor.GetText();
-        input.version = buffer->editor.GetUndoIndex();
         input.line = static_cast<int>( buffer->editor.GetCurrentCursorPosition().line ) + 1;
     }
     return input;

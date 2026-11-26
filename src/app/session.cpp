@@ -85,7 +85,7 @@ void Session::run( Command command, const CommandInput &input ) {
         break;
     case Command::Save:
     case Command::SaveAs:
-        saveActiveDocument( input.path.empty() ? activeDocument().path : input.path, input );
+        saveActiveDocument( input.path.empty() ? activeDocument().path : input.path );
         break;
     case Command::Build:
         if ( saveBeforeBuild( input ) ) {

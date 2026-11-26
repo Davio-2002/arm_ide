@@ -33,7 +33,7 @@ To decide where code goes, ask: *would another frontend need this?* If yes, it i
 
 | File | Job |
 |---|---|
-| `commands.h` | `Command` (every user command), `CommandInput` (what the frontend gives a command), `PathRequest`. |
+| `commands.h` | `Command` (every user command), `CommandInput` (the cursor line and a chosen path a command gets from the frontend), `PathRequest`. |
 | `session` | The one `Session` class: documents, commands, build, run, debug, console output, line marks, `PausedState`. |
 | `documents` | The `Document` struct, names and display of paths, the config directory, recent files. |
 | `completion` | Which words complete a typed term, per language: `completeAssembly`, `completeC` (C also gets the document's header declarations, read at open, save and when an edit changed the preprocessor lines), `completeDirective` for the word after a line's leading `#` (typing `#` starts autocomplete in C), and `completeInclude` for the header name of an `#include` line. |
@@ -59,9 +59,10 @@ waitForNextFrame( busy )    input, a window event, or the next frame is due
 session.update()            program output, debugger stop replies
 updateTerminalView( view )  shell output
 drawMenuBar / drawStatusBar / drawPanels
-    syncEditorWithSession   a text buffer per document, edit versions reported, line marks
+    syncEditorWithSession   a text buffer per document, the session's text changes, line marks
     every panel draws       reads the Session, never changes it; user actions are *requested*
-runRequests( session )      the requested commands and actions run, in order
+runRequests( session )      the editor's edits reach the session, then the requested commands
+                            and actions run, in order
 drawDialogs()               a dialog's answer runs its callback
 ```
 
@@ -77,11 +78,17 @@ a resize, redraw, close or drop arrived.
 
 ## Documents and text
 
-`Session` owns the list of documents (path, the text as on disk, edit version, saved version)
-and which one is active. The frontend owns the text being edited: one `TextEditor` per document
-id in `gui/panels/editor.cpp`. Each frame the editor reports each buffer's undo index as the
-document's version, so `isModified()` is decided in `app/`. A command that saves gets the
-active text in its `CommandInput`.
+`Session` owns the list of documents and which one is active. A `Document` holds its path, its
+text, the text at the last open or save, and a version that grows with every change of the
+text. `isModified()` compares the two texts, so undoing back to the saved text is not a change.
+Saving and building use the document's text; the frontend gives a command only the cursor line
+and a chosen path.
+
+The frontend keeps a mirror: one `TextEditor` per document id in `gui/panels/editor.cpp`, with
+the cursor, selection, scroll and undo. After drawing, `reportEditorEdits` sends the whole text
+of every buffer whose undo index moved to `Session::editDocument`. Before drawing,
+`syncEditorWithSession` puts the document's text into a buffer whose shown version is older,
+which happens only when the session itself changed the text.
 
 ## Recipes
 

@@ -34,7 +34,7 @@ const auto shortcuts = std::to_array<Shortcut>( {
 
 std::vector<std::function<void( Session & )>> requests;
 
-/// @brief Runs a command with the editor's text, asking first for a file if it needs one.
+/// @brief Runs a command with the editor's cursor line, asking first for a file if it needs one.
 void runCommand( Session &session, Command command ) {
     CommandInput input = editorCommandInput( session );
     auto runWithPath = [&session, command, input]( const std::string &path ) mutable {
@@ -66,6 +66,7 @@ void requestAction( std::function<void( Session & )> action ) {
 }
 
 void runRequests( Session &session ) {
+    reportEditorEdits( session );
     for ( const auto &request : std::exchange( requests, {} ) ) {
         if ( !isDialogOpen() ) {
             request( session );

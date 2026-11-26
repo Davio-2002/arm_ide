@@ -20,9 +20,9 @@ std::filesystem::path recentFilesPath() {
 
 /// @brief Rereads a C document's header declarations unless its path and preprocessor lines
 ///        are unchanged; other documents get none.
-void readDeclarations( Document &document, const std::string &text ) {
+void readDeclarations( Document &document ) {
     bool const isC = !document.path.empty() && sourceLanguage( document.path ) == SourceLanguage::C;
-    std::string const directives = isC ? preprocessorLines( text ) : "";
+    std::string const directives = isC ? preprocessorLines( document.text ) : "";
     std::string const source = isC ? document.path + '\n' + directives : "";
     if ( source == document.declarationsSource ) {
         return;
@@ -38,7 +38,7 @@ void readDeclarations( Document &document, const std::string &text ) {
 } // anonymous namespace
 
 bool isModified( const Document &document ) {
-    return document.savedVersion && document.version != *document.savedVersion;
+    return document.text != document.savedText;
 }
 
 std::string documentName( const std::string &path ) {
@@ -157,18 +157,18 @@ void Session::closeDocument( int id ) {
     }
 }
 
-void Session::setDocumentVersion( int id, size_t version ) {
-    if ( Document *document = findDocument( id ) ) {
-        document->version = version;
-        if ( !document->savedVersion ) {
-            document->savedVersion = version;
-        }
+void Session::editDocument( int id, std::string text ) {
+    Document *document = findDocument( id );
+    if ( !document || document->text == text ) {
+        return;
     }
+    document->text = std::move( text );
+    ++document->version;
 }
 
-void Session::updateDeclarations( int id, const std::string &text ) {
+void Session::updateDeclarations( int id ) {
     if ( Document *document = findDocument( id ) ) {
-        readDeclarations( *document, text );
+        readDeclarations( *document );
     }
 }
 
@@ -208,8 +208,9 @@ int Session::addDocument( const std::string &path, const std::string &text ) {
     Document document;
     document.id = nextDocumentId++;
     document.path = path;
-    document.diskText = text;
-    readDeclarations( document, text );
+    document.text = text;
+    document.savedText = text;
+    readDeclarations( document );
     openDocuments.push_back( document );
     if ( activeDocumentId == 0 ) {
         activeDocumentId = document.id;
@@ -218,32 +219,30 @@ int Session::addDocument( const std::string &path, const std::string &text ) {
 }
 
 /// @brief Breakpoints follow the file to a new name.
-bool Session::saveActiveDocument( const std::string &path, const CommandInput &input ) {
+bool Session::saveActiveDocument( const std::string &path ) {
+    Document &document = activeDocumentForEdit();
     std::ofstream file( path );
-    file << input.text;
+    file << document.text;
     if ( !file ) {
         status = "Cannot save " + path;
         return false;
     }
 
-    Document &document = activeDocumentForEdit();
     std::string const savedPath = absolutePath( path );
     if ( savedPath != document.path ) {
         breakpoints[savedPath] = std::move( breakpoints[document.path] );
         breakpoints.erase( document.path );
     }
     document.path = savedPath;
-    document.diskText = input.text;
-    readDeclarations( document, input.text );
-    document.version = input.version;
-    document.savedVersion = input.version;
+    document.savedText = document.text;
+    readDeclarations( document );
     status = "Saved " + path;
     addRecentFile( savedPath );
     return true;
 }
 
 bool Session::saveBeforeBuild( const CommandInput &input ) {
-    return saveActiveDocument( input.path.empty() ? activeDocument().path : input.path, input );
+    return saveActiveDocument( input.path.empty() ? activeDocument().path : input.path );
 }
 
 void Session::addRecentFile( const std::string &path ) {
