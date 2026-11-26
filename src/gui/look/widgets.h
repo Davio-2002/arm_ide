@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include <gui/icons.h>
+#include <gui/look/icons.h>
 
 /// @brief Flat icon button, transparent until hovered.
 /// @return True if clicked.

@@ -2,13 +2,13 @@
 
 #include <array>
 
-#include <app/session.h>
-#include <gui/commands.h>
-#include <gui/fonts.h>
+#include <app/session/session.h>
+#include <gui/look/fonts.h>
+#include <gui/look/theme.h>
+#include <gui/look/widgets.h>
 #include <gui/panels/panels.h>
 #include <gui/panels/terminal_view.h>
-#include <gui/theme.h>
-#include <gui/widgets.h>
+#include <gui/window/commands.h>
 
 namespace {
 

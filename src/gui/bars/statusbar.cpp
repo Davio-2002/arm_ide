@@ -5,10 +5,10 @@
 #include <string>
 #include <vector>
 
-#include <app/session.h>
-#include <gui/panels/editor.h>
-#include <gui/statusbar.h>
-#include <gui/theme.h>
+#include <app/session/session.h>
+#include <gui/bars/statusbar.h>
+#include <gui/editor/editor.h>
+#include <gui/look/theme.h>
 
 namespace {
 

@@ -3,8 +3,8 @@
 #include <string>
 #include <utility>
 
-#include <app/aarch64_words.h>
-#include <gui/syntax.h>
+#include <app/language/aarch64_words.h>
+#include <gui/editor/syntax.h>
 
 namespace {
 

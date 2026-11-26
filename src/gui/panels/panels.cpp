@@ -4,12 +4,12 @@
 #include <array>
 #include <iterator>
 
-#include <app/session.h>
-#include <gui/icons.h>
-#include <gui/panels/editor.h>
+#include <app/session/session.h>
+#include <gui/editor/editor.h>
+#include <gui/look/icons.h>
+#include <gui/look/theme.h>
+#include <gui/look/widgets.h>
 #include <gui/panels/panels.h>
-#include <gui/theme.h>
-#include <gui/widgets.h>
 
 namespace {
 

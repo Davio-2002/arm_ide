@@ -2,14 +2,14 @@
 
 #include <functional>
 
-#include <app/session.h>
-#include <gui/appearance.h>
-#include <gui/commands.h>
-#include <gui/fonts.h>
-#include <gui/menu.h>
-#include <gui/theme.h>
-#include <gui/toolbar.h>
-#include <gui/widgets.h>
+#include <app/session/session.h>
+#include <gui/bars/toolbar.h>
+#include <gui/look/appearance.h>
+#include <gui/look/fonts.h>
+#include <gui/look/theme.h>
+#include <gui/look/widgets.h>
+#include <gui/window/commands.h>
+#include <gui/window/menu.h>
 
 namespace {
 

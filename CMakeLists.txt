@@ -74,30 +74,30 @@ target_include_directories(arm_ide_core PUBLIC src)
 target_link_libraries(arm_ide_core PUBLIC PkgConfig::VTERM util)
 
 add_library(arm_ide_app STATIC
-    src/app/session.cpp
-    src/app/documents.cpp
-    src/app/completion.cpp
-    src/app/aarch64_words.cpp)
+    src/app/session/session.cpp
+    src/app/workspace/documents.cpp
+    src/app/language/completion.cpp
+    src/app/language/aarch64_words.cpp)
 target_link_libraries(arm_ide_app PUBLIC arm_ide_core)
 
 add_executable(arm_ide
     src/gui/main.cpp
-    src/gui/window.cpp
-    src/gui/settings.cpp
-    src/gui/dialogs.cpp
-    src/gui/appearance.cpp
-    src/gui/fonts.cpp
-    src/gui/commands.cpp
-    src/gui/menu.cpp
-    src/gui/theme.cpp
-    src/gui/color_schemes.cpp
-    src/gui/icons.cpp
-    src/gui/toolbar.cpp
-    src/gui/widgets.cpp
-    src/gui/statusbar.cpp
-    src/gui/syntax.cpp
+    src/gui/window/window.cpp
+    src/gui/window/settings.cpp
+    src/gui/window/commands.cpp
+    src/gui/window/menu.cpp
+    src/gui/window/dialogs.cpp
+    src/gui/look/theme.cpp
+    src/gui/look/color_schemes.cpp
+    src/gui/look/fonts.cpp
+    src/gui/look/icons.cpp
+    src/gui/look/appearance.cpp
+    src/gui/look/widgets.cpp
+    src/gui/bars/toolbar.cpp
+    src/gui/bars/statusbar.cpp
+    src/gui/editor/editor.cpp
+    src/gui/editor/syntax.cpp
     src/gui/panels/panels.cpp
-    src/gui/panels/editor.cpp
     src/gui/panels/console.cpp
     src/gui/panels/terminal_view.cpp
     src/gui/panels/registers.cpp
@@ -114,7 +114,7 @@ function(embed_as_bytes input output)
 endfunction()
 
 embed_as_bytes(${CMAKE_SOURCE_DIR}/assets/app_icon/icon.rgba icon_rgba.inc)
-# Every icon becomes <name>_svg.inc, included by gui/icons.cpp.
+# Every icon becomes <name>_svg.inc, included by gui/look/icons.cpp.
 file(GLOB icon_files CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/assets/icons/*.svg)
 foreach(icon_file ${icon_files})
     get_filename_component(icon ${icon_file} NAME_WE)

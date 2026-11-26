@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include <gui/appearance.h>
-#include <gui/fonts.h>
-#include <gui/theme.h>
+#include <gui/look/appearance.h>
+#include <gui/look/fonts.h>
+#include <gui/look/theme.h>
 
 namespace {
 

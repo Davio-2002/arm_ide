@@ -10,11 +10,11 @@
 #include <string>
 #include <vector>
 
-#include <app/session.h>
+#include <app/session/session.h>
 #include <core/terminal.h>
-#include <gui/fonts.h>
+#include <gui/look/fonts.h>
+#include <gui/look/theme.h>
 #include <gui/panels/terminal_view.h>
-#include <gui/theme.h>
 
 namespace {
 

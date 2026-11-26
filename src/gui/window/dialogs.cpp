@@ -6,8 +6,8 @@
 #include <filesystem>
 #include <vector>
 
-#include <gui/dialogs.h>
-#include <gui/widgets.h>
+#include <gui/look/widgets.h>
+#include <gui/window/dialogs.h>
 
 namespace {
 

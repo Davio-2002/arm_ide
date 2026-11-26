@@ -4,7 +4,7 @@
 #include <string>
 #include <test_support.h>
 
-#include <app/session.h>
+#include <app/session/session.h>
 
 namespace {
 

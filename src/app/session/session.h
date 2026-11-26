@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <app/commands.h>
-#include <app/documents.h>
+#include <app/session/commands.h>
+#include <app/workspace/documents.h>
 #include <core/debugger.h>
 #include <core/process.h>
 #include <core/toolchain.h>

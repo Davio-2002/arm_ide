@@ -5,8 +5,8 @@
 #include <sstream>
 #include <utility>
 
-#include <app/documents.h>
-#include <app/session.h>
+#include <app/session/session.h>
+#include <app/workspace/documents.h>
 #include <core/toolchain.h>
 
 namespace {

@@ -6,8 +6,8 @@
 #include <iterator>
 #include <set>
 
-#include <app/aarch64_words.h>
-#include <app/completion.h>
+#include <app/language/aarch64_words.h>
+#include <app/language/completion.h>
 #include <core/header_declarations.h>
 
 namespace {

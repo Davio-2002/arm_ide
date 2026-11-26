@@ -3,8 +3,8 @@
 #include <functional>
 #include <string>
 
-#include <app/commands.h>
-#include <gui/icons.h>
+#include <app/session/commands.h>
+#include <gui/look/icons.h>
 
 class Session;
 

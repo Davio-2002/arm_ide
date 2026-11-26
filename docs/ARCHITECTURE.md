@@ -31,26 +31,38 @@ To decide where code goes, ask: *would another frontend need this?* If yes, it i
 
 ### app/
 
-| File | Job |
-|---|---|
-| `commands.h` | `Command` (every user command), `CommandInput` (the cursor line and a chosen path a command gets from the frontend), `PathRequest`. |
-| `session` | The one `Session` class: documents, commands, build, run, debug, console output, line marks, `PausedState`. |
-| `documents` | The `Document` struct, names and display of paths, the config directory, recent files. |
-| `completion` | Which words complete a typed term, per language: `completeAssembly`, `completeC` (C also gets the document's header declarations, read at open, save and when an edit changed the preprocessor lines), `completeDirective` for the word after a line's leading `#` (typing `#` starts autocomplete in C), and `completeInclude` for the header name of an `#include` line. |
-| `aarch64_words` | Generated lists of every mnemonic, directive and register the assembler accepts. |
+One folder per part of the IDE's logic. `Session` ties the parts together.
+
+| Folder | File | Job |
+|---|---|---|
+| `session/` | `session` | The one `Session` class: documents, commands, build, run, debug, console output, line marks, `PausedState`. |
+| | `commands.h` | `Command` (every user command), `CommandInput` (the cursor line and a chosen path a command gets from the frontend), `PathRequest`. |
+| `workspace/` | `documents` | The `Document` struct, names and display of paths, the config directory, recent files. |
+| `language/` | `completion` | Which words complete a typed term, per language: `completeAssembly`, `completeC` (C also gets the document's header declarations, read at open, save and when an edit changed the preprocessor lines), `completeDirective` for the word after a line's leading `#` (typing `#` starts autocomplete in C), and `completeInclude` for the header name of an `#include` line. |
+| | `aarch64_words` | Generated lists of every mnemonic, directive and register the assembler accepts. |
 
 ### gui/
 
-| File | Job |
-|---|---|
-| `main.cpp` | The frame loop; owns the `Session` and the `TerminalView`. |
-| `window`, `settings`, `fonts`, `theme`, `color_schemes`, `icons` | Window, `imgui.ini`, fonts, colours, icons. |
-| `commands` | Shortcuts table, menu items and buttons for commands, the request queue. |
-| `menu`, `toolbar`, `statusbar` | The top bar and the bottom bar. |
-| `dialogs`, `appearance` | Modal popups: file browser, discard changes, Appearance. |
-| `syntax` | The editor's AArch64 and C language definitions. C colours `#include`/`#define` words, the header name after `#include` (scheme colour `headerName`, palette slot `customColor1`) and strings itself (`tokenizeC`), instead of one colour for the whole preprocessor line. |
-| `widgets` | Shared buttons and pill tabs. |
-| `panels/` | One file per panel; `panels.cpp` lists them in one table. |
+One folder per kind of thing on the screen; `main.cpp` (the frame loop, owns the `Session` and
+the `TerminalView`) stays at the top.
+
+| Folder | File | Job |
+|---|---|---|
+| `window/` | `window` | The GLFW window, input callbacks, waiting for the next frame. |
+| | `settings` | `imgui.ini`: dock layout, zoom, fonts, theme. |
+| | `commands` | Shortcuts table, menu items and buttons for commands, the request queue. |
+| | `menu` | The menu bar and zoom shortcuts. |
+| | `dialogs` | Modal popups: file browser, discard changes. |
+| `look/` | `theme`, `color_schemes` | Colour schemes, dark/light by the desktop, accent, editor palette. |
+| | `fonts` | Installed UI and code fonts, zoom. |
+| | `icons` | SVG icons rasterized into textures. |
+| | `appearance` | The Appearance popup: theme, schemes, accent, fonts. |
+| | `widgets` | Shared buttons and pill tabs. |
+| `bars/` | `toolbar`, `statusbar` | The top bar and the bottom bar. |
+| `editor/` | `editor` | One `TextEditor` per document, the gutter with breakpoints and line marks, autocomplete. |
+| | `syntax` | The editor's AArch64 and C language definitions. C colours `#include`/`#define` words, the header name after `#include` (scheme colour `headerName`, palette slot `customColor1`) and strings itself (`tokenizeC`), instead of one colour for the whole preprocessor line. |
+| `panels/` | `panels` | The table of dock panels and the helpers every panel uses. |
+| | `console`, `terminal_view`, `registers`, `memory` | One file per panel. |
 
 ## One frame
 
@@ -67,10 +79,10 @@ drawDialogs()               a dialog's answer runs its callback
 ```
 
 Drawing gets a `const Session &`. Everything that changes the session goes through
-`requestCommand` or `requestAction` (`gui/commands.h`), so no panel sees a half-changed session
+`requestCommand` or `requestAction` (`gui/window/commands.h`), so no panel sees a half-changed session
 and every change happens in one place. Requests are dropped while a dialog is open.
 
-`waitForNextFrame` (`gui/window.cpp`) keeps an idle IDE asleep. While a program, the debugger
+`waitForNextFrame` (`gui/window/window.cpp`) keeps an idle IDE asleep. While a program, the debugger
 or the terminal is busy, and for 0.5 s after input, frames run at the display rate. Otherwise it
 waits up to 0.4 s (the caret blink, shell output). Under Wayland the window's own protocol
 traffic ends a GLFW wait at once, so the wait loops until the deadline unless ImGui got input or
@@ -84,7 +96,7 @@ text. `isModified()` compares the two texts, so undoing back to the saved text i
 Saving and building use the document's text; the frontend gives a command only the cursor line
 and a chosen path.
 
-The frontend keeps a mirror: one `TextEditor` per document id in `gui/panels/editor.cpp`, with
+The frontend keeps a mirror: one `TextEditor` per document id in `gui/editor/editor.cpp`, with
 the cursor, selection, scroll and undo. After drawing, `reportEditorEdits` sends the whole text
 of every buffer whose undo index moved to `Session::editDocument`. Before drawing,
 `syncEditorWithSession` puts the document's text into a buffer whose shown version is older,
@@ -94,13 +106,13 @@ which happens only when the session itself changed the text.
 
 ### Add a command (for example *Step Out*)
 
-1. `app/commands.h`: add `Command::StepOut`.
-2. `app/session.cpp`: add it to the switches of `commandLabel`, `canRun`, `pathNeeded` (if it
+1. `app/session/commands.h`: add `Command::StepOut`.
+2. `app/session/session.cpp`: add it to the switches of `commandLabel`, `canRun`, `pathNeeded` (if it
    needs a file) and `run`. Put the work in a `Session` method; CPU or protocol work goes in
    `core/debugger`.
-3. `gui/commands.cpp`: add its shortcut to `shortcuts[]`, if it has one.
-4. `gui/menu.cpp`: `commandMenuItem( session, Command::StepOut )` in its menu; optionally
-   `commandButton(...)` in `gui/toolbar.cpp` or a panel header.
+3. `gui/window/commands.cpp`: add its shortcut to `shortcuts[]`, if it has one.
+4. `gui/window/menu.cpp`: `commandMenuItem( session, Command::StepOut )` in its menu; optionally
+   `commandButton(...)` in `gui/bars/toolbar.cpp` or a panel header.
 
 ### Add a panel (for example *Stack*)
 
@@ -115,25 +127,25 @@ which happens only when the session itself changed the text.
 ### Show more of the paused program (for example the call stack)
 
 1. Read it in `core/debugger` (a new function using `gdbRequest`).
-2. Add a field to `PausedState` in `app/session.h` and fill it in `Session::showPausedLine()`.
+2. Add a field to `PausedState` in `app/session/session.h` and fill it in `Session::showPausedLine()`.
 3. Draw it in a panel from `session.paused`.
 
 ### Add a setting
 
 GUI-only settings (look, layout) are lines in the `[ArmIde][Settings]` section:
-`readSettingsLine` and `writeSettings` in `gui/settings.cpp`. Call `ImGui::MarkIniSettingsDirty()`
+`readSettingsLine` and `writeSettings` in `gui/window/settings.cpp`. Call `ImGui::MarkIniSettingsDirty()`
 when it changes. Settings another frontend needs belong in `app/`, in their own file under
 `configDirectory()`, like `recent_files`.
 
 ### Add a colour
 
-Add the field to `ColorScheme` in `gui/theme.h`, give it a value in every scheme in
-`gui/color_schemes.cpp`, and read it with `currentScheme().yourColor`.
+Add the field to `ColorScheme` in `gui/look/theme.h`, give it a value in every scheme in
+`gui/look/color_schemes.cpp`, and read it with `currentScheme().yourColor`.
 
 ### Add an icon
 
 Put `name.svg` in `assets/icons/` (CMake turns every SVG there into `name_svg.inc`). Add a value
-to `Icon` in `gui/icons.h`, and in `gui/icons.cpp` an array including `name_svg.inc` and a row in
+to `Icon` in `gui/look/icons.h`, and in `gui/look/icons.cpp` an array including `name_svg.inc` and a row in
 `iconSources[]`. List the icon in `assets/icons/NOTICE.md`.
 
 ## Things that are not obvious
@@ -338,7 +350,7 @@ The steps of the restructuring and the features after it are in [PLAN.md](PLAN.m
 cmake --preset release
 cmake --build --preset release
 ./build/arm_ide examples/hello.s
-clang-format -i src/*/*.cpp src/*/*.h src/gui/panels/*.cpp src/gui/panels/*.h
+clang-format -i $(find src tests -name '*.cpp' -o -name '*.h')
 ```
 
 Tests and clang-tidy, as the Check workflow runs them on every push:

@@ -7,8 +7,8 @@
 #include <utility>
 #include <vector>
 
-#include <gui/icons.h>
-#include <gui/theme.h>
+#include <gui/look/icons.h>
+#include <gui/look/theme.h>
 
 #define NANOSVG_IMPLEMENTATION
 #include <nanosvg.h>

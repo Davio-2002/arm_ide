@@ -9,10 +9,10 @@
 #include <utility>
 #include <vector>
 
-#include <gui/fonts.h>
-#include <gui/settings.h>
-#include <gui/theme.h>
-#include <gui/window.h>
+#include <gui/look/fonts.h>
+#include <gui/look/theme.h>
+#include <gui/window/settings.h>
+#include <gui/window/window.h>
 
 namespace {
 

@@ -5,10 +5,10 @@
 #include <format>
 #include <string>
 
-#include <app/session.h>
-#include <gui/fonts.h>
+#include <app/session/session.h>
+#include <gui/look/fonts.h>
+#include <gui/look/widgets.h>
 #include <gui/panels/panels.h>
-#include <gui/widgets.h>
 
 namespace {
 

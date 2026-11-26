@@ -9,7 +9,7 @@
 #include <sstream>
 
 #include <core/process.h>
-#include <gui/fonts.h>
+#include <gui/look/fonts.h>
 
 namespace {
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <app/commands.h>
+#include <app/session/commands.h>
 
 class Session;
 

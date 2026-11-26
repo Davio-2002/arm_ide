@@ -4,7 +4,7 @@
 #include <string>
 
 #include <core/process.h>
-#include <gui/theme.h>
+#include <gui/look/theme.h>
 
 namespace {
 

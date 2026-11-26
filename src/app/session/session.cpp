@@ -1,6 +1,6 @@
 #include <cstring>
 
-#include <app/session.h>
+#include <app/session/session.h>
 
 namespace {
 

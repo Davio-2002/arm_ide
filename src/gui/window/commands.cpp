@@ -5,11 +5,11 @@
 #include <utility>
 #include <vector>
 
-#include <app/session.h>
-#include <gui/commands.h>
-#include <gui/dialogs.h>
-#include <gui/panels/editor.h>
-#include <gui/widgets.h>
+#include <app/session/session.h>
+#include <gui/editor/editor.h>
+#include <gui/look/widgets.h>
+#include <gui/window/commands.h>
+#include <gui/window/dialogs.h>
 
 namespace {
 

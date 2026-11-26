@@ -3,10 +3,10 @@
 
 #include <string>
 
-#include <app/documents.h>
-#include <gui/fonts.h>
-#include <gui/settings.h>
-#include <gui/theme.h>
+#include <app/workspace/documents.h>
+#include <gui/look/fonts.h>
+#include <gui/look/theme.h>
+#include <gui/window/settings.h>
 
 namespace {
 

@@ -5,12 +5,12 @@
 #include <string>
 #include <vector>
 
-#include <app/session.h>
-#include <gui/commands.h>
-#include <gui/icons.h>
-#include <gui/theme.h>
-#include <gui/toolbar.h>
-#include <gui/widgets.h>
+#include <app/session/session.h>
+#include <gui/bars/toolbar.h>
+#include <gui/look/icons.h>
+#include <gui/look/theme.h>
+#include <gui/look/widgets.h>
+#include <gui/window/commands.h>
 
 namespace {
 

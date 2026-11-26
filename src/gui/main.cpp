@@ -2,16 +2,16 @@
 
 #include <string>
 
-#include <app/session.h>
-#include <gui/appearance.h>
-#include <gui/commands.h>
-#include <gui/dialogs.h>
-#include <gui/icons.h>
-#include <gui/menu.h>
+#include <app/session/session.h>
+#include <gui/bars/statusbar.h>
+#include <gui/look/appearance.h>
+#include <gui/look/icons.h>
 #include <gui/panels/panels.h>
 #include <gui/panels/terminal_view.h>
-#include <gui/statusbar.h>
-#include <gui/window.h>
+#include <gui/window/commands.h>
+#include <gui/window/dialogs.h>
+#include <gui/window/menu.h>
+#include <gui/window/window.h>
 
 namespace {
 

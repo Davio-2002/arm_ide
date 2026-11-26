@@ -1,4 +1,4 @@
-#include <gui/theme.h>
+#include <gui/look/theme.h>
 
 constinit const std::array<ColorScheme, 6> colorSchemeTable = std::to_array<ColorScheme>( {
     {

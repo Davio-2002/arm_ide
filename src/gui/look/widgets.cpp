@@ -1,8 +1,8 @@
 #include <imgui.h>
 
-#include <gui/icons.h>
-#include <gui/theme.h>
-#include <gui/widgets.h>
+#include <gui/look/icons.h>
+#include <gui/look/theme.h>
+#include <gui/look/widgets.h>
 
 namespace {
 
